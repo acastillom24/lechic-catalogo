@@ -12,15 +12,17 @@ export function generateStaticParams() {
   return getMarcas().map((m) => ({ slug: m.slug }));
 }
 
-export function generateMetadata({ params }) {
-  const marca = getMarca(params.slug);
+export async function generateMetadata({ params }) {
+  const { slug } = await params;
+  const marca = getMarca(slug);
   return {
     title: marca ? `${marca.nombre} · Le Chic` : "Catálogo · Le Chic",
   };
 }
 
-export default function MarcaPage({ params }) {
-  const marca = getMarca(params.slug);
+export default async function MarcaPage({ params }) {
+  const { slug } = await params;
+  const marca = getMarca(slug);
   if (!marca) notFound();
 
   const productos = getProductosPorMarca(marca.slug);

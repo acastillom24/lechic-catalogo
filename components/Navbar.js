@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { getMarcas, getConfig } from "../lib/data";
+import SelectionButton from "./SelectionButton";
 
 export default function Navbar() {
   const marcas = getMarcas();
@@ -16,16 +17,19 @@ export default function Navbar() {
           <span className="nav-marca-txt">{config.marca}</span>
         </Link>
 
-        <button
-          className="nav-toggle"
-          aria-label="Abrir menú"
-          aria-expanded={abierto}
-          onClick={() => setAbierto((v) => !v)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+        <div className="nav-acciones">
+          <SelectionButton />
+          <button
+            className="nav-toggle"
+            aria-label="Abrir menú"
+            aria-expanded={abierto}
+            onClick={() => setAbierto((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
 
         <nav className={`nav-links ${abierto ? "abierto" : ""}`}>
           {marcas.map((m) => (
@@ -78,6 +82,11 @@ export default function Navbar() {
         }
         .nav-links :global(a:hover) {
           color: var(--rosa);
+        }
+        .nav-acciones {
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
         .nav-toggle {
           display: none;

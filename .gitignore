@@ -5,6 +5,3 @@ out/
 *.log
 .env*.local
 .vercel
-
-# Folders
-sandbox/

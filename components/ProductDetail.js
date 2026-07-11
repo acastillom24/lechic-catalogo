@@ -3,24 +3,35 @@
 import { useState } from "react";
 import Link from "next/link";
 import { getConfig } from "../lib/data";
+import { useSeleccion, construirKey } from "../lib/SelectionContext";
 
 export default function ProductDetail({ producto, marca, categoria }) {
   const config = getConfig();
+  const { agregar } = useSeleccion();
   const [idx, setIdx] = useState(0);
+  const [agregado, setAgregado] = useState(false);
   const variante = producto.variantes[idx];
+  const sinStock = variante.stock === false;
   const varias = producto.variantes.length > 1;
 
   const aromas = variante.aromas || producto.aromas || [];
   const precioFinal = variante.precioOferta ?? variante.precio;
   const hayOferta = variante.precioOferta != null;
 
-  // Mensaje pre-armado para consultar por WhatsApp (solo consulta, no venta online).
-  const mensaje = encodeURIComponent(
-    `Hola, me interesa: ${producto.nombre}` +
-      (varias ? ` (${variante.nombre})` : "") +
-      ` — ${config.moneda} ${precioFinal}`
-  );
-  const waUrl = `https://wa.me/${config.whatsapp}?text=${mensaje}`;
+  // Agrega la variante seleccionada a "Mi selección".
+  function agregarSeleccion() {
+    agregar({
+      key: construirKey(producto.id, variante.nombre),
+      productoId: producto.id,
+      nombre: producto.nombre,
+      variante: varias ? variante.nombre : "",
+      precio: precioFinal,
+      imagen: variante.imagen,
+    });
+    // Feedback breve en el botón.
+    setAgregado(true);
+    setTimeout(() => setAgregado(false), 1600);
+  }
 
   return (
     <div className="contenedor detalle" style={{ "--acento": marca?.color }}>
@@ -38,8 +49,13 @@ export default function ProductDetail({ producto, marca, categoria }) {
 
       <div className="detalle-grid">
         {/* Imagen */}
-        <div className="detalle-img">
+        <div className={`detalle-img ${sinStock ? "esta-agotado" : ""}`}>
           {hayOferta && <span className="detalle-oferta">Oferta</span>}
+          {sinStock && (
+            <div className="cinta-agotado">
+              <span>Agotado</span>
+            </div>
+          )}
           <img
             src={variante.imagen}
             alt={`${producto.nombre} ${varias ? variante.nombre : ""}`}
@@ -103,17 +119,24 @@ export default function ProductDetail({ producto, marca, categoria }) {
             </span>
           </div>
 
-          {/* Consulta por WhatsApp */}
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-solido detalle-cta"
-          >
-            Consultar por WhatsApp
-          </a>
+          {/* Agregar a mi selección */}
+          {sinStock ? (
+            <span
+              className="btn detalle-cta"
+              style={{ opacity: 0.5, cursor: "not-allowed" }}
+            >
+              Agotado por ahora
+            </span>
+          ) : (
+            <button
+              className="btn btn-solido detalle-cta"
+              onClick={agregarSeleccion}
+            >
+              {agregado ? "✓ Agregado a tu selección" : "Agregar a mi selección"}
+            </button>
+          )}
           <p className="detalle-nota">
-            Los pedidos se coordinan por mensaje. Revisa{" "}
+            Arma tu lista y consúltala completa por WhatsApp. Revisa{" "}
             <Link href="/info">cómo comprar</Link>.
           </p>
         </div>
@@ -157,6 +180,34 @@ export default function ProductDetail({ producto, marca, categoria }) {
         .detalle-img :global(img) {
           height: 100%;
           object-fit: contain;
+        }
+        .detalle-img.esta-agotado :global(img) {
+          opacity: 0.55;
+          filter: grayscale(0.55);
+        }
+        .cinta-agotado {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 120px;
+          height: 120px;
+          overflow: hidden;
+          z-index: 3;
+          pointer-events: none;
+        }
+        .cinta-agotado span {
+          position: absolute;
+          top: 24px;
+          right: -40px;
+          transform: rotate(45deg);
+          background: var(--tinta);
+          color: #fff;
+          font-size: 0.7rem;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-weight: 500;
+          text-align: center;
+          padding: 6px 48px;
         }
         .detalle-img-fallback {
           align-items: center;

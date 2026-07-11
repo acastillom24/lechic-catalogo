@@ -6,13 +6,15 @@ export function generateStaticParams() {
   return getProductos().map((p) => ({ id: p.id }));
 }
 
-export function generateMetadata({ params }) {
-  const p = getProducto(params.id);
+export async function generateMetadata({ params }) {
+  const { id } = await params;
+  const p = getProducto(id);
   return { title: p ? `${p.nombre} · Le Chic` : "Producto · Le Chic" };
 }
 
-export default function ProductoPage({ params }) {
-  const producto = getProducto(params.id);
+export default async function ProductoPage({ params }) {
+  const { id } = await params;
+  const producto = getProducto(id);
   if (!producto) notFound();
 
   const marca = getMarca(producto.marca);

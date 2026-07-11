@@ -20,12 +20,19 @@ export default function ProductCard({ producto }) {
 
   // ¿Hay alguna oferta entre las variantes?
   const enOferta = producto.variantes.some((v) => v.precioOferta != null);
+  // Solo se marca "Agotado" si TODAS las variantes están sin stock.
+  const agotado = producto.variantes.every((v) => v.stock === false);
 
   return (
     <Link href={`/producto/${producto.id}`} className="tarjeta">
       {enOferta && <span className="tarjeta-oferta">Oferta</span>}
 
-      <div className="tarjeta-img">
+      <div className={`tarjeta-img ${agotado ? "esta-agotado" : ""}`}>
+        {agotado && (
+          <div className="cinta-agotado">
+            <span>Agotado</span>
+          </div>
+        )}
         {/* Imagen del producto. Si no existe el archivo, se ve el
             marco vacío con el nombre — nunca se rompe el layout. */}
         <img
@@ -120,6 +127,34 @@ export default function ProductCard({ producto }) {
           height: 100%;
           width: 100%;
           object-fit: contain;
+        }
+        .tarjeta-img.esta-agotado :global(img) {
+          opacity: 0.55;
+          filter: grayscale(0.55);
+        }
+        .cinta-agotado {
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 96px;
+          height: 96px;
+          overflow: hidden;
+          z-index: 3;
+          pointer-events: none;
+        }
+        .cinta-agotado span {
+          position: absolute;
+          top: 18px;
+          right: -34px;
+          transform: rotate(45deg);
+          background: var(--tinta);
+          color: #fff;
+          font-size: 0.6rem;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          font-weight: 500;
+          text-align: center;
+          padding: 5px 40px;
         }
         .tarjeta-img-fallback {
           align-items: center;

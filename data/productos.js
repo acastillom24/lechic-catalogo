@@ -24,6 +24,10 @@
  *        nombre:      nombre de la variante (ej: "Magic")
  *        precio:      número (sin "S/")
  *        precioOferta: número (opcional; si existe, se muestra como oferta)
+ *        stock:       true = disponible, false = agotado (opcional;
+ *                     si no lo pones, se asume disponible). Cuando es
+ *                     false, la tarjeta y el detalle muestran una cinta
+ *                     "Agotado" y no se puede agregar a la selección.
  *        imagen:      ruta dentro de /public/images/productos/...
  *        aromas:      lista (opcional; sobreescribe la del producto)
  *      }
@@ -52,6 +56,7 @@ const productos = [
       {
         nombre: "Original",
         precio: 27,
+        stock: false,
         precioOferta: null,
         imagen: "/images/productos/importaciones/expression-original.png",
         aromas: ["Floral", "Ámbar", "Frutal"],
@@ -59,18 +64,21 @@ const productos = [
       {
         nombre: "Magic",
         precio: 35,
+        stock: true,
         imagen: "/images/productos/importaciones/expression-magic.png",
         aromas: ["Oriental", "Vainilla", "Flores"],
       },
       {
         nombre: "Sens",
         precio: 35,
+        stock: true,
         imagen: "/images/productos/importaciones/expression-sens.png",
         aromas: ["Floral", "Frutal", "Fresco"],
       },
       {
         nombre: "Celebrate",
         precio: 35,
+        stock: true,
         imagen: "/images/productos/importaciones/expression-celebrate.png",
         aromas: ["Frutal", "Dulce", "Floral"],
       },

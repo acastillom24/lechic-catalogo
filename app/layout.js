@@ -1,6 +1,8 @@
 import "../styles/globals.css";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { SeleccionProvider } from "../lib/SelectionContext";
+import SelectionPanel from "../components/SelectionPanel";
 
 export const metadata = {
   title: "Le Chic · Catálogo de fragancias y belleza",
@@ -24,9 +26,12 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <Navbar />
-        <main>{children}</main>
-        <Footer />
+        <SeleccionProvider>
+          <Navbar />
+          <main>{children}</main>
+          <Footer />
+          <SelectionPanel />
+        </SeleccionProvider>
       </body>
     </html>
   );
