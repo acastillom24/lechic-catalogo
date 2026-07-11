@@ -1,0 +1,142 @@
+/* ============================================================
+   ESTILOS GLOBALES  —  Identidad visual Le Chic
+   ------------------------------------------------------------
+   Todos los colores, tipografías y medidas viven aquí como
+   "tokens". Cambia un valor aquí y afecta a todo el sitio.
+   ============================================================ */
+
+:root {
+  /* Paleta — rosa Le Chic sobre papel cálido */
+  --rosa: #e8267f;
+  --rosa-hover: #c81f6c;
+  --rosa-suave: #f8a8cc;
+  --rosa-tenue: #fde4ef;
+  --tinta: #241a1f;
+  --papel: #fbf7f4;
+  --papel-hondo: #f3ebe6;
+  --linea: #ead9d0;
+  --gris: #8a7a72;
+  --blanco: #ffffff;
+  --oferta: #e8267f;
+
+  /* Tipografía */
+  --serif: "Cormorant Garamond", Georgia, serif;
+  --sans: "Jost", system-ui, -apple-system, sans-serif;
+
+  /* Medidas */
+  --ancho-max: 1160px;
+  --radio: 6px;
+  --sombra: 0 10px 30px rgba(36, 26, 31, 0.08);
+  --sombra-hover: 0 18px 44px rgba(36, 26, 31, 0.14);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--papel);
+  color: var(--tinta);
+  font-family: var(--sans);
+  font-weight: 300;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.contenedor {
+  max-width: var(--ancho-max);
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.serif {
+  font-family: var(--serif);
+}
+
+/* Títulos de sección */
+.seccion-titulo {
+  font-family: var(--serif);
+  font-weight: 600;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+  line-height: 1;
+  text-align: center;
+  letter-spacing: 0.01em;
+}
+
+.seccion-eyebrow {
+  text-align: center;
+  font-size: 0.68rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--gris);
+  margin-bottom: 12px;
+}
+
+.regla {
+  width: 56px;
+  height: 1px;
+  background: var(--rosa);
+  margin: 22px auto 0;
+}
+
+/* Botón base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  padding: 12px 26px;
+  border-radius: 999px;
+  border: 1px solid var(--rosa);
+  color: var(--rosa);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s, transform 0.25s;
+}
+.btn:hover {
+  background: var(--rosa);
+  color: var(--blanco);
+}
+.btn-solido {
+  background: var(--rosa);
+  color: var(--blanco);
+}
+.btn-solido:hover {
+  background: var(--rosa-hover);
+  border-color: var(--rosa-hover);
+}
+
+/* Utilidad de accesibilidad: foco visible */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--rosa);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
