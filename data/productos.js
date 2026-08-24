@@ -1151,10 +1151,10 @@ const productos = [
     ],
   },
   {
-    id: "hydra-lip",
+    id: "hydra-lip-mate",
     marca: "yanbal",
     categoria: "maquillaje",
-    nombre: "Hydra Lip",
+    nombre: "Hydra Lip Labial Líquido Mate",
     descripcion:
       "Labiales de alta pigmentación con hidratación real: color intenso que no reseca.",
     destacado: true,
@@ -1199,6 +1199,17 @@ const productos = [
         imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Mate-Malvate.jpg",
         aromas: ["Acabado mate", "Alta pigmentación", "Hidratante"],
       },
+    ],
+  },
+  {
+    id: "hydra-lip-liquido-satinado",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Hydra Lip Labial Líquido Satinado",
+    descripcion:
+      "Labiales de alta pigmentación con hidratación real: color intenso que no reseca.",
+    destacado: true,
+    variantes: [
       {
         nombre: "Líquido Satinado · Caramel Rose",
         precio: 25,
@@ -1215,6 +1226,17 @@ const productos = [
         imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Satinado-Terra_Mystic.jpg",
         aromas: ["Acabado satinado", "Brillo suave", "Hidratante"],
       },
+    ],
+  },
+  {
+    id: "hydra-lip-labial-barra",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Hydra Lip Labial En Barra",
+    descripcion:
+      "Labiales de alta pigmentación con hidratación real: color intenso que no reseca.",
+    destacado: true,
+    variantes: [
       {
         nombre: "Larga Duración · Berry Vam",
         precio: 25,
