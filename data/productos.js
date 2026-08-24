@@ -854,6 +854,13 @@ const productos = [
         stock: true,
         imagen: "/images/productos/yanbal/make-up/Base_Hidratante-1N.jpg",
       },
+      {
+        nombre: "2N",
+        precio: 39,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/make-up/Base_Hidratante-2N.jpg",
+      },
     ],
   },
   {
@@ -885,7 +892,7 @@ const productos = [
     id: "base-ultra-ligera",
     marca: "yanbal",
     categoria: "maquillaje",
-    nombre: "Base Ultra Ligera Libre de Grasa",
+    nombre: "Base Ultra Ligera Libre de Grasa 2N",
     descripcion:
       "Cobertura natural con acabado libre de brillo. Ligera, se funde con la piel y controla la grasa por horas.",
     aromas: ["Libre de grasa", "Acabado natural", "Ultra ligera"],
