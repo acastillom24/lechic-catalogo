@@ -32,11 +32,11 @@ const marcas = [
     color: "#d6336c",
     categorias: [
       { slug: "perfumeria-mujer", nombre: "Perfumería Mujer" },
-      { slug: "perfumeria-caballeros", nombre: "Perfumería Caballeros" },
-      { slug: "cuidado-personal", nombre: "Cuidado Personal" },
+      { slug: "perfumeria-hombre", nombre: "Perfumería Caballeros" },
       { slug: "maquillaje", nombre: "Maquillaje" },
-      { slug: "joyeria", nombre: "Joyería" },
-      { slug: "accesorios-casa", nombre: "Accesorios de Casa" },
+      { slug: "cuidado-personal", nombre: "Cuidado Personal" },
+      { slug: "bebes", nombre: "Bebés" },
+      { slug: "ninos", nombre: "Niños y Niñas" },
     ],
   },
   {
@@ -72,6 +72,20 @@ const marcas = [
   {
     slug: "importaciones",
     nombre: "Importaciones",
+    descripcion:
+      "Fragancias alternativas de diseñador, Victoria's Secret, cuidado personal importado y más.",
+    color: "#f06595",
+    categorias: [
+      { slug: "perfumeria-mujer", nombre: "Perfumería Mujer" },
+      { slug: "perfumeria-caballeros", nombre: "Perfumería Caballeros" },
+      { slug: "cuidado-personal", nombre: "Cuidado Personal" },
+      { slug: "maquillaje", nombre: "Maquillaje" },
+      { slug: "accesorios", nombre: "Accesorios" },
+    ],
+  },
+  {
+    slug: "ofertas",
+    nombre: "Ofertas",
     descripcion:
       "Fragancias alternativas de diseñador, Victoria's Secret, cuidado personal importado y más.",
     color: "#f06595",

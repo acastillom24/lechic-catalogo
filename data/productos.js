@@ -1,9 +1,9 @@
 /**
  * ============================================================
- *  PRODUCTOS  —  la "base de datos" del catálogo
+ *  PRODUCTOS  —  la "base de datos" del catálogo  ·  YANBAL
  * ============================================================
- *  Cada producto es un objeto. Para agregar uno nuevo, copia
- *  un bloque existente y cambia los valores.
+ *  Generado a partir de yanbal.xlsx.
+ *  94 productos · 246 variantes.
  *
  *  ESQUEMA DE UN PRODUCTO:
  *  {
@@ -12,92 +12,2910 @@
  *    categoria:   slug de la categoría (debe existir en esa marca)
  *    nombre:      nombre visible del producto
  *    descripcion: texto descriptivo
- *    aromas:      lista de notas olfativas (opcional)
+ *    aromas:      lista de notas / atributos (opcional, nivel producto)
  *    destacado:   true = aparece resaltado (opcional)
- *
- *    // --- VARIANTES ---
- *    // Un producto puede tener 1 o varias variantes (ej: Expression
- *    // Original, Magic, Sens, Celebrate). Cada variante tiene su
- *    // propia imagen, precio y, si quieres, precio de oferta.
  *    variantes: [
  *      {
- *        nombre:      nombre de la variante (ej: "Magic")
- *        precio:      número (sin "S/")
- *        precioOferta: número (opcional; si existe, se muestra como oferta)
- *        stock:       true = disponible, false = agotado (opcional;
- *                     si no lo pones, se asume disponible). Cuando es
- *                     false, la tarjeta y el detalle muestran una cinta
- *                     "Agotado" y no se puede agregar a la selección.
- *        imagen:      ruta dentro de /public/images/productos/...
- *        aromas:      lista (opcional; sobreescribe la del producto)
+ *        nombre:       nombre de la variante ("Único" si el producto no tiene variantes)
+ *        precio:       número (sin "S/")
+ *        precioOferta: número o null
+ *        stock:        true = disponible, false = agotado
+ *        imagen:       ruta dentro de /public/images/productos/...
+ *        aromas:       lista (opcional; sobreescribe la del producto)
  *      }
  *    ]
  *  }
  *
- *  CÓMO GUARDAR LAS IMÁGENES:
- *  - Colócalas en:  public/images/productos/<marca>/<archivo>
- *  - En "imagen" pon la ruta SIN "public", empezando con "/":
- *      "/images/productos/importaciones/expression-magic.png"
- *  - Recomendado: fondo transparente (PNG) o blanco, formato vertical.
- *  - Nombra los archivos en minúsculas y con guiones, sin tildes.
+ *  CATEGORÍAS USADAS (deben existir en marcas.js para "yanbal"):
+ *    perfumeria-mujer · perfumeria-hombre · maquillaje
+ *    cuidado-personal · bebes · ninos
  * ============================================================
  */
 
 const productos = [
+  // ==================== PERFUMERIA-MUJER ====================
   {
-    id: "expression",
-    marca: "importaciones",
+    id: "adrenaline",
+    marca: "yanbal",
     categoria: "perfumeria-mujer",
-    nombre: "Expression",
+    nombre: "Adrenaline Eau de Toilette 75 ml",
     descripcion:
-      "Cuatro fragancias, una misma forma de decir quién eres. Frascos escultóricos con estela luminosa.",
-    destacado: true,
-    variantes: [
-      {
-        nombre: "Original",
-        precio: 27,
-        stock: false,
-        precioOferta: null,
-        imagen: "/images/productos/importaciones/expression-original.png",
-        aromas: ["Floral", "Ámbar", "Frutal"],
-      },
-      {
-        nombre: "Magic",
-        precio: 35,
-        stock: true,
-        imagen: "/images/productos/importaciones/expression-magic.png",
-        aromas: ["Oriental", "Vainilla", "Flores"],
-      },
-      {
-        nombre: "Sens",
-        precio: 35,
-        stock: true,
-        imagen: "/images/productos/importaciones/expression-sens.png",
-        aromas: ["Floral", "Frutal", "Fresco"],
-      },
-      {
-        nombre: "Celebrate",
-        precio: 35,
-        stock: true,
-        imagen: "/images/productos/importaciones/expression-celebrate.png",
-        aromas: ["Frutal", "Dulce", "Floral"],
-      },
-    ],
-  },
-
-  // -------- EJEMPLO de producto con UNA sola variante --------
-  {
-    id: "ejemplo-unico",
-    marca: "esika-lbel-cyzone",
-    categoria: "perfumeria-mujer",
-    nombre: "Nombre del perfume",
-    descripcion: "Descripción breve del producto.",
+      "Una explosión cítrica y luminosa para mujeres que no se detienen. Frescura vibrante que acompaña el ritmo del día.",
     variantes: [
       {
         nombre: "Único",
-        precio: 40,
-        imagen: "/images/productos/esika/ejemplo.png",
-        aromas: ["Floral", "Frutal"],
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Adrenaline_Eau_de_toilette_75_ml.jpg",
+        aromas: ["Lima Fresco", "Lavanda", "Vetiver"],
+      },
+    ],
+  },
+  {
+    id: "aromaterapia-eau-vitale",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Aromaterapia Eau Vitale",
+    descripcion:
+      "Colonias ligeras de inspiración natural para relajar, refrescar y renovar el ánimo en cualquier momento del día.",
+    variantes: [
+      {
+        nombre: "Flor de Naranjo",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Aromaterapia_Eau_Vitale-Flor_de_naranjo.jpg",
+        aromas: ["Flor de Naranjo", "Cítricos", "Flores Blancas"],
+      },
+      {
+        nombre: "Lavanda",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Aromaterapia_Eau_Vitale-Lavanda.jpg",
+        aromas: ["Lavanda", "Hierbas Frescas", "Musk Suave"],
+      },
+      {
+        nombre: "Rosa",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Aromaterapia_Eau_Vitale-Rosa.jpg",
+        aromas: ["Rosa", "Pétalos Frescos", "Musk Suave"],
+      },
+      {
+        nombre: "Té Verde",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Aromaterapia_Eau_Vitale-Té_Verde.jpg",
+        aromas: ["Té Verde", "Cítricos", "Notas Verdes"],
+      },
+    ],
+  },
+  {
+    id: "ccori",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Ccori",
+    descripcion:
+      "La joya perfumada de Yanbal. Fragancias ambaradas y florales con carácter, inspiradas en el oro de los Andes.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Cristal",
+        precio: 75,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Ccori-Cristal_Perfume_50_ml.jpg",
+        aromas: ["Notas Cristalinas", "Flores Blancas", "Musk"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 69.9,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Ccori-Perfume_50_ml.jpg",
+        aromas: ["Rosa Blanca", "Canela Dulce", "Chocolate"],
+      },
+      {
+        nombre: "Rosé",
+        precio: 69.9,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Ccori-Rosé_Perfume_50_ml.jpg",
+        aromas: ["Ciruela", "Rosa Damascena", "Vainilla"],
+      },
+      {
+        nombre: "Rubí",
+        precio: 69.9,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Ccori-Rubí_Perfume_50_ml.jpg",
+        aromas: ["Nardos", "Ámbar", "Vainilla"],
+      },
+    ],
+  },
+  {
+    id: "cielo",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Cielo",
+    descripcion:
+      "Un clásico floral que envuelve con jazmín, flor de loto y musk. Delicado, luminoso y siempre femenino.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Clásico",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Cielo-Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Jazmín", "Flor de Loto", "Musk"],
+      },
+      {
+        nombre: "En Rosa",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Cielo-en_rosa_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Rosa", "Almendra Tostada", "Almizcle"],
+      },
+    ],
+  },
+  {
+    id: "colonia-lessence",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Colonia L'Essence",
+    descripcion:
+      "Colonias florales y elegantes que capturan la esencia de una flor en cada frasco. Ligeras, luminosas y fáciles de llevar todo el día.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Mimosa Radiante",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_L'Essence-Mimosa_Radiante.jpg",
+        aromas: ["Mimosa", "Flores Solares", "Notas Dulces"],
+      },
+      {
+        nombre: "Orquídea Exótica",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_L'Essence-Orquídea_Exótica.jpg",
+        aromas: ["Magnolia", "Flor de cerezo", "Musk"],
+      },
+      {
+        nombre: "Violeta Flor de Cerezo Silvestre",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_L'Essence-Violeta_Flor_de_Cerezo_Silvestre.jpg",
+        aromas: ["Osmanthus", "Orquídea", "Mimosa"],
+      },
+      {
+        nombre: "Violeta Salvaje",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_L'Essence-Violeta_Salvaje.jpg",
+        aromas: ["Bergamota", "Frutos del Bosque", "Violeta"],
+      },
+    ],
+  },
+  {
+    id: "colonia-mix-chic",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Colonia Mix & Chic",
+    descripcion:
+      "Cuatro colonias frutales y frescas, pensadas para mezclarse entre sí y crear tu propio aroma.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Apple Tonic",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Mix&Chic-Apple_Tonic.jpg",
+        aromas: ["Manzana Verde", "Jazmín", "Azúcar"],
+      },
+      {
+        nombre: "Berry Tonic",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Mix&Chic-Berry_Tonic.jpg",
+        aromas: ["Frutos Rojos", "Flor de Cerezo", "Merengue"],
+      },
+      {
+        nombre: "Mango Tonic",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Mix&Chic-Mango_Tonic.jpg",
+        aromas: ["Mango", "Magnolia", "Miel"],
+      },
+      {
+        nombre: "Peach Tonic",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Mix&Chic-Peach_Tonic.jpg",
+        aromas: ["Durazno", "Flor de Osmanthus", "Vainilla"],
+      },
+    ],
+  },
+  {
+    id: "colonia-soy",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Colonia Soy",
+    descripcion:
+      "Colonias jóvenes y frescas para expresar cómo te sientes hoy: Glow, Poderosa, Sexy o Única.",
+    variantes: [
+      {
+        nombre: "Glow",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Soy-Glow.jpg",
+        aromas: ["Manzana", "Guayaba", "Flor de Mariposa"],
+      },
+      {
+        nombre: "Poderosa",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Soy-Poderosa.jpg",
+        aromas: ["Naranja", "Magnolia", "Caramelo Salado"],
+      },
+      {
+        nombre: "Sexy",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Soy-Sexy.jpg",
+        aromas: ["Con Lichi", "Piña Colado", "Creme bruleé"],
+      },
+      {
+        nombre: "Única",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Colonia_Soy-Única.jpg",
+        aromas: ["Con Lichi", "Piña Colado", "Creme bruleé"],
+      },
+    ],
+  },
+  {
+    id: "di-que-si",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Di Que Sí Eau de Parfum 50 ml",
+    descripcion:
+      "Un floral fresco y optimista que celebra los momentos que cambian la vida.",
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Di_que_sí_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Limón", "Manzana Verde", "Jazmín"],
+      },
+    ],
+  },
+  {
+    id: "dulce",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Dulce",
+    descripcion:
+      "Una colección gourmand y luminosa: frutas, flores y vainilla para los días que saben dulce.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Amistad",
+        precio: 49.9,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Dulce-Amistad_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Frambuesa", "Flor de Cerezo", "Helado de Vainilla"],
+      },
+      {
+        nombre: "Amor",
+        precio: 45,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Dulce-Amor_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Arándanos", "Flor de Loto", "Crema de Vainilla"],
+      },
+      {
+        nombre: "Vanidad",
+        precio: 49.9,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/feminine/Dulce-Vanidad_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Nectarina", "Frambuesa", "Anís Estrella"],
+      },
+    ],
+  },
+  {
+    id: "gaiia",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Gaiia",
+    descripcion:
+      "Un floral radiante inspirado en la naturaleza, con jacarandá, magnolias y orquídeas.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Clásico",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Gaiia_Perfume_50_ml.jpg",
+        aromas: ["Jacarandá", "Magnolias", "Orquídeas"],
+      },
+      {
+        nombre: "Elixir",
+        precio: 75,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Gaiia-Elixir_Perfume_50_ml.jpg",
+        aromas: ["Jazmín Sambac", "Azúcar Caramelizado", "Ámbar Rojo"],
+      },
+      {
+        nombre: "Eternal",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Gaiia-Eternal_Perfume_50_ml.jpg",
+        aromas: ["Pera Fresca", "Lirio del Valle", "Musk"],
+      },
+    ],
+  },
+  {
+    id: "liberatta",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Liberatta",
+    descripcion:
+      "Floral maderoso con iris y orquídea blanca sobre un fondo cálido de sándalo. Libertad hecha perfume.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Clásico",
+        precio: 85,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/feminine/Liberatta_Perfume_50_ml.jpg",
+        aromas: ["Iris", "Orquídea Blanca", "Madera de Sándalo"],
+      },
+      {
+        nombre: "Viva",
+        precio: 85,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/feminine/Liberatta-Viva_Perfume_50_ml.jpg",
+        aromas: ["Frutas Jugosas", "Flores Blancas", "Maderas Cálidas"],
+      },
+    ],
+  },
+  {
+    id: "osadia-mujer",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Osadía",
+    descripcion:
+      "Floral frutal, cálido y sofisticado: flores solares sobre un fondo de madera de guayacán.",
+    variantes: [
+      {
+        nombre: "Clásico",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Osadía-Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Flores Solares", "Frutas Amarillas", "Maderas Cálidas"],
+      },
+      {
+        nombre: "Infinita",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Osadía-infinita_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Bayas Doradas", "Mimosa", "Madera de Guayacán"],
+      },
+    ],
+  },
+  {
+    id: "pasion",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Pasión Perfume 50 ml",
+    descripcion:
+      "Sofisticado y sensual: peonías blancas, violeta y notas provocativas de tonka.",
+    aromas: ["Peonía Blanca", "Violeta", "Haba Tonka"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Pasión_Perfume_50_ml.jpg",
+      },
+    ],
+  },
+  {
+    id: "temptation-mujer",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Temptation Mujer",
+    descripcion:
+      "Un floral intenso e irresistible con rosa búlgara, gardenia y clavo de olor.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Clásico",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Temptation-Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Rosa búlgara", "Gardenía", "Clavo de olor"],
+      },
+      {
+        nombre: "Mystic",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Temptation-Mystic_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Cerezas Jugosas", "Espuma de Café", "Amberwood"],
+      },
+    ],
+  },
+  {
+    id: "xiss",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Xiss",
+    descripcion:
+      "Frescura juvenil y coqueta, ideal para el día a día.",
+    variantes: [
+      {
+        nombre: "Active",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Xiss-active_Eau_de_toilette_75_ml.jpg",
+        aromas: ["Mandarina Dulce", "Manzana Verde", "Lirio del Valle"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/Xiss-Eau_de_toilette_75_ml.jpg",
+        aromas: ["Notas florales de fresia", "Flor de naranjo", "Madera de sándalo"],
+      },
+    ],
+  },
+  {
+    id: "icono",
+    marca: "yanbal",
+    categoria: "perfumeria-mujer",
+    nombre: "Ícono",
+    descripcion:
+      "Floral maderoso, espléndido e impactante: clementina, ylang ylang y madera de sándalo.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Clásico",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/ícono-Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Clementina", "Ylang Ylang", "Madera de Sándalo"],
+      },
+      {
+        nombre: "Intense",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/feminine/ícono-Intense_Eau_de_Parfum_50_ml.jpg",
+        aromas: ["Ylang Ylang", "Cedro", "Crema de Vainilla"],
+      },
+    ],
+  },
+  // ==================== PERFUMERIA-HOMBRE ====================
+  {
+    id: "arom",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Arom",
+    descripcion:
+      "El clásico masculino de Yanbal: bergamota, romero y sándalo en una estela sobria y elegante.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Absolute",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Arom-Absolute_Eau_de_Parfum_90_ml.jpg",
+        aromas: ["Cítricos de Bergamota", "Romero Fresco", "Madera de Sándalo"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Arom-Eau_de_Parfum_90_ml.jpg",
+        aromas: ["Cítricos de Bergamota", "Romero Fresco", "Madera de Sándalo"],
+      },
+    ],
+  },
+  {
+    id: "dendur",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Dendur",
+    descripcion:
+      "Fragancia masculina intensa y especiada, con carácter y una estela que perdura.",
+    variantes: [
+      {
+        nombre: "Destiny",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Dendur-Destiny_Eau_de_Parfum_75_ml.jpg",
+        aromas: ["Mandarina Dulce", "Cuero", "Incienso Dulce"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Dendur-Eau_de_Parfum_75_ml.jpg",
+        aromas: ["Pimienta Negra", "Jengibre Fresco", "Tabaco"],
+      },
+    ],
+  },
+  {
+    id: "jaque",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Jaque Parfum 75 ml",
+    descripcion:
+      "Una jugada maestra: azafrán, coñac y roble real en una fragancia elegante y envolvente.",
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 72,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Jaque-Parfum_75_ml.jpg",
+        aromas: ["Azafrán", "Coñac", "Roble Real"],
+      },
+    ],
+  },
+  {
+    id: "musk",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Musk Eau de Parfum 100 ml",
+    descripcion:
+      "Un masculino sobrio y sensual, con toronja, clavo de olor y un fondo profundo de musk.",
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Musk_Eau_de_Parfum_100_ml.jpg",
+        aromas: ["Toronja", "Picantes de Clavo de Olor", "Musk"],
+      },
+    ],
+  },
+  {
+    id: "ohm",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Ohm",
+    descripcion:
+      "Energía masculina en equilibrio: fragancias intensas con carácter contemporáneo.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Black",
+        precio: 69,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Ohm-Black_Parfum_100_ml.jpg",
+        aromas: ["Naranja Dulce", "Té Negro", "Pimienta Negra"],
+      },
+      {
+        nombre: "Now",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Ohm-Now_Parfum_100_ml.jpg",
+        aromas: ["Dulce de Higo", "Absenta", "Tonka"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Ohm-Parfum_100_ml.jpg",
+        aromas: ["Toronja Rosada", "Salvia", "Cuero"],
+      },
+    ],
+  },
+  {
+    id: "osadia-hombre",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Osadia Eau de Parfum 75 ml",
+    descripcion:
+      "Un masculino audaz con hierbabuena, café dulce y madera de ébano.",
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Osadia-Eau_de_Parfum_75_ml.jpg",
+        aromas: ["Hierbabuena", "Café Dulce", "Madera de Ébano"],
+      },
+    ],
+  },
+  {
+    id: "selecto",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Selecto Eau de Toilette 100 ml",
+    descripcion:
+      "Un masculino elegante y versátil, con albahaca, vainilla negra y madera de cashmere.",
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Selecto_Eau_de_Toilette_100_ml.jpg",
+        aromas: ["Albahaca", "Vainilla negra", "Madera de Cashmere"],
+      },
+    ],
+  },
+  {
+    id: "solo",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Solo",
+    descripcion:
+      "Fragancia masculina de carácter, con jengibre, cuero y maderas nobles.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Elixir",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Solo-Elixir_Parfum_80_ml.jpg",
+        aromas: ["Resina de Olíbano", "Jengibre Fresco", "Madera del Oud"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Solo-Parfum_80_ml.jpg",
+        aromas: ["Cáscara de Mandarina", "Jengibre", "Cuero"],
+      },
+    ],
+  },
+  {
+    id: "temptation-hombre",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Temptation Hombre",
+    descripcion:
+      "Magnetismo masculino: notas frescas y especiadas sobre un fondo intenso y adictivo.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Black",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Temptation-Black_Eau_de_Parfum_100_ml.jpg",
+        aromas: ["Pimienta Negra", "Cacao", "Cedro Negro"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Temptation-Eau_de_Parfum_100_ml.jpg",
+        aromas: ["Hojas de Menta", "Mandarina Dulce", "Sándalo"],
+      },
+    ],
+  },
+  {
+    id: "xool",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Xool",
+    descripcion:
+      "Frescura masculina y deportiva para acompañar el ritmo del día.",
+    variantes: [
+      {
+        nombre: "Active",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Xool-Active_Eau_de_Toilette_110_ml.jpg",
+        aromas: ["Toronja", "Menta", "Notas Marinas"],
+      },
+      {
+        nombre: "Clásico",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Xool-Eau_de_Toilette_110_ml.jpg",
+        aromas: ["Bergamota", "Salvia", "Picante de Jengibre"],
+      },
+      {
+        nombre: "Edición Limitada",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Xool-Edición_Limitada_Eau_de_Toilette_110_ml.jpg",
+        aromas: ["Bergamota", "Salvia", "Picante de Jengibre"],
+      },
+    ],
+  },
+  {
+    id: "zentro",
+    marca: "yanbal",
+    categoria: "perfumeria-hombre",
+    nombre: "Zentro Eau de Parfum 75 ml",
+    descripcion:
+      "Un masculino fresco y sereno con yuzu, cedro y haba tonka.",
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 65,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/masculine/Zentro-Eau_de_Parfum_75_ml.jpg",
+        aromas: ["Yuzu", "Cedro", "Haba Tonka"],
+      },
+    ],
+  },
+  // ==================== MAQUILLAJE ====================
+  {
+    id: "base-antiedad-lifting",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Base Antiedad Efecto Lifting",
+    descripcion:
+      "Base de cobertura media con efecto lifting inmediato: difumina líneas de expresión y deja un acabado luminoso y uniforme.",
+    aromas: ["Efecto lifting", "Antiedad", "Acabado luminoso"],
+    variantes: [
+      {
+        nombre: "1N",
+        precio: 49,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Antiedad_Efecto_Lifting-1N.jpg",
+      },
+      {
+        nombre: "2C",
+        precio: 49,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Antiedad_Efecto_Lifting-2C.jpg",
+      },
+      {
+        nombre: "2N",
+        precio: 49,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Antiedad_Efecto_Lifting-2N.jpg",
+      },
+      {
+        nombre: "3C",
+        precio: 49,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Antiedad_Efecto_Lifting-3C.jpg",
+      },
+    ],
+  },
+  {
+    id: "base-hidratante",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Base Hidratante",
+    descripcion:
+      "Base ligera que hidrata mientras unifica el tono, para un acabado natural y una piel confortable todo el día.",
+    aromas: ["Hidratante", "Acabado natural", "Textura ligera"],
+    variantes: [
+      {
+        nombre: "1N",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Hidratante-1N.jpg",
+      },
+    ],
+  },
+  {
+    id: "base-matificante",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Base Matificante",
+    descripcion:
+      "Base de acabado mate que controla el brillo por horas y difumina el aspecto de los poros.",
+    aromas: ["Acabado mate", "Control de brillo", "Larga duración"],
+    variantes: [
+      {
+        nombre: "2N",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Matificante-2N.jpg",
+      },
+      {
+        nombre: "3N",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Matificante-3N.jpg",
+      },
+    ],
+  },
+  {
+    id: "base-ultra-ligera",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Base Ultra Ligera Libre de Grasa",
+    descripcion:
+      "Cobertura natural con acabado libre de brillo. Ligera, se funde con la piel y controla la grasa por horas.",
+    aromas: ["Libre de grasa", "Acabado natural", "Ultra ligera"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 29,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Base_Ultra_Ligera_Libre_de_Grasa.jpg",
+      },
+    ],
+  },
+  {
+    id: "crece-extreme",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Crece Extreme",
+    descripcion:
+      "Rímel que multiplica el volumen y la longitud de las pestañas con acabado extremo.",
+    variantes: [
+      {
+        nombre: "Rímel a Prueba de Agua",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Crece_Extreme-Rímel_a_Prueba_de_Agua.jpg",
+        aromas: ["A prueba de agua", "Volumen extremo", "Larga duración"],
+      },
+      {
+        nombre: "Rímel Fácil Retirado",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Crece_Extreme-Rímel_Fácil_Retirado.jpg",
+        aromas: ["Fácil retirado", "Volumen extremo", "Uso diario"],
+      },
+    ],
+  },
+  {
+    id: "delineador-ojos-labios",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador de Ojos y Labios",
+    descripcion:
+      "Un solo lápiz para delinear ojos y labios con color intenso y textura cremosa.",
+    aromas: ["Multiusos", "Textura cremosa", "Color intenso"],
+    variantes: [
+      {
+        nombre: "Fucsia Bugambilia",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_de_Ojos_y_Labios-Fucsia_Bugambilia.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-lapiz-difuminador",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador en Lápiz para Ojos con Difuminador Negro",
+    descripcion:
+      "Traza líneas definidas y difumínalas para un ahumado perfecto en un solo paso.",
+    aromas: ["Difuminable", "Trazo intenso", "Negro"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_en_Lápiz_para_ojos_con_difuminador-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-lapiz-ojos",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador en Lápiz para Ojos Fucsia Pop",
+    descripcion:
+      "Color intenso y cremoso para una mirada divertida y llena de energía.",
+    aromas: ["Textura cremosa", "Color intenso", "Fucsia"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_en_Lápiz_para_ojos-Fucsia_Pop.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-liquido-punta-inteligente",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador Líquido Punta Inteligente",
+    descripcion:
+      "Punta flexible que se adapta al párpado para un trazo preciso, desde la línea fina hasta el cat eye.",
+    aromas: ["Trazo preciso", "Punta flexible", "Larga duración"],
+    variantes: [
+      {
+        nombre: "Azul",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Líquido_Punta_Inteligente-Azul.jpg",
+      },
+      {
+        nombre: "Marrón",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Líquido_Punta_Inteligente-Marrón.jpg",
+      },
+      {
+        nombre: "Negro",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Líquido_Punta_Inteligente-Negro.jpg",
+      },
+      {
+        nombre: "Negro Mate",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Líquido_Punta_Inteligente-Negro_Mate.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-plumon-tattoo",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador Plumón Tattoo a Prueba de Agua Negro",
+    descripcion:
+      "Trazo tipo tatuaje, ultranegro y resistente al agua, que dura todo el día.",
+    aromas: ["A prueba de agua", "Ultra negro", "Efecto tatuaje"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Plumón_Tatto_a_prueba_de_Agua-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-retractil-gel-ojos",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador Retráctil en Gel para Ojos",
+    descripcion:
+      "Textura en gel que se desliza sin jalar el párpado, con color intenso y acabado que no se corre.",
+    aromas: ["Textura en gel", "Retráctil", "Color intenso"],
+    variantes: [
+      {
+        nombre: "Azul Profundo",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_en_Gel_para_Ojos-Azul_Profundo.jpg",
+      },
+      {
+        nombre: "Marrón",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_en_Gel_para_Ojos-Marrón.jpg",
+      },
+      {
+        nombre: "Negro",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_en_Gel_para_Ojos-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-retractil-cejas",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador Retráctil para Cejas",
+    descripcion:
+      "Punta fina para dibujar pelo a pelo y rellenar las cejas con un acabado natural y definido.",
+    aromas: ["Punta fina", "Acabado natural", "Retráctil"],
+    variantes: [
+      {
+        nombre: "Marrón",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_para_Cejas-Marrón.jpg",
+      },
+      {
+        nombre: "Marrón Cenizo",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_para_Cejas-Marrón_Cenizo.jpg",
+      },
+    ],
+  },
+  {
+    id: "delineador-retractil-labios",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Delineador Retráctil para Labios",
+    descripcion:
+      "Define el contorno, evita que el labial se corra y prolonga la duración del color.",
+    aromas: ["Retráctil", "Textura cremosa", "Define el contorno"],
+    variantes: [
+      {
+        nombre: "Chocolate",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_para_Labios-Chocolate.jpg",
+      },
+      {
+        nombre: "Nude",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_para_Labios-Nude.jpg",
+      },
+      {
+        nombre: "Toffee",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_para_Labios-Toffee.jpg",
+      },
+      {
+        nombre: "Vino",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Delineador_Retráctil_para_Labios-Vino.jpg",
+      },
+    ],
+  },
+  {
+    id: "duo-ojos-cejas",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Dúo de Ojos y Cejas",
+    descripcion:
+      "Dos productos en uno: define las cejas y sombrea la mirada con un acabado natural.",
+    aromas: ["2 en 1", "Cejas definidas", "Acabado natural"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Dúo_de_Ojos_y_Cejas.jpg",
+      },
+    ],
+  },
+  {
+    id: "hydra-lip",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Hydra Lip",
+    descripcion:
+      "Labiales de alta pigmentación con hidratación real: color intenso que no reseca.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Líquido Mate · Capuccino",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Mate-Capuccino.jpg",
+        aromas: ["Acabado mate", "Alta pigmentación", "Hidratante"],
+      },
+      {
+        nombre: "Líquido Mate · Caramel Nude",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Mate-Caramel_Nude.jpg",
+        aromas: ["Acabado mate", "Alta pigmentación", "Hidratante"],
+      },
+      {
+        nombre: "Líquido Mate · Choconut",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Mate-Choconut.jpg",
+        aromas: ["Acabado mate", "Alta pigmentación", "Hidratante"],
+      },
+      {
+        nombre: "Líquido Mate · Iconic 67",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Mate-Iconic_67.jpg",
+        aromas: ["Acabado mate", "Alta pigmentación", "Hidratante"],
+      },
+      {
+        nombre: "Líquido Mate · Malvate",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Mate-Malvate.jpg",
+        aromas: ["Acabado mate", "Alta pigmentación", "Hidratante"],
+      },
+      {
+        nombre: "Líquido Satinado · Caramel Rose",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Satinado-Caramel_Rose.jpg",
+        aromas: ["Acabado satinado", "Brillo suave", "Hidratante"],
+      },
+      {
+        nombre: "Líquido Satinado · Terra Mystic",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra_Lip-Labial_Líquido_Satinado-Terra_Mystic.jpg",
+        aromas: ["Acabado satinado", "Brillo suave", "Hidratante"],
+      },
+      {
+        nombre: "Larga Duración · Berry Vam",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra-Lip_Labial_Larga_Duración-Berry_Vam.jpg",
+        aromas: ["Larga duración", "Color intenso", "Hidratante"],
+      },
+      {
+        nombre: "Larga Duración · Cynnabrow",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra-Lip_Labial_Larga_Duración-Cynnabrow.jpg",
+        aromas: ["Larga duración", "Color intenso", "Hidratante"],
+      },
+      {
+        nombre: "Larga Duración · Iconic 67",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Hydra-Lip_Labial_Larga_Duración-Iconic_67.jpg",
+        aromas: ["Larga duración", "Color intenso", "Hidratante"],
+      },
+    ],
+  },
+  {
+    id: "iron-infinity-rimel",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Iron Infinity Rímel Metálico Alargador Negro",
+    descripcion:
+      "Cepillo metálico que separa y alarga pestaña por pestaña para una mirada infinita.",
+    aromas: ["Cepillo metálico", "Alargador", "Negro intenso"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Iron_Infinity_Rímel_Metálico_Alargador-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "rubor-compacto",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Rubor Compacto",
+    descripcion:
+      "Color natural y sedoso para las mejillas, de fácil difuminado y larga duración.",
+    aromas: ["Acabado sedoso", "Fácil difuminado", "Larga duración"],
+    variantes: [
+      {
+        nombre: "Bronzage",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Rubor_Compacto-Bronzage.jpg",
+      },
+      {
+        nombre: "Brownie",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Rubor_Compacto-Brownie.jpg",
+      },
+      {
+        nombre: "Champagne",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Rubor_Compacto-Champagne.jpg",
+      },
+      {
+        nombre: "Petal Rose",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Rubor_Compacto-Petal_Rose.jpg",
+      },
+      {
+        nombre: "Rosa Irresistible",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Rubor_Compacto-Rosa_Irresistible.jpg",
+      },
+      {
+        nombre: "Sunglow",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Rubor_Compacto-Sunglow.jpg",
+      },
+    ],
+  },
+  {
+    id: "suero-crayon-restaurador",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Suero Crayón Restaurador Moccaamor",
+    descripcion:
+      "Crayón con textura de suero que restaura, hidrata y da color a los labios en un solo gesto.",
+    aromas: ["Textura suero", "Tono nude", "Hidratante"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Suero_crayón_restaurador-Moccaamor.jpg",
+      },
+    ],
+  },
+  {
+    id: "super-lift-rimel",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Super Lift Rímel Efecto Abanico Negro",
+    descripcion:
+      "Cepillo curvo que abre la mirada y despliega las pestañas en efecto abanico.",
+    aromas: ["Efecto abanico", "Curvatura", "Negro intenso"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Super_Lift_Rímel_Efecto_Abanico-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "uniquecil-extra-xl",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Uniquecil Extra XL Rímel Alargador",
+    descripcion:
+      "Alarga las pestañas al máximo con un cepillo XL que define pestaña por pestaña.",
+    aromas: ["Alargador XL", "Definición", "Sin grumos"],
+    variantes: [
+      {
+        nombre: "Marrón",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Uniquecil_Extra_XL_Rímel_Alargador-Marrón.jpg",
+      },
+      {
+        nombre: "Negro",
+        precio: 23,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Uniquecil_Extra_XL_Rímel_Alargador-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "uniquecil-ultra-resist",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Uniquecil Ultra Resist Negro",
+    descripcion:
+      "Rímel de resistencia extrema que aguanta agua, sudor y lágrimas sin correrse.",
+    aromas: ["Ultra resistente", "A prueba de agua", "Negro intenso"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Uniquecil_Ultra_Resist-Negro.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-barra-multiusos",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Barra Multiusos",
+    descripcion:
+      "Un solo producto para labios y mejillas: color rápido, natural y fácil de aplicar.",
+    aromas: ["Labios y mejillas", "Multiusos", "Acabado natural"],
+    variantes: [
+      {
+        nombre: "Coral",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Barra_Multiusos-Coral.jpg",
+      },
+      {
+        nombre: "Rosa",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Barra_Multiusos-Rosa.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-delineador-liquido",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Delineador Líquido a Prueba de Agua",
+    descripcion:
+      "Trazo definido y resistente al agua en un formato práctico y accesible.",
+    aromas: ["A prueba de agua", "Trazo definido", "Uso diario"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Deliniador_Líquido_a_Prueba_de_Agua.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-delineador-multiusos",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Delineador Multiusos a Prueba de Agua",
+    descripcion:
+      "Delinea ojos y labios con un mismo producto, resistente al agua.",
+    aromas: ["Multiusos", "A prueba de agua", "Trazo preciso"],
+    variantes: [
+      {
+        nombre: "Negro",
+        precio: 14,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Deliniador_Multiusos_a_Prueba_de_Agua-Negro.jpg",
+      },
+      {
+        nombre: "Nude",
+        precio: 14,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Deliniador_Multiusos_a_Prueba_de_Agua-Nude.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-labial-barra",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Labial en Barra",
+    descripcion:
+      "Color cremoso y confortable para todos los días.",
+    aromas: ["Textura cremosa", "Color natural", "Uso diario"],
+    variantes: [
+      {
+        nombre: "Rosa Natural",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_en_barra-Rosa_Natural.jpg",
+      },
+      {
+        nombre: "Vino para Mí",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_en_barra-Vino_para_mi.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-labial-mate",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Labial Mate",
+    descripcion:
+      "Acabado mate aterciopelado con color intenso que dura.",
+    aromas: ["Acabado mate", "Color intenso", "Confortable"],
+    variantes: [
+      {
+        nombre: "Canela",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_Mate-Canela.jpg",
+      },
+      {
+        nombre: "Caramelo",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_Mate-Caramelo.jpg",
+      },
+      {
+        nombre: "Cereza",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_Mate-Cereza.jpg",
+      },
+      {
+        nombre: "Ciruela",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_Mate-Ciruela.jpg",
+      },
+      {
+        nombre: "Palo Rosa",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_Mate-Palo_Rosa.jpg",
+      },
+      {
+        nombre: "Vino",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Labial_Mate-Vino.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-mascara-agua",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Máscara a Prueba de Agua",
+    descripcion:
+      "Máscara de pestañas resistente al agua que da volumen y definición sin grumos.",
+    aromas: ["A prueba de agua", "Volumen", "Sin grumos"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Máscara_A_prueba_de_Agua.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-rimel-duo",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Rímel Dúo Multiusos",
+    descripcion:
+      "Dos fórmulas en un solo empaque: volumen y longitud según lo que necesites.",
+    aromas: ["2 en 1", "Volumen", "Longitud"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Rímel_Dúo_Multiusos.jpg",
+      },
+    ],
+  },
+  {
+    id: "ya-tinta-labios",
+    marca: "yanbal",
+    categoria: "maquillaje",
+    nombre: "Ya! Tinta de Labios",
+    descripcion:
+      "Tinta ligera de color intenso y larga duración, con sensación de labios libres.",
+    aromas: ["Larga duración", "Color intenso", "Textura ligera"],
+    variantes: [
+      {
+        nombre: "Fucsia",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios_Fucsia.jpg",
+      },
+      {
+        nombre: "Burgundy",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Burgundy.jpg",
+      },
+      {
+        nombre: "Coral Rosa",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Coral_Rosa.jpg",
+      },
+      {
+        nombre: "Dark Nude",
+        precio: 18,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Dark_Nude.jpg",
+      },
+      {
+        nombre: "Rosa Carmín",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Rosa_Carmín.jpg",
+      },
+      {
+        nombre: "Rosa Fuego",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Rosa_Fuego.jpg",
+      },
+      {
+        nombre: "Rosa Moka",
+        precio: 18,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Rosa_Moka.jpg",
+      },
+      {
+        nombre: "Rosa Pop",
+        precio: 18,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/make-up/Ya!_Tinta_de_Labios-Rosa_Pop.jpg",
+      },
+    ],
+  },
+  // ==================== CUIDADO-PERSONAL ====================
+  {
+    id: "aqua-fix",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Aqua Fix",
+    descripcion:
+      "Rutina de hidratación profunda: limpia sin resecar y devuelve agua a la piel durante todo el día.",
+    variantes: [
+      {
+        nombre: "Crema Ultrahidratante",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Aqua_Fix-Crema_ultrahidratante.jpg",
+        aromas: ["Hidratación 24h", "Ácido hialurónico", "Piel normal a seca"],
+      },
+      {
+        nombre: "Limpiador Hidratante en Gel",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Aqua_Fix-Limpiador_hidratante_en_gel.jpg",
+        aromas: ["Limpieza suave", "No reseca", "Uso diario"],
+      },
+    ],
+  },
+  {
+    id: "bb-cream-antiedad",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "BB Cream Hidratante Antiedad con Color",
+    descripcion:
+      "Piel rejuvenecida, hidratada, protegida y perfecta al instante. SPF 30. Cont. 30 ml.",
+    aromas: ["Antiedad", "SPF 30", "Hidratante"],
+    variantes: [
+      {
+        nombre: "Claro",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Cream_Hidratante_antiedad_con_color-Claro.jpg",
+      },
+      {
+        nombre: "Mediano",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Cream_Hidratante_antiedad_con_color-Mediano.jpg",
+      },
+    ],
+  },
+  {
+    id: "bb-cream-hidratante",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "BB Cream Hidratante con Color",
+    descripcion:
+      "Hidrata, perfecciona y uniformiza el tono de la piel dándole luminosidad. SPF 30. Cont. 30 ml.",
+    aromas: ["Luminosidad", "SPF 30", "Hidratante"],
+    variantes: [
+      {
+        nombre: "Claro",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Cream_Hidratante_con_color-Claro.jpg",
+      },
+      {
+        nombre: "Mediano",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Cream_Hidratante_con_color-Mediano.jpg",
+      },
+    ],
+  },
+  {
+    id: "bb-cream-matificante",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "BB Cream Hidratante Matificante con Color",
+    descripcion:
+      "Hidrata, perfecciona y uniformiza el tono controlando el exceso de sebo y brillo. SPF 30. Cont. 30 ml.",
+    aromas: ["Matificante", "SPF 30", "Control de brillo"],
+    variantes: [
+      {
+        nombre: "Claro",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Cream_Hidratante_matificante_con_color-Claro.jpg",
+      },
+      {
+        nombre: "Mediano",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Cream_Hidratante_matificante_con_color-Mediano.jpg",
+      },
+    ],
+  },
+  {
+    id: "bb-lips",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "BB Lips",
+    descripcion:
+      "Labios hidratados, reparados y protegidos, con un toque natural de color que se adapta al pH de cada piel. SPF 20. Cont. 3.8 g.",
+    aromas: ["Color según tu pH", "SPF 20", "Hidratación"],
+    variantes: [
+      {
+        nombre: "Black Cherry",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Lips-Black_Cherry.jpg",
+      },
+      {
+        nombre: "Natural",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Lips-Natural.jpg",
+      },
+      {
+        nombre: "Natural Pink",
+        precio: 17,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/BB_Lips-Natural_Pink.jpg",
+      },
+    ],
+  },
+  {
+    id: "biomilk-crema-corporal",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Biomilk Crema Corporal",
+    descripcion:
+      "Hidratación de larga duración con proteínas de leche. Textura ligera que deja la piel suave y perfumada.",
+    destacado: true,
+    variantes: [
+      {
+        nombre: "Coco & Almendra",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Coco_&_Almendra.jpg",
+        aromas: ["Coco", "Almendra", "Leche"],
+      },
+      {
+        nombre: "Frambuesa Granada",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Frambuesa_Granada.jpg",
+        aromas: ["Frambuesa", "Granada", "Notas Dulces"],
+      },
+      {
+        nombre: "Mora Arándanos",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Mora_Arándanos.jpg",
+        aromas: ["Mora", "Arándanos", "Frutos Rojos"],
+      },
+      {
+        nombre: "Original",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Original.jpg",
+        aromas: ["Leche", "Almendra", "Musk Suave"],
+      },
+      {
+        nombre: "Piel Seca",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Piel_Seca.jpg",
+        aromas: ["Manteca de Karité", "Avena", "Hidratación Intensa"],
+      },
+      {
+        nombre: "Piel Sensible",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Piel_Sensible.jpg",
+        aromas: ["Avena", "Caléndula", "Fórmula Suave"],
+      },
+      {
+        nombre: "Soy Corporal",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Crema_Corporal-Soy_Corporal.jpg",
+        aromas: ["Vainilla", "Frutas Dulces", "Musk"],
+      },
+    ],
+  },
+  {
+    id: "biomilk-jabones",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Biomilk Jabones x4 Unidades Mora Arándanos",
+    descripcion:
+      "Pack de 4 jabones cremosos con proteínas de leche que limpian sin resecar y perfuman la piel.",
+    aromas: ["Mora", "Arándanos", "Leche"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Biomilk_Jabones_x4_unidades-Mora_Arándanos.jpg",
+      },
+    ],
+  },
+  {
+    id: "blum-acondicionador",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Blum Acondicionador",
+    descripcion:
+      "Desenreda, suaviza y protege el cabello desde el primer uso.",
+    variantes: [
+      {
+        nombre: "Hidratación Extrema",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Acondicionador-Hidratación_Extrema.jpg",
+        aromas: ["Hidratación", "Suavidad", "Anti-frizz"],
+      },
+      {
+        nombre: "Protección Total",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Acondicionador-Protección_Total.jpg",
+        aromas: ["Protección", "Brillo", "Fibra reforzada"],
+      },
+      {
+        nombre: "Reparación Intensiva",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Acondicionador-Reparación_Intensiva.jpg",
+        aromas: ["Reparación", "Puntas selladas", "Nutrición"],
+      },
+    ],
+  },
+  {
+    id: "blum-shampoo",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Blum Shampoo",
+    descripcion:
+      "Limpia suavemente y devuelve fuerza y brillo al cabello.",
+    variantes: [
+      {
+        nombre: "2 en 1 Control Caspa",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Shampoo-2_en_1_Control_Caspa.jpg",
+        aromas: ["Control caspa", "2 en 1", "Cuero cabelludo sano"],
+      },
+      {
+        nombre: "Hidratación Extrema",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Shampoo-Hidratación_Extrema.jpg",
+        aromas: ["Hidratación", "Suavidad", "Anti-frizz"],
+      },
+      {
+        nombre: "Protección Total",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Shampoo-Protección_Total.jpg",
+        aromas: ["Protección", "Brillo", "Fibra reforzada"],
+      },
+      {
+        nombre: "Reparación Intensiva",
+        precio: 20,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum_Shampoo-Reparación_Intensiva.jpg",
+        aromas: ["Reparación", "Puntas selladas", "Nutrición"],
+      },
+    ],
+  },
+  {
+    id: "blum-tratamiento",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Blum Tratamiento Capilar",
+    descripcion:
+      "Tratamientos intensivos Blum para reparar, controlar el frizz y devolver brillo al cabello.",
+    variantes: [
+      {
+        nombre: "Mascarilla Capilar 10 en 1",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum-Mascarilla_Capilar_10_en_1.jpg",
+        aromas: ["Reparación en 3 minutos", "Anti-frizz", "Protección térmica"],
+      },
+      {
+        nombre: "Serum Nutri Control",
+        precio: 29,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Blum-Serum_Nutri_Control.jpg",
+        aromas: ["Sella puntas abiertas", "4x menos frizz", "Brillo y luminosidad"],
+      },
+    ],
+  },
+  {
+    id: "body-spa-crema-corporal",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Body Spa Crema Corporal",
+    descripcion:
+      "Ritual de spa en casa: hidratación intensa con activos naturales que deja la piel tersa y perfumada.",
+    variantes: [
+      {
+        nombre: "Cacao",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Body_Spa_Crema_Corporal-Cacao.jpg",
+        aromas: ["Cacao", "Vainilla", "Notas Dulces"],
+      },
+      {
+        nombre: "Uña de Gato",
+        precio: 35,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Body_Spa_Crema_Corporal-Uña_de_Gato.jpg",
+        aromas: ["Uña de Gato", "Hierbas", "Notas Verdes"],
+      },
+    ],
+  },
+  {
+    id: "body-spa-crema-manos",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Body Spa Crema de Manos",
+    descripcion:
+      "Hidratación rápida y no grasosa para manos suaves durante todo el día.",
+    variantes: [
+      {
+        nombre: "Cacao",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Body_Spa_Crema_de_manos-Cacao.jpg",
+        aromas: ["Cacao", "Vainilla", "Notas Dulces"],
+      },
+      {
+        nombre: "Sacha Inchi",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Body_Spa_Crema_de_manos-Sacha_Inchi.jpg",
+        aromas: ["Sacha Inchi", "Omega 3, 6 y 9", "Notas Suaves"],
+      },
+      {
+        nombre: "Uña de Gato",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Body_Spa_Crema_de_manos-Uña_de_Gato.jpg",
+        aromas: ["Uña de Gato", "Hierbas", "Notas Verdes"],
+      },
+    ],
+  },
+  {
+    id: "desmaquillador-doble-fase",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Desmaquillador Doble Fase",
+    descripcion:
+      "Dos fases en un solo producto: la fase oleosa retira hasta el maquillaje a prueba de agua y la fase acuosa refresca la piel con extracto de hamamelis.",
+    aromas: ["Doble fase", "Waterproof", "Hamamelis"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desmaquillador_doble_fase.jpg",
+      },
+    ],
+  },
+  {
+    id: "desmaquillador-ojos-pestanas",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Desmaquillador para Ojos y Fortalecedor de Pestañas",
+    descripcion:
+      "Desmaquilla, fortalece, nutre y protege las pestañas con provitamina B5 y péptidos. Ideal para maquillaje resistente y rímel a prueba de agua.",
+    aromas: ["Provitamina B5", "Péptidos", "Fortalece pestañas"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desmaquillador_para_Ojos_y_Fortalecedor_de_Pestañas.jpg",
+      },
+    ],
+  },
+  {
+    id: "desodorante-effective",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Desodorante Antitranspirante Effective",
+    descripcion:
+      "Protección antitranspirante de larga duración para el día a día, con una opción para cada necesidad.",
+    variantes: [
+      {
+        nombre: "Aclarante",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Effective-Aclarante.jpg",
+        aromas: ["Aclarante", "48 h de protección", "Uso diario"],
+      },
+      {
+        nombre: "Brisa Floral",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Effective-Brisa_Floral.jpg",
+        aromas: ["Floral", "48 h de protección", "Frescura"],
+      },
+      {
+        nombre: "Clinical",
+        precio: 12,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Effective-Clinical.jpg",
+        aromas: ["Protección clínica", "72 h", "Alta eficacia"],
+      },
+      {
+        nombre: "Original",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Effective-Original.jpg",
+        aromas: ["Frescura clásica", "48 h de protección", "Uso diario"],
+      },
+      {
+        nombre: "Sensitive",
+        precio: 12,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Effective-Sensitive.jpg",
+        aromas: ["Piel sensible", "Fórmula suave", "48 h de protección"],
+      },
+    ],
+  },
+  {
+    id: "desodorante-femenino",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Desodorante Antitranspirante Femenino",
+    descripcion:
+      "La estela de tus perfumes favoritos, ahora en desodorante antitranspirante de larga duración.",
+    variantes: [
+      {
+        nombre: "Ccori",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Femenino-Ccori.jpg",
+        aromas: ["Rosa Blanca", "Canela Dulce", "Chocolate"],
+      },
+      {
+        nombre: "Ccori Rosé",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Femenino-Ccori_Rosé.jpg",
+        aromas: ["Ciruela", "Rosa Damascena", "Vainilla"],
+      },
+      {
+        nombre: "Cielo",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Femenino-Cielo.jpg",
+        aromas: ["Jazmín", "Flor de Loto", "Musk"],
+      },
+      {
+        nombre: "Gaiia",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Femenino-Gaiia.jpg",
+        aromas: ["Jacarandá", "Magnolia", "Orquídea"],
+      },
+      {
+        nombre: "Osadía",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Femenino-Osadía.jpg",
+        aromas: ["Bayas Doradas", "Mimosa", "Madera de Guayacán"],
+      },
+      {
+        nombre: "Temptation",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Femenino-Temptation.jpg",
+        aromas: ["Rosa Búlgara", "Gardenia", "Clavo de Olor"],
+      },
+    ],
+  },
+  {
+    id: "desodorante-masculino",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Desodorante Antitranspirante Masculino",
+    descripcion:
+      "Protección masculina de larga duración con la estela de las fragancias más icónicas de Yanbal.",
+    variantes: [
+      {
+        nombre: "Arom",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Arom.jpg",
+        aromas: ["Bergamota", "Romero", "Sándalo"],
+      },
+      {
+        nombre: "Arom Absolute",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Arom_Absolute.jpg",
+        aromas: ["Bergamota", "Romero", "Sándalo"],
+      },
+      {
+        nombre: "Ohm",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Ohm.jpg",
+        aromas: ["Toronja Rosada", "Salvia", "Cuero"],
+      },
+      {
+        nombre: "Ohm Black",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Ohm_Black.jpg",
+        aromas: ["Naranja Dulce", "Té Negro", "Pimienta Negra"],
+      },
+      {
+        nombre: "Ohm Soul",
+        precio: 11,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Ohm_Soul.jpg",
+        aromas: ["Notas Frescas", "Especias", "Maderas"],
+      },
+      {
+        nombre: "Solo",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Solo.jpg",
+        aromas: ["Mandarina", "Jengibre", "Cuero"],
+      },
+      {
+        nombre: "Temptation",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Temptation.jpg",
+        aromas: ["Menta", "Mandarina Dulce", "Sándalo"],
+      },
+      {
+        nombre: "Temptation Black",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Temptation_Black.jpg",
+        aromas: ["Pimienta Negra", "Cacao", "Cedro Negro"],
+      },
+      {
+        nombre: "Zentro",
+        precio: 11,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Desodorante_antitranspirante_Masculino-Zentro.jpg",
+        aromas: ["Yuzu", "Cedro", "Haba Tonka"],
+      },
+    ],
+  },
+  {
+    id: "exfoliante-antigrasa",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Exfoliante Antigrasa",
+    descripcion:
+      "Paso 1 de la rutina antigrasa: purifica la piel y minimiza poros con ácido salicílico y schinus molle. Cont. 100 g.",
+    aromas: ["Ácido salicílico", "Schinus molle", "Minimiza poros"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 29,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Exfoliante_antigrasa.jpg",
+      },
+    ],
+  },
+  {
+    id: "extracto-divino",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Extracto Divino Limpiador en Espuma",
+    descripcion:
+      "Limpieza facial profunda en textura de espuma, que deja la piel fresca y libre de impurezas.",
+    aromas: ["Espuma suave", "Limpieza profunda", "Uso diario"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 29,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Extracto_Divino-Limpiador_en_espuma.jpg",
+      },
+    ],
+  },
+  {
+    id: "jabon-perfumado-barra",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Jabón Perfumado en Barra",
+    descripcion:
+      "Jabones en barra con la estela de las fragancias más queridas de Yanbal, para perfumar la piel desde la ducha.",
+    variantes: [
+      {
+        nombre: "Cielo",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Cielo.jpg",
+        aromas: ["Jazmín", "Flor de Loto", "Musk"],
+      },
+      {
+        nombre: "Osadia (Hombre)",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Osadia.jpg",
+        aromas: ["Hierbabuena", "Café Dulce", "Madera de Ébano"],
+      },
+      {
+        nombre: "Osadía (Mujer)",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Osadía.jpg",
+        aromas: ["Flores Solares", "Frutas Amarillas", "Maderas Cálidas"],
+      },
+      {
+        nombre: "Solo",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Solo.jpg",
+        aromas: ["Mandarina", "Jengibre", "Cuero"],
+      },
+      {
+        nombre: "Temptation",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Temptation.jpg",
+        aromas: ["Rosa Búlgara", "Gardenia", "Clavo de Olor"],
+      },
+    ],
+  },
+  {
+    id: "locion-de-seda",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Loción de Seda",
+    descripcion:
+      "Textura sedosa de rápida absorción que hidrata y perfuma el cuerpo durante todo el día.",
+    variantes: [
+      {
+        nombre: "Ámbar y Miel",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_de_Seda-Ámbar_y_miel.jpg",
+        aromas: ["Ámbar", "Miel", "Notas Dulces"],
+      },
+      {
+        nombre: "Lima y Jazmín",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_de_Seda-Lima_y_Jazmín.jpg",
+        aromas: ["Lima", "Jazmín", "Notas Frescas"],
+      },
+      {
+        nombre: "Magnolias y Vainilla",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_de_Seda-Magnolias_y_Vainilla.jpg",
+        aromas: ["Magnolia", "Vainilla", "Flores Blancas"],
+      },
+      {
+        nombre: "Rosa y Musk",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_de_Seda-Rosa_y_musk.jpg",
+        aromas: ["Rosa", "Musk", "Notas Polvo"],
+      },
+    ],
+  },
+  {
+    id: "locion-perfumada-hidratante",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Loción Perfumada Hidratante",
+    descripcion:
+      "Prolonga la estela de tu perfume favorito mientras hidratas la piel.",
+    variantes: [
+      {
+        nombre: "Ccori",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Ccori.jpg",
+        aromas: ["Rosa Blanca", "Canela Dulce", "Chocolate"],
+      },
+      {
+        nombre: "Ccori Rosé",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Ccori_Rosé.jpg",
+        aromas: ["Ciruela", "Rosa Damascena", "Vainilla"],
+      },
+      {
+        nombre: "Ccori Rubí",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Ccori_Rubí.jpg",
+        aromas: ["Nardos", "Ámbar", "Vainilla"],
+      },
+      {
+        nombre: "Cielo en Rosa",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Cielo_en_rosa.jpg",
+        aromas: ["Rosa", "Almendra Tostada", "Almizcle"],
+      },
+      {
+        nombre: "Gaiia",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Gaia.jpg",
+        aromas: ["Jacarandá", "Magnolia", "Orquídea"],
+      },
+      {
+        nombre: "Ícono",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-ícono.jpg",
+        aromas: ["Clementina", "Ylang Ylang", "Sándalo"],
+      },
+      {
+        nombre: "Osadía Infinita",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Osadía_Infinita.jpg",
+        aromas: ["Bayas Doradas", "Mimosa", "Madera de Guayacán"],
+      },
+      {
+        nombre: "Temptation Mystic",
+        precio: 19,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Loción_perfumada_hidratante-Temptation_Mystic.jpg",
+        aromas: ["Cerezas", "Espuma de Café", "Amberwood"],
+      },
+    ],
+  },
+  {
+    id: "mascarilla-antigrasa",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Mascarilla Antigrasa",
+    descripcion:
+      "Paso 2 de la rutina antigrasa: detoxifica la piel y controla la grasa con carbón activo y hercampuri. Cont. 100 g.",
+    aromas: ["Carbón activo", "Hercampuri", "Control de grasa"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 29,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Mascarilla_antigrasa.jpg",
+      },
+    ],
+  },
+  {
+    id: "perfect-balance",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Perfect Balance",
+    descripcion:
+      "Rutina para piel mixta a grasa: controla el brillo sin resecar y mantiene la piel equilibrada.",
+    variantes: [
+      {
+        nombre: "Hidratante Matificante",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Perfec_Balance-Hidratante_matificante.jpg",
+        aromas: ["Matificante", "Hidratación ligera", "Piel mixta a grasa"],
+      },
+      {
+        nombre: "Limpiador Control Grasa",
+        precio: 27,
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/personal_care/Perfec_Balance-Limpiador_control_grasa.jpg",
+        aromas: ["Control de grasa", "Limpieza profunda", "Uso diario"],
+      },
+    ],
+  },
+  {
+    id: "pigment-control",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Pigment Control",
+    descripcion:
+      "Rutina contra las manchas: unifica el tono y ayuda a prevenir la aparición de nuevas manchas.",
+    variantes: [
+      {
+        nombre: "Crema Antimanchas",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Pigment_Control-Crema_antimanchas.jpg",
+        aromas: ["Antimanchas", "Unifica el tono", "Uso diario"],
+      },
+      {
+        nombre: "Limpiador Hidratante en Gel",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Pigment_Control-Limpiador_hidratante_en_gel.jpg",
+        aromas: ["Limpieza suave", "Hidratante", "Prepara la piel"],
+      },
+    ],
+  },
+  {
+    id: "repuesto-total-block-compacto",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Repuesto Total Block Ultraprotección SPF 100 Compacto con Color",
+    descripcion:
+      "Repuesto del compacto con color: cubrimiento medio que controla el brillo, con SPF 100. Resistente al agua y al sudor.",
+    aromas: ["SPF 100", "Cubrimiento medio", "Resistente al agua"],
+    variantes: [
+      {
+        nombre: "Claro",
+        precio: 32,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Repuesto_Total_Block_Ultraprotección_SPF_100_compacto_con_Color-Claro.jpg",
+      },
+      {
+        nombre: "Mediano 1",
+        precio: 32,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Repuesto_Total_Block_Ultraprotección_SPF_100_compacto_con_Color-Mediano_1.jpg",
+      },
+      {
+        nombre: "Mediano 2",
+        precio: 32,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Repuesto_Total_Block_Ultraprotección_SPF_100_compacto_con_Color-Mediano_2.jpg",
+      },
+    ],
+  },
+  {
+    id: "sensi-derm",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Sensi Derm Leche Limpiadora para Piel Sensible",
+    descripcion:
+      "Ultra suave: elimina impurezas y maquillaje respetando el pH y el microbioma de la piel.",
+    aromas: ["Piel sensible", "Respeta el pH", "Ultra suave"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 27,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Sensi_Derm-Leche_Limpiadora_para_Piel_Sensible.jpg",
+      },
+    ],
+  },
+  {
+    id: "suero-antiarrugas-lift",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Suero Antiarrugas Efecto Lift",
+    descripcion:
+      "Suero de acción intensiva que reduce la apariencia de arrugas y reafirma con efecto lift.",
+    aromas: ["Efecto lift", "Antiarrugas", "Reafirmante"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Suero_antiarrugas_efecto_lift.jpg",
+      },
+    ],
+  },
+  {
+    id: "suero-ultra-hidratante",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Suero Ultra Hidratante Efecto Relleno",
+    descripcion:
+      "Hidratación profunda con efecto relleno que devuelve volumen y luminosidad a la piel.",
+    aromas: ["Efecto relleno", "Ácido hialurónico", "Hidratación profunda"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Suero_ultra_hidratante_efecto_relleno.jpg",
+      },
+    ],
+  },
+  {
+    id: "total-block-dermafusion",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Total Block Fotoprotector Facial Dermafusión Fluido con Color FPS 50+",
+    descripcion:
+      "Alta protección de amplio espectro UVB (SPF 50+) y UVA (PA++++), con acción antiedad, antioxidante e hidratante gracias al ácido hialurónico. Úsalo antes del maquillaje.",
+    aromas: ["SPF 50+", "PA++++", "Ácido hialurónico"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 45,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Fotoprotector_Facial_Dermafusión_Fluido_con_color_FPS_50+.jpg",
+      },
+    ],
+  },
+  {
+    id: "total-block-spf-100",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Total Block Ultraprotección SPF 100",
+    descripcion:
+      "La máxima protección solar de Yanbal, disponible en varias presentaciones para cada rutina.",
+    variantes: [
+      {
+        nombre: "Crema 80 g",
+        precio: 33,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100-80g.jpg",
+        aromas: ["SPF 100", "Amplio espectro", "Rostro y cuerpo"],
+      },
+      {
+        nombre: "Jumbo 140 g",
+        precio: 45,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100-Jumbo_140g.jpg",
+        aromas: ["SPF 100", "Formato jumbo", "Rendidor"],
+      },
+      {
+        nombre: "Kids 140 g",
+        precio: null, // TODO: el Excel no trae PRECIO para esta variante
+        precioOferta: null,
+        stock: false,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100-Kids_140g.jpg",
+        aromas: ["SPF 100", "Para niños", "Pediátricamente probado"],
+      },
+      {
+        nombre: "Matificante 80 g",
+        precio: 37,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100-Matificante_80g.jpg",
+        aromas: ["SPF 100", "Acabado mate", "Libre de brillo"],
+      },
+      {
+        nombre: "Matificante con Color 50 g",
+        precio: 30,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100-Matificante_con_color_50g.jpg",
+        aromas: ["SPF 100", "Efecto mate", "Con color"],
+      },
+      {
+        nombre: "Sport 140 g",
+        precio: 45,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100-Sport_140g.jpg",
+        aromas: ["SPF 100", "Resistente al sudor", "Rostro y cuerpo"],
+      },
+    ],
+  },
+  {
+    id: "total-block-compacto-color",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Total Block Ultraprotección SPF 100 Compacto con Color",
+    descripcion:
+      "Efecto mate hasta por 6 horas con SPF 100. Cubrimiento medio, resistente al agua y al sudor. Incluye esponja, aplicador y espejo.",
+    aromas: ["SPF 100", "Efecto mate 6h", "Incluye espejo"],
+    variantes: [
+      {
+        nombre: "Claro",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100_compacto_con_Color-Claro.jpg",
+      },
+      {
+        nombre: "Mediano 1",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100_compacto_con_Color-Mediano_1.jpg",
+      },
+      {
+        nombre: "Mediano 2",
+        precio: 39,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Total_Block_Ultraprotección_SPF_100_compacto_con_Color-Mediano_2.jpg",
+      },
+    ],
+  },
+  {
+    id: "totalist-pote",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Totalist en Pote",
+    descripcion:
+      "Cremas faciales Totalist en presentación de pote, con una fórmula para cada necesidad de la piel.",
+    variantes: [
+      {
+        nombre: "Crema Aclarante",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_pote-Crema_Aclarante.jpg",
+        aromas: ["Concha de nácar", "Vitamina B3", "Unifica el tono"],
+      },
+      {
+        nombre: "Crema Antiarrugas",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_pote-Crema_Antiarrugas.jpg",
+        aromas: ["Jalea real", "Colágeno vegano", "Reafirmante"],
+      },
+      {
+        nombre: "Crema Ultrahidratante",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_pote-Crema_ultrahidratante.jpg",
+        aromas: ["Aguacate", "Ácido hialurónico", "Piel radiante"],
+      },
+      {
+        nombre: "Gel Control Brillo",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_pote-Gel_Control_Brillo_en_pote.jpg",
+        aromas: ["Aloe vera", "Niacinamida", "Control de brillo"],
+      },
+    ],
+  },
+  {
+    id: "totalist-tubo",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Totalist en Tubo",
+    descripcion:
+      "Las cremas Totalist en formato práctico de tubo, fáciles de llevar a todos lados.",
+    variantes: [
+      {
+        nombre: "Crema Aclarante",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_tubo-Crema_Aclarante.jpg",
+        aromas: ["Concha de nácar", "Vitamina B3", "Unifica el tono"],
+      },
+      {
+        nombre: "Crema Antiarrugas",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_tubo-Crema_Antiarrugas.jpg",
+        aromas: ["Jalea real", "Colágeno vegano", "Reafirmante"],
+      },
+      {
+        nombre: "Crema Ultrahidratante",
+        precio: 15,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist_en_tubo-Crema_Ultrahidratante.jpg",
+        aromas: ["Aguacate", "Ácido hialurónico", "Piel radiante"],
+      },
+    ],
+  },
+  {
+    id: "totalist-sueros",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Totalist Sueros",
+    descripcion:
+      "Sueros de acción concentrada que potencian tu rutina facial diaria.",
+    variantes: [
+      {
+        nombre: "Suero Antiarrugas",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist-Suero_Antiarrugas.jpg",
+        aromas: ["Antiarrugas", "Reafirmante", "Acción concentrada"],
+      },
+      {
+        nombre: "Suero Multiacción Ultrahidratante",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Totalist-Suero_multiacción_ultrahidratante.jpg",
+        aromas: ["Multiacción", "Ultrahidratante", "Piel luminosa"],
+      },
+    ],
+  },
+  {
+    id: "oleo-concentrado-reparador",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Óleo Concentrado Reparador",
+    descripcion:
+      "Óleo concentrado que repara la piel muy seca y devuelve elasticidad y suavidad.",
+    aromas: ["Reparador", "Piel muy seca", "Aceites nutritivos"],
+    variantes: [
+      {
+        nombre: "Único",
+        precio: 55,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Óleo_concentrado_reparador.jpg",
+      },
+    ],
+  },
+  // ==================== BEBES ====================
+  {
+    id: "petit-pon-pon",
+    marca: "yanbal",
+    categoria: "bebes",
+    nombre: "Petit Pon Pon",
+    descripcion:
+      "Cuidado delicado para la piel del bebé: fórmulas suaves y un aroma tierno de manzanilla y lavanda.",
+    variantes: [
+      {
+        nombre: "Baño Líquido",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/babys/Petit_Pon_Pon-Baño_líquido.jpg",
+        aromas: ["Manzanilla", "Lavanda", "Musk"],
+      },
+      {
+        nombre: "Colonia Libre de Alcohol",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/babys/Petit_Pon_Pon-Colonia_Libre_de_Alcohol.jpg",
+        aromas: ["Manzanilla", "Lavanda", "Musk"],
+      },
+      {
+        nombre: "Crema Hidratante Rostro y Cuerpo",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/babys/Petit_Pon_Pon-Crema_Hidratante_Rostro_y_Cuerpo.jpg",
+        aromas: ["Manzanilla", "Lavanda", "Musk"],
+      },
+      {
+        nombre: "Jabón en Barra",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/babys/Petit_Pon_Pon-Jabón_en_Barra.jpg",
+        aromas: ["Manzanilla", "Lavanda", "Musk"],
+      },
+      {
+        nombre: "Shampoo Acondicionador",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/babys/Petit_Pon_Pon-Shampoo_Acondicionador.jpg",
+        aromas: ["Manzanilla", "Lavanda", "Musk"],
+      },
+    ],
+  },
+  // ==================== NINOS ====================
+  {
+    id: "kids",
+    marca: "yanbal",
+    categoria: "ninos",
+    nombre: "Kids",
+    descripcion:
+      "Cuidado suave y divertido para los más pequeños, con fórmulas libres de alcohol y aromas amigables.",
+    variantes: [
+      {
+        nombre: "Colonia para Niñas",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/childrens/Kids-Colonia_para_Niñas.jpg",
+        aromas: ["Frutos Rojos", "Algodón de Azúcar", "Vainilla"],
+      },
+      {
+        nombre: "Colonia para Niños",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/childrens/Kids-Colonia_para_Niños.jpg",
+        aromas: ["Pomelo", "Limón", "Lavanda"],
+      },
+      {
+        nombre: "Shampoo para Niñas y Niños",
+        precio: 25,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/childrens/Kids-Shampoo_para_Niñas_y_Niños.jpg",
+        aromas: ["Manzanilla", "Naranja"],
       },
     ],
   },

@@ -5,3 +5,6 @@ out/
 *.log
 .env*.local
 .vercel
+*.xlsx
+*.csv
+*.zip
