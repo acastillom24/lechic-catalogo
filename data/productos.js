@@ -2313,10 +2313,10 @@ const productos = [
     ],
   },
   {
-    id: "jabon-perfumado-barra",
+    id: "jabon-perfumado-barra-femenino",
     marca: "yanbal",
     categoria: "cuidado-personal",
-    nombre: "Jabón Perfumado en Barra",
+    nombre: "Jabón Perfumado en Barra Femenino",
     descripcion:
       "Jabones en barra con la estela de las fragancias más queridas de Yanbal, para perfumar la piel desde la ducha.",
     variantes: [
@@ -2329,28 +2329,12 @@ const productos = [
         aromas: ["Jazmín", "Flor de Loto", "Musk"],
       },
       {
-        nombre: "Osadia (Hombre)",
-        precio: 10,
-        precioOferta: null,
-        stock: true,
-        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Osadia.jpg",
-        aromas: ["Hierbabuena", "Café Dulce", "Madera de Ébano"],
-      },
-      {
-        nombre: "Osadía (Mujer)",
+        nombre: "Osadía",
         precio: 10,
         precioOferta: null,
         stock: true,
         imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Osadía.jpg",
         aromas: ["Flores Solares", "Frutas Amarillas", "Maderas Cálidas"],
-      },
-      {
-        nombre: "Solo",
-        precio: 10,
-        precioOferta: null,
-        stock: true,
-        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Solo.jpg",
-        aromas: ["Mandarina", "Jengibre", "Cuero"],
       },
       {
         nombre: "Temptation",
@@ -2359,6 +2343,32 @@ const productos = [
         stock: true,
         imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Temptation.jpg",
         aromas: ["Rosa Búlgara", "Gardenia", "Clavo de Olor"],
+      },
+    ],
+  },
+  {
+    id: "jabon-perfumado-barra-masculino",
+    marca: "yanbal",
+    categoria: "cuidado-personal",
+    nombre: "Jabón Perfumado en Barra Masculino",
+    descripcion:
+      "Jabones en barra con la estela de las fragancias más queridas de Yanbal, para perfumar la piel desde la ducha.",
+    variantes: [
+      {
+        nombre: "Osadia",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Osadia.jpg",
+        aromas: ["Hierbabuena", "Café Dulce", "Madera de Ébano"],
+      },
+      {
+        nombre: "Solo",
+        precio: 10,
+        precioOferta: null,
+        stock: true,
+        imagen: "/images/productos/yanbal/personal_care/Jabón_perfumado_en_barra-Solo.jpg",
+        aromas: ["Mandarina", "Jengibre", "Cuero"],
       },
     ],
   },
