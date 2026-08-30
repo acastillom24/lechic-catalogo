@@ -1,0 +1,343 @@
+/* ============================================================
+   ESTILOS DEL PANEL /admin
+   Reutiliza los tokens de color de styles/globals.css (importado
+   antes que este archivo) y agrega solo lo necesario para
+   formularios, tablas y tarjetas del panel.
+   ============================================================ */
+
+.admin-body {
+  background: var(--papel-hondo);
+  min-height: 100vh;
+}
+
+.admin-topbar {
+  background: var(--tinta);
+  color: #fff;
+}
+
+.admin-topbar-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-topbar-marca {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.admin-nav {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.admin-nav a {
+  color: #f0e6e9;
+  opacity: 0.85;
+}
+
+.admin-nav a:hover {
+  opacity: 1;
+  color: var(--rosa-suave);
+}
+
+.admin-logout button {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.admin-logout button:hover {
+  border-color: var(--rosa-suave);
+  color: var(--rosa-suave);
+}
+
+.admin-main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+
+.admin-titulo-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.admin-titulo {
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  font-weight: 600;
+  color: var(--tinta);
+}
+
+.btn-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: 0.85rem;
+  padding: 10px 18px;
+  border-radius: var(--radio);
+  border: 1px solid var(--rosa);
+  color: var(--rosa);
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-admin:hover {
+  background: var(--rosa-tenue);
+}
+
+.btn-admin.solido {
+  background: var(--rosa);
+  color: #fff;
+}
+
+.btn-admin.solido:hover {
+  background: var(--rosa-hover);
+}
+
+.btn-admin.peligro {
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+.btn-admin.peligro:hover {
+  background: #fdecea;
+}
+
+.btn-admin:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.admin-card {
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 24px;
+}
+
+.admin-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admin-tabla th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--gris);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--linea);
+}
+
+.admin-tabla td {
+  padding: 12px;
+  border-bottom: 1px solid var(--linea);
+  vertical-align: middle;
+}
+
+.admin-tabla tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-miniatura {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--linea);
+  background: var(--papel-hondo);
+}
+
+.pill {
+  display: inline-block;
+  font-size: 0.68rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--rosa-tenue);
+  color: var(--rosa-hover);
+}
+
+.pill.agotado {
+  background: #fdecea;
+  color: #c0392b;
+}
+
+.admin-buscador {
+  max-width: 320px;
+  width: 100%;
+}
+
+.admin-buscador input {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  padding: 10px 14px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+}
+
+.form-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.form-fila {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.campo label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--gris);
+  margin-bottom: 6px;
+}
+
+.campo input[type="text"],
+.campo input[type="number"],
+.campo input[type="password"],
+.campo select,
+.campo textarea {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: #fff;
+  color: var(--tinta);
+}
+
+.campo textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.campo-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+
+.variante-card {
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 16px;
+  background: var(--papel);
+  position: relative;
+}
+
+.variante-card-cabecera {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.variante-card-cabecera h4 {
+  font-size: 0.85rem;
+  color: var(--rosa);
+  font-weight: 500;
+}
+
+.mensaje-error {
+  background: #fdecea;
+  color: #c0392b;
+  border: 1px solid #f3c2ba;
+  border-radius: var(--radio);
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.mensaje-ok {
+  background: #e8f7ee;
+  color: #1e824c;
+  border: 1px solid #b8e6c9;
+  border-radius: var(--radio);
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+}
+
+.imagen-actual {
+  width: 84px;
+  height: 84px;
+  object-fit: cover;
+  border-radius: var(--radio);
+  border: 1px solid var(--linea);
+  margin-bottom: 8px;
+  background: #fff;
+}
+
+.login-envoltorio {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-tarjeta {
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  padding: 32px 28px;
+  box-shadow: var(--sombra);
+}
+
+.login-tarjeta h1 {
+  font-family: var(--serif);
+  font-size: 1.6rem;
+  text-align: center;
+  color: var(--rosa);
+  margin-bottom: 20px;
+}
+
+.csv-ayuda {
+  font-size: 0.82rem;
+  color: var(--gris);
+  line-height: 1.6;
+}
+
+.csv-ayuda code {
+  background: var(--papel-hondo);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .form-fila {
+    grid-template-columns: 1fr;
+  }
+}

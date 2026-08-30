@@ -1,8 +1,8 @@
-import "../styles/globals.css";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
-import { SeleccionProvider } from "../lib/SelectionContext";
-import SelectionPanel from "../components/SelectionPanel";
+import "../../styles/globals.css";
+import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
+import { SeleccionProvider } from "../../lib/SelectionContext";
+import SelectionPanel from "../../components/SelectionPanel";
 
 export const metadata = {
   title: "Le Chic · Catálogo de fragancias y belleza",

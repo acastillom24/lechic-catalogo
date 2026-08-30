@@ -6,12 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "migrar-datos": "node --env-file=.env.local scripts/migrar-datos.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
     "next": "^16.2.10",
+    "papaparse": "^5.4.1",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "eslint": "8.57.0",

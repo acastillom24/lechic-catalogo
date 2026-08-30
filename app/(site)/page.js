@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMarcas, getConfig } from "../lib/data";
+import { getMarcas, getConfig } from "../../lib/data";
 
 export default function Home() {
   const marcas = getMarcas();

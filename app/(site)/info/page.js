@@ -1,4 +1,4 @@
-import { getConfig } from "../../lib/data";
+import { getConfig } from "../../../lib/data";
 
 export const metadata = { title: "Cómo comprar · Le Chic" };
 

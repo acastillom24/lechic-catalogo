@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep -l \"_initRealtimeClient\")",
+      "Bash(curl -s http://localhost:3000/producto/ccori)",
+      "Bash(curl -s http://localhost:3000/marca/yanbal)",
+      "Bash(curl -s -D - -o /dev/null http://localhost:3000/admin)",
+      "Bash(curl -s http://localhost:3000/admin/login)",
+      "Bash(grep -o '\\\\$ACTION_[A-Za-z0-9_]*\\\\|action=\"[^\"]*\"\\\\|name=\"\\\\$ACTION[^\"]*\" value=\"[^\"]*\"')",
+      "Bash(node --env-file=.env.local -e ' *)",
+      "Bash(curl -s http://localhost:3000/producto/ccori -o /tmp/ccori.html)",
+      "Read(//tmp/**)"
+    ]
+  }
+}
