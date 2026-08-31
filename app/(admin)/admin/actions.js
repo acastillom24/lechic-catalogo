@@ -243,6 +243,86 @@ export async function eliminarProducto(id) {
 }
 
 // ============================================================
+//  SUBIR IMÁGENES EN LOTE (por nombre de archivo)
+// ============================================================
+//  Complemento a la importación por CSV: un CSV no puede llevar
+//  archivos, así que las fotos se suben una por una (nunca todas juntas
+//  en un solo request, por el límite de tamaño de Vercel) desde
+//  /admin/imagenes. Cada archivo debe llamarse:
+//    id_producto__nombre_de_la_variante.ext
+//  y esta acción busca esa variante (por producto + nombre, ignorando
+//  tildes/mayúsculas) y le asigna la imagen subida.
+//
+//  A diferencia de las demás acciones de este archivo, esta se llama
+//  directamente desde el cliente (no a través de un <form action=...>),
+//  así que nunca usa redirect(): siempre devuelve un objeto de
+//  resultado para que la página pueda mostrar el progreso archivo por
+//  archivo.
+
+export async function subirImagenPorNombre(formData) {
+  const archivo = formData.get("archivo");
+  if (!archivo || typeof archivo !== "object" || !("size" in archivo) || archivo.size === 0) {
+    return { ok: false, error: "Archivo vacío o inválido." };
+  }
+
+  const ext = extensionDe(archivo);
+  const base = (archivo.name || "").replace(/\.[^.]+$/, "");
+  const partes = base.split("__");
+  if (partes.length !== 2 || !partes[0] || !partes[1]) {
+    return {
+      ok: false,
+      error: `El nombre debe ser "id_producto__nombre_variante.${ext}".`,
+    };
+  }
+  const [idProducto, parteVariante] = partes;
+
+  try {
+    const supabase = supabaseServer();
+
+    const { data: variantes, error: errorConsulta } = await supabase
+      .from("variantes")
+      .select("id, nombre")
+      .eq("producto_id", idProducto);
+    if (errorConsulta) return { ok: false, error: errorConsulta.message };
+    if (!variantes || variantes.length === 0) {
+      return { ok: false, error: `No existe el producto "${idProducto}".` };
+    }
+
+    const slugBuscado = slugify(parteVariante);
+    const variante = variantes.find((v) => slugify(v.nombre) === slugBuscado);
+    if (!variante) {
+      const disponibles = variantes.map((v) => slugify(v.nombre)).join(", ") || "(ninguna)";
+      return {
+        ok: false,
+        error: `"${idProducto}" no tiene una variante "${parteVariante}". Disponibles: ${disponibles}.`,
+      };
+    }
+
+    const buffer = Buffer.from(await archivo.arrayBuffer());
+    const ruta = `${idProducto}/${slugBuscado}.${ext}`;
+    const { error: errorSubida } = await supabase.storage
+      .from(BUCKET)
+      .upload(ruta, buffer, { contentType: archivo.type || "image/jpeg", upsert: true });
+    if (errorSubida) return { ok: false, error: `No se pudo subir la imagen: ${errorSubida.message}` };
+
+    const { data: publica } = supabase.storage.from(BUCKET).getPublicUrl(ruta);
+    const { error: errorUpdate } = await supabase
+      .from("variantes")
+      .update({ imagen: publica.publicUrl })
+      .eq("id", variante.id);
+    if (errorUpdate) return { ok: false, error: errorUpdate.message };
+
+    revalidatePath("/", "layout");
+    revalidatePath(`/producto/${idProducto}`);
+    revalidatePath("/admin");
+
+    return { ok: true, producto: idProducto, variante: variante.nombre };
+  } catch (err) {
+    return { ok: false, error: err.message || "Error inesperado al subir la imagen." };
+  }
+}
+
+// ============================================================
 //  IMPORTAR CSV (alta/edición masiva)
 // ============================================================
 //  Formato esperado (encabezados exactos, separador de columnas: coma;

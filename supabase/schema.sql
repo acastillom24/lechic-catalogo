@@ -24,7 +24,10 @@ create table if not exists productos (
   descripcion  text not null default '',
   aromas       text[] not null default '{}',
   destacado    boolean not null default false,
-  orden        integer not null default 0,
+  -- bigint (no integer): el código usa Date.now() como valor de orden para
+  -- que los productos nuevos aparezcan al final, y esos timestamps superan
+  -- el máximo de un integer normal (~2.147 millones).
+  orden        bigint not null default 0,
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );

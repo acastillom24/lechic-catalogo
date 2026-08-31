@@ -25,6 +25,7 @@ export default function AdminChrome({ children }) {
             <Link href="/admin">Productos</Link>
             <Link href="/admin/productos/nuevo">Nuevo producto</Link>
             <Link href="/admin/importar">Importar CSV</Link>
+            <Link href="/admin/imagenes">Subir imágenes</Link>
             <Link href="/" target="_blank">
               Ver sitio ↗
             </Link>

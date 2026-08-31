@@ -74,11 +74,36 @@ Entra a `tusitio.com/admin` con la contraseña que definiste en
 - **Importar CSV** (`/admin/importar`): para cargar o actualizar muchos
   productos de una vez. La página explica el formato exacto de columnas
   (una fila = una variante, aromas separados por `|`). Reimportar un
-  `id_producto` existente reemplaza sus variantes por completo.
+  `id_producto` existente reemplaza sus variantes por completo. Un CSV
+  es solo texto — no puede llevar las fotos adentro, así que la columna
+  `imagen` queda vacía a menos que ya tengas una URL externa.
+- **Subir imágenes en lote** (`/admin/imagenes`): para poner las fotos de
+  muchos productos importados por CSV de una sola vez. Seleccionas todas
+  las fotos juntas desde tu computadora o celular, cada una nombrada
+  `id_producto__nombre_variante.jpg` (ej. `ccori__cristal.jpg`), y la
+  página las sube y conecta una por una, mostrando el progreso y
+  cualquier error (producto o variante que no coincide, etc.). El
+  producto y la variante deben existir de antes — esta pantalla solo
+  agrega la foto. Hay un script equivalente para correr desde tu
+  computadora sin pasar por el navegador: ver
+  [`scripts/subir-imagenes-masivo.js`](scripts/subir-imagenes-masivo.js)
+  (`npm run subir-imagenes -- ./carpeta`).
 
 Las **marcas y categorías** (`data/marcas.js`) y los **textos generales
 del sitio** (`data/config.js`: teléfono, Instagram, envíos, políticas)
 siguen editándose en el código, porque cambian muy poco — ver más abajo.
+
+### Un límite a tener en cuenta: tamaño de las fotos
+
+Vercel limita a **4.5 MB el cuerpo de una función** (esto no se puede
+subir desde la configuración del proyecto). Eso no afecta a "Subir
+imágenes en lote" (sube una foto por request), pero si editas un
+producto con **varias variantes y le cambias la foto a todas a la vez**
+en el mismo formulario, la suma de esas fotos nuevas debe quedar por
+debajo de ese límite — en la práctica, alcanza de sobra si las fotos
+están optimizadas para web (unos cientos de KB cada una). Si notas un
+error al guardar un producto con muchas fotos grandes, guarda las
+variantes en dos tandas o comprime las imágenes antes de subirlas.
 
 ### Marcas y categorías nuevas
 
@@ -104,8 +129,9 @@ lechic/
 │       ├── productos/nuevo/      ← Alta manual
 │       ├── productos/[id]/       ← Edición / eliminación
 │       ├── importar/             ← Carga masiva por CSV
+│       ├── imagenes/             ← Subir fotos en lote (por nombre de archivo)
 │       ├── login/                ← Acceso con contraseña
-│       ├── actions.js            ← Server Actions (guardar/eliminar/importar)
+│       ├── actions.js            ← Server Actions (guardar/eliminar/importar/imágenes)
 │       └── layout.js
 ├── data/
 │   ├── marcas.js          ← Marcas y categorías (editable en código)
