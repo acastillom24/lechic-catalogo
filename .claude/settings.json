@@ -9,7 +9,9 @@
       "Bash(grep -o '\\\\$ACTION_[A-Za-z0-9_]*\\\\|action=\"[^\"]*\"\\\\|name=\"\\\\$ACTION[^\"]*\" value=\"[^\"]*\"')",
       "Bash(node --env-file=.env.local -e ' *)",
       "Bash(curl -s http://localhost:3000/producto/ccori -o /tmp/ccori.html)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(iconv -f UTF-8 -t UTF-8 -c)",
+      "Bash(node -e ' *)"
     ]
   }
 }
