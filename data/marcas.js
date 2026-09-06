@@ -73,13 +73,13 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
+      { slug: "ekos", nombre: "Ekos" },
+      { slug: "tododia", nombre: "Tododia" },
       { slug: "personal_care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "boys", nombre: "Niños" },
       { slug: "girls", nombre: "Niñas" },
       { slug: "babies", nombre: "Bebés" },
-      { slug: "ekos", nombre: "Ekos" },
-      { slug: "tododia", nombre: "Tododia" },
     ],
   },
   {
