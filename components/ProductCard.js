@@ -112,7 +112,7 @@ export default function ProductCard({ producto }) {
         }
         .tarjeta-img {
           position: relative;
-          aspect-ratio: 3 / 4;
+          aspect-ratio: 1 / 1;
           background: linear-gradient(
             170deg,
             var(--rosa-tenue),

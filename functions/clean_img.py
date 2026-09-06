@@ -69,6 +69,6 @@ def rename_images_in_folder(folder_path):
 
 if __name__ == "__main__":
     # Reemplaza esta ruta con tu carpeta
-    folder_path = r"C:\Users\alinc\Downloads\Compressed\DUPREE"
+    folder_path = r"C:\Users\alinc\Downloads\Compressed\NATURA 1"
     
     rename_images_in_folder(folder_path)
