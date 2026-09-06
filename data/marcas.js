@@ -78,6 +78,8 @@ const marcas = [
       { slug: "boys", nombre: "Niños" },
       { slug: "girls", nombre: "Niñas" },
       { slug: "babies", nombre: "Bebés" },
+      { slug: "ekos", nombre: "Ekos" },
+      { slug: "tododia", nombre: "Tododia" },
     ],
   },
   {

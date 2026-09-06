@@ -3,9 +3,10 @@ import unicodedata
 from pathlib import Path
 
 def remove_accents(text):
-    """Elimina tildes y acentos del texto"""
+    """Elimina tildes, acentos y espacios extras del texto"""
     nfd = unicodedata.normalize('NFD', text)
-    return ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+    clean_txt = ''.join(char for char in nfd if unicodedata.category(char) != 'Mn')
+    return ' '.join(clean_txt.split())
 
 def rename_images_in_folder(folder_path):
     """
@@ -68,6 +69,6 @@ def rename_images_in_folder(folder_path):
 
 if __name__ == "__main__":
     # Reemplaza esta ruta con tu carpeta
-    folder_path = r"C:\Users\alinc\Documents\lechic-catalogo\public\images\productos\lbel\L_BEL"
+    folder_path = r"C:\Users\alinc\Downloads\Compressed\DUPREE"
     
     rename_images_in_folder(folder_path)
