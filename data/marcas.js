@@ -19,7 +19,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
     ],
@@ -32,7 +32,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
     ],
   },
@@ -44,7 +44,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
       { slug: "babys", nombre: "Bebés" },
@@ -75,7 +75,7 @@ const marcas = [
       { slug: "masculine", nombre: "Perfumería Caballeros" },
       { slug: "ekos", nombre: "Ekos" },
       { slug: "tododia", nombre: "Tododia" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "childrens", nombre: "Niños y Niñas" },
       { slug: "babies", nombre: "Bebés" },
@@ -89,7 +89,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
       { slug: "boys", nombre: "Niños" },
@@ -105,7 +105,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
       { slug: "boys", nombre: "Niños" },
@@ -133,7 +133,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
     ],
@@ -147,7 +147,7 @@ const marcas = [
     categorias: [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
-      { slug: "personal_care", nombre: "Cuidado Personal" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
     ],
