@@ -78,7 +78,7 @@ const marcas = [
       { slug: "personal_care", nombre: "Cuidado Personal" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "childrens", nombre: "Niños y Niñas" },
-      { slug: "boys", nombre: "Niños" },
+      { slug: "babies", nombre: "Bebés" },
     ],
   },
   {
