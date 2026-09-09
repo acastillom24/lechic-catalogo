@@ -144,6 +144,8 @@ const marcas = [
       "Fragancias alternativas de diseñador, Victoria's Secret, cuidado personal importado y más.",
     color: "#f06595",
     categorias: [
+      { slug: "ekos", nombre: "Ekos" },
+      { slug: "tododia", nombre: "Tododia" },
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
       { slug: "personal-care", nombre: "Cuidado Personal" },
