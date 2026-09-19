@@ -63,6 +63,7 @@ const marcas = [
       { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "babies", nombre: "Bebés" },
       { slug: "children", nombre: "Niños y Niñas" },
+      { slug: "accessories", nombre: "Accesorios" },
     ],
   },
   {
@@ -149,6 +150,8 @@ const marcas = [
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
       { slug: "personal-care", nombre: "Cuidado Personal" },
+      { slug: "children", nombre: "Niños y Niñas" },
+      { slug: "babies", nombre: "Bebés" },
       { slug: "make-up", nombre: "Maquillaje" },
       { slug: "accessories", nombre: "Accesorios" },
     ],
