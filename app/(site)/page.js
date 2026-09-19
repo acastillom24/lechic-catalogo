@@ -32,7 +32,6 @@ export default async function Home() {
           <p className="hero-sub serif">
             Donde el lujo y la accesibilidad se combinan
           </p>
-          <div className="regla" />
           <div className="hero-cta">
             <Link href="#catalogos" className="btn btn-solido">
               Ver catálogos
@@ -48,9 +47,7 @@ export default async function Home() {
       {ofertasDestacadas.length > 0 && (
         <section className="ofertas-seccion">
           <div className="contenedor">
-            <p className="seccion-eyebrow">No te las pierdas</p>
             <h2 className="seccion-titulo">Ofertas destacadas</h2>
-            <div className="regla" />
             <div className="ofertas-carrusel-wrap">
               <OfertasCarousel productos={ofertasDestacadas} />
             </div>
@@ -109,7 +106,7 @@ export default async function Home() {
       <style>{`
         .hero {
           text-align: center;
-          padding: 84px 0 60px;
+          padding: 24px 0 64px;
         }
         .hero-eyebrow {
           font-size: 0.72rem;
@@ -140,10 +137,10 @@ export default async function Home() {
         }
 
         .ofertas-seccion {
-          padding: 40px 0 20px;
+          padding: 8px 0 20px;
         }
         .ofertas-carrusel-wrap {
-          margin-top: 34px;
+          margin-top: 16px;
         }
 
         .marcas-seccion {
