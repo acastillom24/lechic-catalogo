@@ -1,10 +1,26 @@
 import Link from "next/link";
-import { getMarcas, getConfig } from "../../lib/data";
+import { getMarcas, getConfig, getProductosPorMarca } from "../../lib/data";
+import OfertasCarousel from "../../components/OfertasCarousel";
 
-export default function Home() {
+function elegirOfertasAleatorias(productos, cantidad) {
+  const disponibles = productos.filter((p) =>
+    p.variantes.some((v) => v.stock !== false)
+  );
+  const mezclados = disponibles.slice();
+  for (let i = mezclados.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [mezclados[i], mezclados[j]] = [mezclados[j], mezclados[i]];
+  }
+  return mezclados.slice(0, cantidad);
+}
+
+export default async function Home() {
   const marcas = getMarcas();
   const config = getConfig();
   const b = config.bienvenida;
+
+  const productosOferta = await getProductosPorMarca("ofertas");
+  const ofertasDestacadas = elegirOfertasAleatorias(productosOferta, 5);
 
   return (
     <>
@@ -27,6 +43,20 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* ---------- OFERTAS DESTACADAS ---------- */}
+      {ofertasDestacadas.length > 0 && (
+        <section className="ofertas-seccion">
+          <div className="contenedor">
+            <p className="seccion-eyebrow">No te las pierdas</p>
+            <h2 className="seccion-titulo">Ofertas destacadas</h2>
+            <div className="regla" />
+            <div className="ofertas-carrusel-wrap">
+              <OfertasCarousel productos={ofertasDestacadas} />
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ---------- CATÁLOGOS POR MARCA ---------- */}
       <section id="catalogos" className="marcas-seccion">
@@ -107,6 +137,13 @@ export default function Home() {
           gap: 12px;
           justify-content: center;
           flex-wrap: wrap;
+        }
+
+        .ofertas-seccion {
+          padding: 40px 0 20px;
+        }
+        .ofertas-carrusel-wrap {
+          margin-top: 34px;
         }
 
         .marcas-seccion {
