@@ -12,6 +12,24 @@
 
 const marcas = [
   {
+    slug: "ofertas",
+    nombre: "Ofertas",
+    descripcion:
+      "Fragancias alternativas de diseñador, Victoria's Secret, cuidado personal importado y más.",
+    color: "#f06595",
+    categorias: [
+      { slug: "ekos", nombre: "Ekos" },
+      { slug: "tododia", nombre: "Tododia" },
+      { slug: "feminine", nombre: "Perfumería Mujer" },
+      { slug: "masculine", nombre: "Perfumería Caballeros" },
+      { slug: "personal-care", nombre: "Cuidado Personal" },
+      { slug: "children", nombre: "Niños y Niñas" },
+      { slug: "babies", nombre: "Bebés" },
+      { slug: "make-up", nombre: "Maquillaje" },
+      { slug: "accessories", nombre: "Accesorios" },
+    ],
+  },
+  {
     slug: "cyzone",
     nombre: "Cyzone",
     descripcion: "Perfumería, cuidado personal, maquillaje, accesorios y más.",
@@ -139,21 +157,40 @@ const marcas = [
     ],
   },
   {
-    slug: "ofertas",
-    nombre: "Ofertas",
-    descripcion:
-      "Fragancias alternativas de diseñador, Victoria's Secret, cuidado personal importado y más.",
-    color: "#f06595",
+    slug: "farmasi",
+    nombre: "Farmasi",
+    descripcion: "Perfumería, cuidado personal, maquillaje, accesorios y más.",
+    color: "#FF2C2C",
     categorias: [
-      { slug: "ekos", nombre: "Ekos" },
-      { slug: "tododia", nombre: "Tododia" },
-      { slug: "feminine", nombre: "Perfumería Mujer" },
-      { slug: "masculine", nombre: "Perfumería Caballeros" },
       { slug: "personal-care", nombre: "Cuidado Personal" },
-      { slug: "children", nombre: "Niños y Niñas" },
-      { slug: "babies", nombre: "Bebés" },
       { slug: "make-up", nombre: "Maquillaje" },
-      { slug: "accessories", nombre: "Accesorios" },
+    ],
+  },
+  {
+    slug: "caravan",
+    nombre: "Caravan",
+    descripcion: "Perfumería, cuidado personal, maquillaje, accesorios y más.",
+    color: "#FFC5D3",
+    categorias: [
+      { slug: "perfumery", nombre: "Perfumería" },
+    ],
+  },
+  {
+    slug: "saphir",
+    nombre: "Saphir",
+    descripcion: "Perfumería",
+    color: "#E3AB46",
+    categorias: [
+      { slug: "perfumery", nombre: "Perfumería" },
+    ],
+  },
+  {
+    slug: "bath-and-body-works",
+    nombre: "Bath & Body Works",
+    descripcion: "Perfumería",
+    color: "#0000FF",
+    categorias: [
+      { slug: "perfumery", nombre: "Perfumería" },
     ],
   },
 ];
