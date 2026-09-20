@@ -14,6 +14,9 @@ export default function Footer() {
           <a href={config.instagramUrl} target="_blank" rel="noopener noreferrer">
             {config.instagram}
           </a>
+          <a href={config.tiktokUrl} target="_blank" rel="noopener noreferrer">
+            TikTok
+          </a>
           <Link href="/info">Cómo comprar</Link>
         </div>
         <p className="pie-nota">

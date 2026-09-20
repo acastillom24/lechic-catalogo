@@ -11,8 +11,10 @@
 const config = {
   // --- Identidad ---
   marca: "Le Chic",
-  instagram: "@LECHIC.PE",
-  instagramUrl: "https://instagram.com/lechic.pe",
+  instagram: "@lechic_ofertas",
+  instagramUrl: "https://www.instagram.com/lechic_ofertas",
+  tiktok: "@maritaofertas",
+  tiktokUrl: "https://www.tiktok.com/@maritaofertas",
   telefono: "+51 985219626",
   // El número para el enlace de WhatsApp va sin espacios ni signos.
   whatsapp: "51985219626",

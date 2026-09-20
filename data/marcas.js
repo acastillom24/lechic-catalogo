@@ -22,11 +22,12 @@ const marcas = [
       { slug: "tododia", nombre: "Tododia" },
       { slug: "feminine", nombre: "Perfumería Mujer" },
       { slug: "masculine", nombre: "Perfumería Caballeros" },
+      { slug: "couples", nombre: "Perfumería Parejas" },
       { slug: "personal-care", nombre: "Cuidado Personal" },
       { slug: "children", nombre: "Niños y Niñas" },
       { slug: "babies", nombre: "Bebés" },
       { slug: "make-up", nombre: "Maquillaje" },
-      { slug: "accessories", nombre: "Accesorios" },
+      { slug: "hair", nombre: "Cabellos" },
     ],
   },
   {
@@ -172,7 +173,8 @@ const marcas = [
     descripcion: "Perfumería, cuidado personal, maquillaje, accesorios y más.",
     color: "#FFC5D3",
     categorias: [
-      { slug: "perfumery", nombre: "Perfumería" },
+      { slug: "feminine", nombre: "Perfumería Mujer" },
+      { slug: "masculine", nombre: "Perfumería Caballeros" },
     ],
   },
   {
@@ -181,7 +183,8 @@ const marcas = [
     descripcion: "Perfumería",
     color: "#E3AB46",
     categorias: [
-      { slug: "perfumery", nombre: "Perfumería" },
+      { slug: "feminine", nombre: "Perfumería Mujer" },
+      { slug: "masculine", nombre: "Perfumería Caballeros" },
     ],
   },
   {

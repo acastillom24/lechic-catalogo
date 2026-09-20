@@ -8,8 +8,8 @@ export default function SelectionButton() {
   return (
     <button className="sel-btn" onClick={abrir} aria-label="Ver mi selección">
       <svg
-        width="20"
-        height="20"
+        width="24"
+        height="24"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
@@ -30,8 +30,8 @@ export default function SelectionButton() {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
-          height: 40px;
+          width: 48px;
+          height: 48px;
           border: 1px solid var(--linea);
           border-radius: 999px;
           background: var(--blanco);

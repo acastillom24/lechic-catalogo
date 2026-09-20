@@ -9,13 +9,30 @@ export default function Navbar() {
   const marcas = getMarcas();
   const config = getConfig();
   const [abierto, setAbierto] = useState(false);
+  const palabrasMarca = config.marca.split(" ");
 
   return (
     <header className="nav">
       <div className="contenedor nav-fila">
         <Link href="/" className="nav-marca" onClick={() => setAbierto(false)}>
-          <span className="nav-marca-txt">{config.marca}</span>
+          <span className="nav-marca-txt">
+            {palabrasMarca.map((palabra, i) => (
+              <span key={i}>{palabra}</span>
+            ))}
+          </span>
         </Link>
+
+        <nav className={`nav-links ${abierto ? "abierto" : ""}`}>
+          {marcas.map((m) => (
+            <Link
+              key={m.slug}
+              href={`/marca/${m.slug}`}
+              onClick={() => setAbierto(false)}
+            >
+              {m.nombre}
+            </Link>
+          ))}
+        </nav>
 
         <div className="nav-acciones">
           <SelectionButton />
@@ -30,21 +47,6 @@ export default function Navbar() {
             <span />
           </button>
         </div>
-
-        <nav className={`nav-links ${abierto ? "abierto" : ""}`}>
-          {marcas.map((m) => (
-            <Link
-              key={m.slug}
-              href={`/marca/${m.slug}`}
-              onClick={() => setAbierto(false)}
-            >
-              {m.nombre}
-            </Link>
-          ))}
-          <Link href="/info" onClick={() => setAbierto(false)}>
-            Cómo comprar
-          </Link>
-        </nav>
       </div>
 
       <style jsx>{`
@@ -60,33 +62,74 @@ export default function Navbar() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          height: 62px;
+          position: relative;
+          padding: 14px 0;
+          gap: 20px;
+        }
+        .nav-marca {
+          display: flex;
+          align-items: center;
+          flex-shrink: 0;
+          margin-right: 10px;
         }
         .nav-marca-txt {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
           font-family: var(--serif);
+          font-style: italic;
           font-weight: 600;
-          font-size: 1.5rem;
-          letter-spacing: 0.02em;
+          font-size: 1.65rem;
+          line-height: 1.1;
+          letter-spacing: 0.03em;
           color: var(--rosa);
+          white-space: nowrap;
         }
         .nav-links {
           display: flex;
-          gap: 22px;
+          flex: 1;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 10px 24px;
           align-items: center;
         }
         .nav-links :global(a) {
-          font-size: 0.82rem;
-          letter-spacing: 0.04em;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          font-family: var(--serif);
+          font-size: 1.05rem;
+          font-weight: 600;
+          letter-spacing: 0.02em;
           color: var(--tinta);
+          position: relative;
+          padding-bottom: 4px;
           transition: color 0.2s;
+        }
+        .nav-links :global(a)::after {
+          content: "";
+          position: absolute;
+          left: 50%;
+          bottom: 0;
+          width: 0;
+          height: 2px;
+          background: var(--rosa);
+          transform: translateX(-50%);
+          transition: width 0.2s ease;
         }
         .nav-links :global(a:hover) {
           color: var(--rosa);
+        }
+        .nav-links :global(a:hover)::after {
+          width: 100%;
         }
         .nav-acciones {
           display: flex;
           align-items: center;
           gap: 12px;
+          flex-shrink: 0;
         }
         .nav-toggle {
           display: none;
@@ -109,7 +152,7 @@ export default function Navbar() {
           }
           .nav-links {
             position: absolute;
-            top: 62px;
+            top: 100%;
             left: 0;
             right: 0;
             flex-direction: column;
@@ -118,16 +161,22 @@ export default function Navbar() {
             background: var(--papel);
             border-bottom: 1px solid var(--linea);
             max-height: 0;
-            overflow: hidden;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             transition: max-height 0.3s ease;
           }
           .nav-links.abierto {
-            max-height: 400px;
+            max-height: calc(100vh - 70px);
           }
           .nav-links :global(a) {
             width: 100%;
+            justify-content: flex-start;
+            text-align: left;
             padding: 14px 20px;
             border-top: 1px solid var(--linea);
+          }
+          .nav-links :global(a)::after {
+            display: none;
           }
         }
       `}</style>
