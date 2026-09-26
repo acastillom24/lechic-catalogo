@@ -14,6 +14,7 @@ import {
 import { supabaseServer } from "../../../lib/supabaseServer";
 import { slugify } from "../../../lib/slug";
 import { getMarca, getCategoria } from "../../../lib/data";
+import { optimizarImagen, CACHE_CONTROL_IMAGEN } from "../../../lib/optimizarImagen";
 
 const BUCKET = "productos";
 
@@ -85,13 +86,19 @@ function extensionDe(archivo) {
 }
 
 async function subirImagen(archivo, productoId, indice) {
-  const buffer = Buffer.from(await archivo.arrayBuffer());
-  const ruta = `${productoId}/${indice}-${Date.now()}.${extensionDe(archivo)}`;
+  const bufferOriginal = Buffer.from(await archivo.arrayBuffer());
+  const { buffer, ext, contentType } = await optimizarImagen(
+    bufferOriginal,
+    extensionDe(archivo),
+    archivo.type
+  );
+  const ruta = `${productoId}/${indice}-${Date.now()}.${ext}`;
   const supabase = supabaseServer();
   const { error } = await supabase.storage
     .from(BUCKET)
     .upload(ruta, buffer, {
-      contentType: archivo.type || "image/jpeg",
+      contentType,
+      cacheControl: CACHE_CONTROL_IMAGEN,
       upsert: true,
     });
   if (error) throw new Error(`No se pudo subir la imagen: ${error.message}`);
@@ -298,11 +305,16 @@ export async function subirImagenPorNombre(formData) {
       };
     }
 
-    const buffer = Buffer.from(await archivo.arrayBuffer());
-    const ruta = `${idProducto}/${slugBuscado}.${ext}`;
+    const bufferOriginal = Buffer.from(await archivo.arrayBuffer());
+    const { buffer, ext: extFinal, contentType } = await optimizarImagen(
+      bufferOriginal,
+      ext,
+      archivo.type
+    );
+    const ruta = `${idProducto}/${slugBuscado}.${extFinal}`;
     const { error: errorSubida } = await supabase.storage
       .from(BUCKET)
-      .upload(ruta, buffer, { contentType: archivo.type || "image/jpeg", upsert: true });
+      .upload(ruta, buffer, { contentType, cacheControl: CACHE_CONTROL_IMAGEN, upsert: true });
     if (errorSubida) return { ok: false, error: `No se pudo subir la imagen: ${errorSubida.message}` };
 
     const { data: publica } = supabase.storage.from(BUCKET).getPublicUrl(ruta);

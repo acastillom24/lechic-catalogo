@@ -38,6 +38,7 @@ const fs = require("fs");
 const path = require("path");
 const { supabaseServer } = require("../lib/supabaseServer");
 const { slugify } = require("../lib/slug");
+const { optimizarImagen, CACHE_CONTROL_IMAGEN } = require("../lib/optimizarImagen");
 
 const EXTENSIONES_VALIDAS = [".jpg", ".jpeg", ".png", ".webp", ".gif"];
 const MIME_POR_EXT = {
@@ -119,11 +120,16 @@ async function main() {
       continue;
     }
 
-    const buffer = fs.readFileSync(path.join(carpeta, archivo));
-    const ruta = `${idProducto}/${slugBuscado}${ext}`;
+    const bufferOriginal = fs.readFileSync(path.join(carpeta, archivo));
+    const { buffer, ext: extFinal, contentType } = await optimizarImagen(
+      bufferOriginal,
+      ext.slice(1),
+      MIME_POR_EXT[ext]
+    );
+    const ruta = `${idProducto}/${slugBuscado}.${extFinal}`;
     const { error: errorSubida } = await supabase.storage
       .from("productos")
-      .upload(ruta, buffer, { contentType: MIME_POR_EXT[ext], upsert: true });
+      .upload(ruta, buffer, { contentType, cacheControl: CACHE_CONTROL_IMAGEN, upsert: true });
     if (errorSubida) {
       omitidos.push(`${archivo}: error subiendo la imagen: ${errorSubida.message}`);
       continue;

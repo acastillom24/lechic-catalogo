@@ -2,6 +2,11 @@ import Link from "next/link";
 import { getMarcas, getConfig, getProductosPorMarca } from "../../lib/data";
 import OfertasCarousel from "../../components/OfertasCarousel";
 
+// Igual que /marca/[slug] y /producto/[id]: sin esto, la home consulta
+// Supabase en cada visita (render 100% dinámico), lo que dispara mucho
+// más tráfico/logs de los necesarios en la página más visitada del sitio.
+export const revalidate = 60;
+
 function elegirOfertasAleatorias(productos, cantidad) {
   const disponibles = productos.filter((p) =>
     p.variantes.some((v) => v.stock !== false)
