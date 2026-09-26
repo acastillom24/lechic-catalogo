@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "migrar-datos": "node --env-file=.env.local scripts/migrar-datos.js",
-    "subir-imagenes": "node --env-file=.env.local scripts/subir-imagenes-masivo.js"
+    "subir-imagenes": "node --env-file=.env.local scripts/subir-imagenes-masivo.js",
+    "reoptimizar-imagenes": "node --env-file=.env.local scripts/reoptimizar-imagenes.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
