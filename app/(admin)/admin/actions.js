@@ -489,3 +489,24 @@ export async function importarCsv(prevState, formData) {
     },
   };
 }
+
+// ============================================================
+//  MODERACIÓN DE RESEÑAS
+// ============================================================
+
+export async function alternarResena(id, aprobado) {
+  const { error } = await supabaseServer()
+    .from("resenas")
+    .update({ aprobado })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/resenas");
+  revalidatePath("/producto/[id]", "page");
+}
+
+export async function eliminarResena(id) {
+  const { error } = await supabaseServer().from("resenas").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/resenas");
+  revalidatePath("/producto/[id]", "page");
+}

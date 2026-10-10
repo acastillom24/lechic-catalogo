@@ -5,7 +5,7 @@ import Link from "next/link";
 import { getConfig } from "../lib/data";
 import { useSeleccion, construirKey } from "../lib/SelectionContext";
 
-export default function ProductDetail({ producto, marca, categoria }) {
+export default function ProductDetail({ producto, marca, categoria, children }) {
   const config = getConfig();
   const { agregar } = useSeleccion();
   const [idx, setIdx] = useState(0);
@@ -141,6 +141,8 @@ export default function ProductDetail({ producto, marca, categoria }) {
           </p>
         </div>
       </div>
+
+      {children}
 
       <style jsx>{`
         .detalle {
