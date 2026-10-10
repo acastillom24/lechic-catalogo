@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { getProducto, getMarca, getCategoria } from "../../../../lib/data";
 import ProductDetail from "../../../../components/ProductDetail";
+import Resenas from "../../../../components/Resenas";
+import { getResumen, getResenas } from "../../../../lib/resenas";
 
 // Los productos ahora viven en la base de datos y pueden cambiar sin un
 // nuevo deploy (alta/edición desde /admin), así que la página se genera
@@ -21,7 +23,20 @@ export default async function ProductoPage({ params }) {
   const marca = getMarca(producto.marca);
   const categoria = getCategoria(producto.marca, producto.categoria);
 
+  const [resumen, iniciales] = await Promise.all([
+    getResumen(producto.id),
+    getResenas(producto.id, 0),
+  ]);
+
   return (
-    <ProductDetail producto={producto} marca={marca} categoria={categoria} />
+    <ProductDetail producto={producto} marca={marca} categoria={categoria}>
+      <Resenas
+        productoId={producto.id}
+        resumen={resumen}
+        iniciales={iniciales}
+        googleClientId={process.env.GOOGLE_CLIENT_ID}
+        turnstileSiteKey={process.env.TURNSTILE_SITE_KEY}
+      />
+    </ProductDetail>
   );
 }
