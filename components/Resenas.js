@@ -16,7 +16,7 @@ function Estrellas({ valor, tam = "1rem" }) {
       <style jsx>{`
         .estrellas {
           letter-spacing: 2px;
-          color: var(--linea);
+          color: #dcdcdc;
           white-space: nowrap;
         }
         .on {
@@ -41,11 +41,16 @@ function cargarScript(src) {
 }
 
 function fecha(iso) {
-  return new Date(iso).toLocaleDateString("es-PE", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const dias = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (dias < 1) return "hoy";
+  if (dias === 1) return "ayer";
+  if (dias < 7) return `hace ${dias} días`;
+  const sem = Math.floor(dias / 7);
+  if (dias < 30) return `hace ${sem} ${sem === 1 ? "semana" : "semanas"}`;
+  const mes = Math.floor(dias / 30);
+  if (dias < 365) return `hace ${mes} ${mes === 1 ? "mes" : "meses"}`;
+  const anio = Math.floor(dias / 365);
+  return `hace ${anio} ${anio === 1 ? "año" : "años"}`;
 }
 
 export default function Resenas({
@@ -59,6 +64,8 @@ export default function Resenas({
   const [pagina, setPagina] = useState(0);
   const [hayMas, setHayMas] = useState(iniciales.length === POR_PAGINA);
   const [cargandoMas, setCargandoMas] = useState(false);
+  const [visible, setVisible] = useState(true);
+  const [orden, setOrden] = useState("recientes");
 
   const [idToken, setIdToken] = useState(null);
   const [usuario, setUsuario] = useState("");
@@ -150,7 +157,7 @@ export default function Resenas({
       } else {
         setEnviado(true);
         // Recarga la primera página para mostrar la reseña nueva.
-        const r = await fetch(`/api/resenas?producto=${encodeURIComponent(productoId)}&pagina=0`);
+        const r = await fetch(`/api/resenas?producto=${encodeURIComponent(productoId)}&pagina=0&orden=${orden}`);
         const d = await r.json();
         setLista(d.resenas || []);
         setPagina(0);
@@ -163,11 +170,22 @@ export default function Resenas({
     }
   }
 
+  async function cambiarOrden(nuevo) {
+    setOrden(nuevo);
+    const r = await fetch(
+      `/api/resenas?producto=${encodeURIComponent(productoId)}&pagina=0&orden=${nuevo}`
+    );
+    const d = await r.json();
+    setLista(d.resenas || []);
+    setPagina(0);
+    setHayMas((d.resenas || []).length === POR_PAGINA);
+  }
+
   async function verMas() {
     setCargandoMas(true);
     try {
       const sig = pagina + 1;
-      const r = await fetch(`/api/resenas?producto=${encodeURIComponent(productoId)}&pagina=${sig}`);
+      const r = await fetch(`/api/resenas?producto=${encodeURIComponent(productoId)}&pagina=${sig}&orden=${orden}`);
       const d = await r.json();
       const nuevas = d.resenas || [];
       setLista((prev) => [...prev, ...nuevas]);
@@ -182,171 +200,234 @@ export default function Resenas({
 
   return (
     <section className="resenas" id="resenas">
-      <h2 className="resenas-titulo serif">Opiniones</h2>
+      <h2 className="resenas-titulo">Opiniones de este producto</h2>
 
       {/* 1. Resumen */}
-      {total > 0 ? (
-        <div className="resumen">
-          <div className="resumen-prom">
-            <span className="prom-num serif">{promedio.toFixed(1)}</span>
-            <Estrellas valor={promedio} tam="1.2rem" />
-            <span className="prom-total">
-              {total} {total === 1 ? "reseña" : "reseñas"}
-            </span>
-          </div>
-          <div className="resumen-barras">
-            {[5, 4, 3, 2, 1].map((n) => (
-              <div key={n} className="barra-fila">
-                <span>{n} ★</span>
-                <div className="barra">
-                  <div className="barra-lleno" style={{ width: `${(conteo[n - 1] / total) * 100}%` }} />
-                </div>
-                <span className="barra-n">{conteo[n - 1]}</span>
-              </div>
-            ))}
-          </div>
+      <div className="resumen">
+        <div className="resumen-prom">
+          <span className="prom-num">
+            {total > 0 ? promedio.toFixed(1) : "0"}
+            <small>/5</small>
+          </span>
+          <Estrellas valor={promedio} tam="1.5rem" />
+          <span className="prom-total">
+            {total} {total === 1 ? "comentario" : "comentarios"}
+          </span>
         </div>
-      ) : (
-        <p className="vacio">Aún no hay reseñas. ¡Sé la primera persona en opinar!</p>
-      )}
-
-      {/* 2. Calificar */}
-      <div className="calificar">
-        <h3 className="calificar-titulo">Califica este producto</h3>
-        {enviado ? (
-          <p className="gracias">¡Gracias por tu opinión! Ya aparece en la lista.</p>
-        ) : !idToken ? (
-          <>
-            <p className="calificar-nota">
-              Inicia sesión con Google solo para opinar. No necesitas registrarte para comprar.
-            </p>
-            <div ref={botonGoogle} />
-          </>
-        ) : (
-          <form onSubmit={enviar}>
-            <p className="calificar-nota">Opinas como <strong>{usuario || "cliente"}</strong></p>
-            <div className="selector" onMouseLeave={() => setHover(0)}>
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  type="button"
-                  key={n}
-                  className={n <= (hover || estrellas) ? "on" : ""}
-                  onMouseEnter={() => setHover(n)}
-                  onClick={() => setEstrellas(n)}
-                  aria-label={`${n} estrellas`}
-                >
-                  ★
-                </button>
-              ))}
+        <div className="resumen-barras">
+          {[5, 4, 3, 2, 1].map((n) => (
+            <div key={n} className="barra-fila">
+              <span className="barra-n">
+                {n} <i>★</i>
+              </span>
+              <div className="barra">
+                <div
+                  className="barra-lleno"
+                  style={{ width: total ? `${(conteo[n - 1] / total) * 100}%` : 0 }}
+                />
+              </div>
+              <span className="barra-c">{conteo[n - 1]}</span>
             </div>
-            <textarea
-              value={comentario}
-              onChange={(e) => setComentario(e.target.value.slice(0, MAX))}
-              placeholder="Cuéntanos tu experiencia (opcional)"
-              rows={4}
-            />
-            <div className="contador">{comentario.length}/{MAX}</div>
-            <div ref={cajaTurnstile} />
-            {error && <p className="error">{error}</p>}
-            <button className="btn btn-solido" type="submit" disabled={enviando}>
-              {enviando ? "Enviando..." : "Publicar reseña"}
-            </button>
-          </form>
-        )}
-        {!idToken && error && <p className="error">{error}</p>}
+          ))}
+        </div>
       </div>
 
-      {/* 3. Lista */}
-      {lista.length > 0 && (
-        <ul className="lista">
-          {lista.map((r) => (
-            <li key={r.id} className="item">
-              <div className="item-cab">
-                <strong>{r.nombre}</strong>
-                <Estrellas valor={r.estrellas} />
-                <span className="item-fecha">{fecha(r.created_at)}</span>
-              </div>
-              {r.comentario && <p className="item-texto">{r.comentario}</p>}
-            </li>
-          ))}
-        </ul>
+      {visible && (
+        <>
+          {/* 2. Calificar */}
+          <div className="calificar">
+            <h3 className="calificar-titulo">Califica este producto</h3>
+            {enviado ? (
+              <p className="gracias">¡Gracias por tu opinión! Ya aparece en la lista.</p>
+            ) : !idToken ? (
+              <>
+                <p className="calificar-nota">
+                  Inicia sesión con Google solo para opinar. No necesitas registrarte para comprar.
+                </p>
+                <div ref={botonGoogle} />
+              </>
+            ) : (
+              <form onSubmit={enviar}>
+                <p className="calificar-nota">
+                  Opinas como <strong>{usuario || "cliente"}</strong>
+                </p>
+                <div className="selector" onMouseLeave={() => setHover(0)}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      type="button"
+                      key={n}
+                      className={n <= (hover || estrellas) ? "on" : ""}
+                      onMouseEnter={() => setHover(n)}
+                      onClick={() => setEstrellas(n)}
+                      aria-label={`${n} estrellas`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  value={comentario}
+                  onChange={(e) => setComentario(e.target.value.slice(0, MAX))}
+                  placeholder="Cuéntanos tu experiencia (opcional)"
+                  rows={4}
+                />
+                <div className="contador">
+                  {comentario.length}/{MAX}
+                </div>
+                <div ref={cajaTurnstile} />
+                {error && <p className="error">{error}</p>}
+                <button className="btn btn-solido" type="submit" disabled={enviando}>
+                  {enviando ? "Enviando..." : "Publicar reseña"}
+                </button>
+              </form>
+            )}
+            {!idToken && error && <p className="error">{error}</p>}
+          </div>
+
+          {/* 3. Lista */}
+          {lista.length > 1 && (
+            <label className="orden">
+              Ordenar por:
+              <select value={orden} onChange={(e) => cambiarOrden(e.target.value)}>
+                <option value="recientes">Más recientes</option>
+                <option value="mejores">Mejores evaluaciones</option>
+                <option value="peores">Peores evaluaciones</option>
+              </select>
+            </label>
+          )}
+          {lista.length > 0 && (
+            <ul className="lista">
+              {lista.map((r) => (
+                <li key={r.id} className="item">
+                  <div className="item-cab">
+                    <span className="item-nombre">por {r.nombre}</span>
+                    <div className="item-der">
+                      <Estrellas valor={r.estrellas} tam="1.05rem" />
+                      <span className="item-fecha">{fecha(r.created_at)}</span>
+                    </div>
+                  </div>
+                  {r.comentario && <p className="item-texto">{r.comentario}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {hayMas && (
+            <div className="centro">
+              <button className="enlace" onClick={verMas} disabled={cargandoMas}>
+                {cargandoMas ? "Cargando..." : "Ver más opiniones"}
+              </button>
+            </div>
+          )}
+        </>
       )}
-      {hayMas && (
-        <button className="btn" onClick={verMas} disabled={cargandoMas}>
-          {cargandoMas ? "Cargando..." : "Ver más reseñas"}
+
+      <div className="centro">
+        <button className="enlace" onClick={() => setVisible((v) => !v)}>
+          {visible ? "Ocultar todas las opiniones" : "Ver todas las opiniones"}
         </button>
-      )}
+      </div>
 
       <style jsx>{`
         .resenas {
           margin-top: 56px;
-          padding-top: 36px;
-          border-top: 1px solid var(--linea);
-          max-width: 760px;
         }
         .resenas-titulo {
-          font-size: 2rem;
-          font-weight: 600;
-          margin-bottom: 20px;
+          font-family: var(--sans);
+          font-size: 1.35rem;
+          font-weight: 400;
+          color: var(--tinta);
+          padding-bottom: 14px;
+          border-bottom: 2px solid #4a4f57;
+          margin-bottom: 28px;
         }
         .resumen {
           display: flex;
-          gap: 36px;
+          gap: 40px;
           align-items: center;
           flex-wrap: wrap;
-          margin-bottom: 28px;
+          margin-bottom: 32px;
         }
         .resumen-prom {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 4px;
-        }
-        .prom-num {
-          font-size: 3.4rem;
-          font-weight: 600;
-          line-height: 1;
+          gap: 8px;
+          min-width: 150px;
         }
         .prom-total {
-          font-size: 0.8rem;
-          color: var(--gris);
+          font-size: 1rem;
+          color: var(--tinta);
         }
         .resumen-barras {
           flex: 1;
-          min-width: 220px;
+          min-width: 240px;
+          max-width: 420px;
           display: grid;
-          gap: 6px;
+          gap: 9px;
         }
         .barra-fila {
           display: grid;
-          grid-template-columns: 34px 1fr 28px;
+          grid-template-columns: 32px 1fr 36px;
           align-items: center;
           gap: 10px;
-          font-size: 0.8rem;
+        }
+        .barra-n {
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #4a4f57;
+          text-align: right;
+        }
+        .barra-c {
+          font-size: 0.85rem;
           color: var(--gris);
         }
+        .prom-num {
+          font-size: 3.6rem;
+          line-height: 1;
+          font-weight: 400;
+        }
+        .prom-num small {
+          font-size: 1.1rem;
+          color: var(--gris);
+          margin-left: 2px;
+        }
+        .orden {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 24px;
+          color: var(--gris);
+        }
+        .orden select {
+          font-family: var(--sans);
+          font-size: 1rem;
+          color: var(--tinta);
+          border: 0;
+          border-bottom: 1px solid var(--linea);
+          background: transparent;
+          padding: 6px 4px;
+          cursor: pointer;
+        }
+        .barra-n i {
+          font-style: normal;
+        }
         .barra {
-          height: 8px;
+          height: 6px;
           border-radius: 999px;
-          background: var(--papel-hondo);
+          background: #e3e3e3;
           overflow: hidden;
         }
         .barra-lleno {
           height: 100%;
-          background: #e8a317;
-        }
-        .barra-n {
-          text-align: right;
-        }
-        .vacio {
-          color: var(--gris);
-          margin-bottom: 24px;
+          background: #4a4f57;
+          border-radius: 999px;
         }
         .calificar {
-          background: var(--papel-hondo);
+          border: 1px solid var(--linea);
           border-radius: var(--radio);
           padding: 22px;
           margin-bottom: 28px;
+          max-width: 560px;
         }
         .calificar-titulo {
           font-size: 1rem;
@@ -369,7 +450,7 @@ export default function Resenas({
           cursor: pointer;
           font-size: 2rem;
           line-height: 1;
-          color: var(--linea);
+          color: #dcdcdc;
           padding: 0 2px;
         }
         .selector button.on {
@@ -396,33 +477,76 @@ export default function Resenas({
           font-size: 0.85rem;
           margin: 10px 0;
         }
-        .gracias {
-          color: var(--tinta);
-        }
         .lista {
           list-style: none;
           padding: 0;
-          margin: 0 0 20px;
+          margin: 0 0 12px;
+          column-count: 3;
+          column-gap: 18px;
         }
         .item {
-          padding: 16px 0;
-          border-bottom: 1px solid var(--linea);
+          break-inside: avoid;
+          background: var(--blanco);
+          border-radius: 8px;
+          box-shadow: 0 1px 8px rgba(36, 26, 31, 0.14);
+          padding: 20px 22px;
+          margin-bottom: 18px;
         }
         .item-cab {
           display: flex;
-          align-items: center;
+          justify-content: space-between;
+          align-items: flex-start;
           gap: 12px;
-          flex-wrap: wrap;
+        }
+        .item-nombre {
+          font-size: 1.05rem;
+          font-weight: 500;
+          overflow-wrap: anywhere;
+        }
+        .item-der {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 2px;
+          flex-shrink: 0;
         }
         .item-fecha {
-          font-size: 0.75rem;
-          color: var(--gris);
+          font-size: 0.82rem;
+          color: var(--tinta);
         }
         .item-texto {
-          margin-top: 8px;
-          font-size: 0.92rem;
+          margin-top: 14px;
+          font-size: 0.95rem;
           white-space: pre-wrap;
           overflow-wrap: anywhere;
+        }
+        @media (max-width: 960px) {
+          .lista {
+            column-count: 2;
+          }
+        }
+        @media (max-width: 600px) {
+          .lista {
+            column-count: 1;
+          }
+        }
+        .centro {
+          text-align: center;
+          margin: 18px 0;
+        }
+        .enlace {
+          background: none;
+          border: 0;
+          border-bottom: 1px solid var(--tinta);
+          font-family: var(--sans);
+          font-size: 1.05rem;
+          font-weight: 600;
+          color: var(--tinta);
+          padding: 4px 6px;
+          cursor: pointer;
+        }
+        .enlace:disabled {
+          opacity: 0.5;
         }
       `}</style>
     </section>

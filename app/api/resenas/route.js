@@ -6,7 +6,7 @@ export async function GET(request) {
   const producto = searchParams.get("producto") || "";
   const pagina = Math.min(Math.max(parseInt(searchParams.get("pagina"), 10) || 0, 0), 500);
   if (!producto) return NextResponse.json({ resenas: [] });
-  return NextResponse.json({ resenas: await getResenas(producto, pagina) });
+  return NextResponse.json({ resenas: await getResenas(producto, pagina, searchParams.get("orden") || "recientes") });
 }
 
 export async function POST(request) {
