@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getProductos, buscar, getMarca, rangoPrecios } from "../../../lib/data";
+import { getProductosPagina, getMarca, rangoPrecios } from "../../../lib/data";
 
 export const metadata = { title: "Productos · Panel Le Chic" };
 
@@ -9,7 +9,21 @@ export default async function AdminDashboardPage({ searchParams }) {
   const guardado = params?.guardado === "1";
   const eliminado = params?.eliminado === "1";
 
-  const productos = q ? await buscar(q) : await getProductos();
+  const porPagina = 25;
+  const paginaPedida = Math.max(1, parseInt(params?.pagina, 10) || 1);
+  let { productos, total } = await getProductosPagina({ pagina: paginaPedida, porPagina, q });
+  const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
+  const pagina = Math.min(paginaPedida, totalPaginas);
+  if (pagina !== paginaPedida) {
+    ({ productos } = await getProductosPagina({ pagina, porPagina, q }));
+  }
+  const hrefPagina = (n) => {
+    const sp = new URLSearchParams();
+    if (q) sp.set("q", q);
+    if (n > 1) sp.set("pagina", String(n));
+    const s = sp.toString();
+    return s ? `/admin?${s}` : "/admin";
+  };
 
   return (
     <div className="form-grid">
@@ -17,7 +31,7 @@ export default async function AdminDashboardPage({ searchParams }) {
       {eliminado && <div className="mensaje-ok">Producto eliminado.</div>}
 
       <div className="admin-titulo-fila">
-        <h1 className="admin-titulo">Productos ({productos.length})</h1>
+        <h1 className="admin-titulo">Productos ({total})</h1>
         <Link href="/admin/productos/nuevo" className="btn-admin solido">
           + Nuevo producto
         </Link>
@@ -85,6 +99,28 @@ export default async function AdminDashboardPage({ searchParams }) {
           </tbody>
         </table>
       </div>
+
+      {totalPaginas > 1 && (
+        <nav className="admin-paginacion">
+          {pagina > 1 ? (
+            <Link href={hrefPagina(pagina - 1)} className="btn-admin">
+              ← Anterior
+            </Link>
+          ) : (
+            <span className="btn-admin" style={{ opacity: 0.4 }}>← Anterior</span>
+          )}
+          <span>
+            Página {pagina} de {totalPaginas}
+          </span>
+          {pagina < totalPaginas ? (
+            <Link href={hrefPagina(pagina + 1)} className="btn-admin">
+              Siguiente →
+            </Link>
+          ) : (
+            <span className="btn-admin" style={{ opacity: 0.4 }}>Siguiente →</span>
+          )}
+        </nav>
+      )}
     </div>
   );
 }
