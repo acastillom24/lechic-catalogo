@@ -2,6 +2,7 @@
 
 import { useSeleccion } from "../lib/SelectionContext";
 import { getConfig } from "../lib/data";
+import CantidadControl from "./CantidadControl";
 
 export default function SelectionPanel() {
   const {
@@ -21,7 +22,7 @@ export default function SelectionPanel() {
   function construirMensaje() {
     const lineas = items.map(
       (i) =>
-        `• ${i.nombre}${i.variante ? ` (${i.variante})` : ""} x${i.cantidad} — ${
+        `• ${i.marca ? `[${i.marca}] ` : ""}${i.nombre}${i.variante ? ` (${i.variante})` : ""} x${i.cantidad} — ${
           config.moneda
         } ${i.precio * i.cantidad}`
     );
@@ -95,21 +96,13 @@ export default function SelectionPanel() {
                   </p>
                 </div>
                 <div className="sel-item-acciones">
-                  <div className="sel-cant">
-                    <button
-                      onClick={() => cambiarCantidad(i.key, i.cantidad - 1)}
-                      aria-label="Quitar uno"
-                    >
-                      −
-                    </button>
-                    <span>{i.cantidad}</span>
-                    <button
-                      onClick={() => cambiarCantidad(i.key, i.cantidad + 1)}
-                      aria-label="Agregar uno"
-                    >
-                      +
-                    </button>
-                  </div>
+                  <CantidadControl
+                    compacto
+                    eliminarEn1
+                    cantidad={i.cantidad}
+                    onMenos={() => cambiarCantidad(i.key, i.cantidad - 1)}
+                    onMas={() => cambiarCantidad(i.key, i.cantidad + 1)}
+                  />
                   <button
                     className="sel-quitar"
                     onClick={() => quitar(i.key)}
@@ -272,30 +265,6 @@ export default function SelectionPanel() {
           flex-direction: column;
           align-items: flex-end;
           justify-content: space-between;
-        }
-        .sel-cant {
-          display: flex;
-          align-items: center;
-          border: 1px solid var(--linea);
-          border-radius: 999px;
-          overflow: hidden;
-        }
-        .sel-cant button {
-          width: 28px;
-          height: 28px;
-          border: none;
-          background: var(--blanco);
-          color: var(--tinta);
-          font-size: 1rem;
-          cursor: pointer;
-        }
-        .sel-cant button:hover {
-          background: var(--rosa-tenue);
-        }
-        .sel-cant span {
-          min-width: 26px;
-          text-align: center;
-          font-size: 0.85rem;
         }
         .sel-quitar {
           background: none;

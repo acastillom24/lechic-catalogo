@@ -10,6 +10,7 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
   const { agregar } = useSeleccion();
   const [idx, setIdx] = useState(0);
   const [agregado, setAgregado] = useState(false);
+  const [cantidad, setCantidad] = useState(1);
   const variante = producto.variantes[idx];
   const sinStock = variante.stock === false;
   const varias = producto.variantes.length > 1;
@@ -20,14 +21,19 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
 
   // Agrega la variante seleccionada a "Mi selección".
   function agregarSeleccion() {
-    agregar({
-      key: construirKey(producto.id, variante.nombre),
-      productoId: producto.id,
-      nombre: producto.nombre,
-      variante: varias ? variante.nombre : "",
-      precio: precioFinal,
-      imagen: variante.imagen,
-    });
+    agregar(
+      {
+        key: construirKey(producto.id, variante.nombre),
+        productoId: producto.id,
+        nombre: producto.nombre,
+        marca: marca?.nombre || "",
+        variante: varias ? variante.nombre : "",
+        precio: precioFinal,
+        imagen: variante.imagen,
+      },
+      cantidad
+    );
+    setCantidad(1);
     // Feedback breve en el botón.
     setAgregado(true);
     setTimeout(() => setAgregado(false), 1600);
@@ -84,7 +90,10 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
                   <button
                     key={i}
                     className={`variante-btn ${i === idx ? "activo" : ""}`}
-                    onClick={() => setIdx(i)}
+                    onClick={() => {
+                      setIdx(i);
+                      setCantidad(1);
+                    }}
                   >
                     {v.nombre}
                   </button>
@@ -118,6 +127,31 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
               {config.moneda} {precioFinal}
             </span>
           </div>
+
+          {/* Cantidad y total */}
+          {!sinStock && (
+            <div className="cant-bloque">
+              <div className="cant-ctrl">
+                <button
+                  onClick={() => setCantidad((c) => Math.max(1, c - 1))}
+                  disabled={cantidad <= 1}
+                  aria-label="Quitar uno"
+                >
+                  −
+                </button>
+                <span>{cantidad}</span>
+                <button
+                  onClick={() => setCantidad((c) => c + 1)}
+                  aria-label="Agregar uno"
+                >
+                  +
+                </button>
+              </div>
+              <p className="cant-total">
+                Total: {config.moneda} {precioFinal * cantidad}
+              </p>
+            </div>
+          )}
 
           {/* Agregar a mi selección */}
           {sinStock ? (
@@ -310,6 +344,41 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
         .precio-final {
           font-weight: 600;
           font-size: 2.6rem;
+          color: var(--tinta);
+        }
+        .cant-bloque {
+          margin-top: 18px;
+        }
+        .cant-ctrl {
+          display: inline-flex;
+          align-items: center;
+          gap: 18px;
+          border: 1px solid var(--linea);
+          border-radius: 999px;
+          padding: 4px 8px;
+          background: var(--blanco);
+        }
+        .cant-ctrl button {
+          width: 32px;
+          height: 32px;
+          border: none;
+          background: none;
+          font-size: 1.2rem;
+          color: var(--tinta);
+          cursor: pointer;
+        }
+        .cant-ctrl button:disabled {
+          color: #bbb;
+          cursor: not-allowed;
+        }
+        .cant-ctrl span {
+          min-width: 20px;
+          text-align: center;
+          font-weight: 500;
+        }
+        .cant-total {
+          margin-top: 10px;
+          font-size: 0.95rem;
           color: var(--tinta);
         }
         .detalle-cta {

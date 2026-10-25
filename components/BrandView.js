@@ -76,7 +76,7 @@ export default function BrandView({ marca, productos, conteo }) {
         {filtrados.length > 0 ? (
           <div className="grid-productos">
             {filtrados.map((p) => (
-              <ProductCard key={p.id} producto={p} />
+              <ProductCard key={p.id} producto={p} marca={marca} />
             ))}
           </div>
         ) : (
