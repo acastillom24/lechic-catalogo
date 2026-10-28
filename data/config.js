@@ -13,12 +13,29 @@ const config = {
   marca: "Le Chic",
   instagram: "@lechic_ofertas",
   instagramUrl: "https://www.instagram.com/lechic_ofertas",
-  tiktok: "@maritaofertas",
-  tiktokUrl: "https://www.tiktok.com/@maritaofertas",
+  tiktok: "@lechicimportsac",
+  tiktokUrl: "https://www.tiktok.com/@lechicimportsac",
   telefono: "+51 985219626",
   // El número para el enlace de WhatsApp va sin espacios ni signos.
   whatsapp: "51985219626",
   moneda: "S/",
+  // Formas de entrega que elige el cliente. El embalaje solo se cobra
+  // cuando el envío se gestiona por agencia (Shalom).
+  entregas: [
+    {
+      id: "shalom",
+      nombre: "Envío por Shalom",
+      embalaje: 3,
+      nota: "El envío se coordina por WhatsApp.",
+    },
+    {
+      id: "delivery",
+      nombre: "Delivery",
+      embalaje: 0,
+      nota: "Delivery en Lima: de S/ 12 a S/ 15 según la zona. Lo confirmamos por WhatsApp.",
+    },
+    { id: "recojo", nombre: "Recojo", embalaje: 0, nota: "" },
+  ],
 
   bienvenida: {
     titulo:

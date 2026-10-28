@@ -2,22 +2,148 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { getConfig, rangoPrecios } from "../lib/data";
+import { getConfig } from "../lib/data";
+import { useSeleccion, construirKey } from "../lib/SelectionContext";
+import CantidadControl from "./CantidadControl";
 
 const INTERVALO_MS = 3000;
 
+// Cuántas tarjetas caben según el ancho: 3 escritorio, 2 tablet, 1 celular.
+function calcularPorVista() {
+  if (window.matchMedia("(min-width: 900px)").matches) return 3;
+  if (window.matchMedia("(min-width: 640px)").matches) return 2;
+  return 1;
+}
+
+function OfertaCard({ producto, config, agregar, items, cambiarCantidad }) {
+  const [varIdx, setVarIdx] = useState(0);
+  const varias = producto.variantes.length > 1;
+  const variante = producto.variantes[varIdx];
+  const precioFinal = variante.precioOferta ?? variante.precio;
+  const hayOferta = variante.precioOferta != null;
+  const sinStock = variante.stock === false;
+
+  const key = construirKey(producto.id, variante.nombre);
+  const linea = items.find((i) => i.key === key);
+
+  // Igual que en la vista de marca: agrega sin abrir el panel.
+  function agregarSeleccion() {
+    agregar(
+      {
+        key,
+        productoId: producto.id,
+        nombre: producto.nombre,
+        marca: "Ofertas",
+        variante: varias ? variante.nombre : "",
+        precio: precioFinal,
+        imagen: variante.imagen,
+      },
+      1,
+      { abrir: false }
+    );
+  }
+
+  return (
+    <div className="slide-card">
+      <Link href={`/producto/${producto.id}`} className="slide-enlace">
+        <div className="slide-imagen">
+          <span className="slide-badge">Oferta</span>
+          <img
+            src={variante.imagen}
+            alt={producto.nombre}
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              e.currentTarget.nextElementSibling.style.display = "flex";
+            }}
+          />
+          <div className="slide-fallback" style={{ display: "none" }}>
+            <span>{producto.nombre}</span>
+          </div>
+        </div>
+
+        <h3 className="slide-nombre serif">{producto.nombre}</h3>
+        {producto.descripcion && (
+          <p className="slide-desc">{producto.descripcion}</p>
+        )}
+        <div className="slide-precio">
+          {hayOferta && (
+            <span className="antes">
+              {config.moneda} {variante.precio}
+            </span>
+          )}
+          <span className="cur">{config.moneda}</span>
+          <span className="num">{precioFinal}</span>
+        </div>
+      </Link>
+
+      <div className="slide-acciones">
+      {varias && (
+        <select
+          className="slide-variante"
+          value={varIdx}
+          onChange={(e) => setVarIdx(Number(e.target.value))}
+          aria-label={`Variante de ${producto.nombre}`}
+        >
+          {producto.variantes.map((v, i) => (
+            <option key={v.nombre} value={i}>
+              {v.nombre}
+            </option>
+          ))}
+        </select>
+      )}
+
+      <div className="slide-accion">
+        {sinStock ? (
+          <span className="slide-agotado">Agotado</span>
+        ) : linea ? (
+          <CantidadControl
+            compacto
+            eliminarEn1
+            cantidad={linea.cantidad}
+            onMenos={() => cambiarCantidad(key, linea.cantidad - 1)}
+            onMas={() => cambiarCantidad(key, linea.cantidad + 1)}
+          />
+        ) : (
+          <button
+            type="button"
+            className="slide-agregar"
+            onClick={agregarSeleccion}
+          >
+            Agregar
+          </button>
+        )}
+      </div>
+      </div>
+    </div>
+  );
+}
+
 export default function OfertasCarousel({ productos }) {
   const config = getConfig();
+  const { agregar, items, cambiarCantidad } = useSeleccion();
   const [indice, setIndice] = useState(0);
+  const [porVista, setPorVista] = useState(1);
   const timerRef = useRef(null);
   const total = productos.length;
-
-  const irA = (i) => setIndice((i + total) % total);
-  const siguiente = () => irA(indice + 1);
-  const anterior = () => irA(indice - 1);
+  const posiciones = Math.max(1, total - porVista + 1);
 
   useEffect(() => {
-    if (total <= 1) return;
+    const actualizar = () => setPorVista(calcularPorVista());
+    actualizar();
+    window.addEventListener("resize", actualizar);
+    return () => window.removeEventListener("resize", actualizar);
+  }, []);
+
+  // Si al cambiar el ancho el índice queda fuera de rango, se corrige.
+  useEffect(() => {
+    setIndice((i) => Math.min(i, posiciones - 1));
+  }, [posiciones]);
+
+  const irA = (i) => setIndice((i + posiciones) % posiciones);
+
+  useEffect(() => {
+    if (posiciones <= 1) return;
 
     const prefiereMenosMovimiento = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -25,84 +151,66 @@ export default function OfertasCarousel({ productos }) {
     if (prefiereMenosMovimiento) return;
 
     timerRef.current = setInterval(() => {
-      setIndice((i) => (i + 1) % total);
+      setIndice((i) => (i + 1) % posiciones);
     }, INTERVALO_MS);
 
     return () => clearInterval(timerRef.current);
-  }, [indice, total]);
+  }, [indice, posiciones]);
 
   if (total === 0) return null;
 
   return (
     <div className="ofertas-carrusel">
+      <div className="carrusel-marco">
       <div className="carrusel-viewport">
         <div
           className="carrusel-pista"
-          style={{ transform: `translateX(-${indice * 100}%)` }}
+          style={{ transform: `translateX(-${(indice * 100) / porVista}%)` }}
         >
-          {productos.map((producto) => {
-            const { min, max } = rangoPrecios(producto);
-            const varias = producto.variantes.length > 1;
-            const principal = producto.variantes[0];
-
-            return (
-              <div className="carrusel-slide" key={producto.id}>
-                <Link href={`/producto/${producto.id}`} className="slide-card">
-                  <div className="slide-top">
-                    <div className="slide-imagen">
-                      <span className="slide-badge">Oferta</span>
-                      <img
-                        src={principal.imagen}
-                        alt={producto.nombre}
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                          e.currentTarget.nextElementSibling.style.display =
-                            "flex";
-                        }}
-                      />
-                      <div
-                        className="slide-fallback"
-                        style={{ display: "none" }}
-                      >
-                        <span>{producto.nombre}</span>
-                      </div>
-                    </div>
-
-                    <div className="slide-precio-box">
-                      <div className="slide-precio">
-                        {varias && min !== max && (
-                          <span className="desde">desde</span>
-                        )}
-                        <span className="cur">{config.moneda}</span>
-                        <span className="num">{min}</span>
-                      </div>
-                      <h3 className="slide-nombre serif">{producto.nombre}</h3>
-                      {producto.descripcion && (
-                        <p className="slide-desc">{producto.descripcion}</p>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            );
-          })}
+          {productos.map((producto) => (
+            <div
+              className="carrusel-slide"
+              key={producto.id}
+              style={{ flexBasis: `${100 / porVista}%` }}
+            >
+              <OfertaCard
+                producto={producto}
+                config={config}
+                agregar={agregar}
+                items={items}
+                cambiarCantidad={cambiarCantidad}
+              />
+            </div>
+          ))}
         </div>
       </div>
 
-      {total > 1 && (
-        <div className="carrusel-controles">
+      {posiciones > 1 && (
+        <>
           <button
             type="button"
-            className="carrusel-flecha"
-            onClick={anterior}
+            className="carrusel-flecha izq"
+            onClick={() => irA(indice - 1)}
             aria-label="Oferta anterior"
           >
             ‹
           </button>
+          <button
+            type="button"
+            className="carrusel-flecha der"
+            onClick={() => irA(indice + 1)}
+            aria-label="Siguiente oferta"
+          >
+            ›
+          </button>
+        </>
+      )}
+      </div>
 
+      {posiciones > 1 && (
+        <div className="carrusel-controles">
           <div className="carrusel-puntos">
-            {productos.map((_, i) => (
+            {Array.from({ length: posiciones }).map((_, i) => (
               <button
                 key={i}
                 type="button"
@@ -112,81 +220,72 @@ export default function OfertasCarousel({ productos }) {
               />
             ))}
           </div>
-
-          <button
-            type="button"
-            className="carrusel-flecha"
-            onClick={siguiente}
-            aria-label="Siguiente oferta"
-          >
-            ›
-          </button>
         </div>
       )}
 
       <style jsx>{`
-        .ofertas-carrusel {
-          max-width: 640px;
-          margin: 0 auto;
+        .carrusel-marco {
+          position: relative;
         }
         .carrusel-viewport {
           overflow: hidden;
           border-radius: var(--radio);
+          padding: 4px 0 10px;
+          margin: -4px 0 -10px;
         }
         .carrusel-pista {
           display: flex;
           transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
         }
         .carrusel-slide {
-          flex: 0 0 100%;
+          flex-grow: 0;
+          flex-shrink: 0;
           min-width: 0;
+          padding: 0 8px;
         }
-        .slide-card {
+        .ofertas-carrusel :global(.slide-card) {
           position: relative;
-          display: block;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
           background: linear-gradient(155deg, var(--rosa-tenue), var(--blanco) 55%);
           border-radius: calc(var(--radio) + 6px);
-          padding: 20px;
+          padding: 12px;
           box-shadow: var(--sombra);
           overflow: hidden;
-          transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
-            box-shadow 0.35s;
         }
-        .slide-card::before {
+        .ofertas-carrusel :global(.slide-card)::before {
           content: "";
           position: absolute;
           inset: 0 0 auto 0;
           height: 4px;
           background: var(--rosa);
         }
-        .slide-card:hover {
-          transform: translateY(-4px);
-          box-shadow: var(--sombra-hover);
-        }
-        .slide-top {
+        .ofertas-carrusel :global(.slide-enlace) {
+          flex: 1;
           display: flex;
-          align-items: stretch;
-          gap: 16px;
+          flex-direction: column;
+          gap: 4px;
         }
-        .slide-imagen {
+        .ofertas-carrusel :global(.slide-imagen) {
           position: relative;
-          flex: 1 1 50%;
-          aspect-ratio: 1 / 1;
+          height: clamp(210px, 41vh, 350px);
           background: var(--blanco);
           border-radius: var(--radio);
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 14px;
+          padding: 10px;
           overflow: hidden;
-          box-shadow: 0 6px 18px rgba(36, 26, 31, 0.06);
+          box-shadow: 0 6px 18px rgba(122, 45, 87, 0.06);
+          margin-bottom: 4px;
         }
-        .slide-imagen :global(img) {
+        .ofertas-carrusel :global(.slide-imagen img) {
           height: 100%;
           width: 100%;
           object-fit: contain;
         }
-        .slide-badge {
+        .ofertas-carrusel :global(.slide-badge) {
           position: absolute;
           top: 8px;
           right: 8px;
@@ -200,74 +299,108 @@ export default function OfertasCarousel({ productos }) {
           padding: 3px 9px;
           border-radius: 999px;
         }
-        .slide-fallback {
+        .ofertas-carrusel :global(.slide-fallback) {
           align-items: center;
           justify-content: center;
           text-align: center;
           padding: 10px;
         }
-        .slide-fallback span {
+        .ofertas-carrusel :global(.slide-fallback span) {
           font-family: var(--serif);
           font-size: 0.95rem;
           color: var(--gris);
         }
-        .slide-precio-box {
-          flex: 1 1 50%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          text-align: center;
-          gap: 6px;
-          background: var(--rosa-tenue);
-          border-radius: var(--radio);
-          padding: 18px 14px;
-        }
-        .slide-precio {
-          display: flex;
-          align-items: baseline;
-          justify-content: center;
-          gap: 0.25em;
-        }
-        .desde {
-          font-size: 0.66rem;
-          color: var(--gris);
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-        .cur {
-          font-size: 0.9rem;
-          color: var(--gris);
-        }
-        .num {
-          font-family: var(--serif);
+        .ofertas-carrusel :global(.slide-nombre) {
           font-weight: 600;
-          font-size: 2.1rem;
-          color: var(--rosa-hover);
-        }
-        .slide-nombre {
-          margin-top: 4px;
-          font-weight: 600;
-          font-size: 1.05rem;
+          font-size: 1rem;
           line-height: 1.2;
+          text-align: center;
         }
-        .slide-desc {
+        .ofertas-carrusel :global(.slide-desc) {
           font-size: 0.76rem;
           color: var(--gris);
+          text-align: center;
           overflow: hidden;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
         }
+        .ofertas-carrusel :global(.slide-precio) {
+          margin-top: 4px;
+          display: flex;
+          align-items: baseline;
+          justify-content: center;
+          gap: 0.3em;
+        }
+        .ofertas-carrusel :global(.antes) {
+          font-size: 0.8rem;
+          color: var(--gris);
+          text-decoration: line-through;
+        }
+        .ofertas-carrusel :global(.cur) {
+          font-size: 0.9rem;
+          color: var(--gris);
+        }
+        .ofertas-carrusel :global(.num) {
+          font-family: var(--serif);
+          font-weight: 600;
+          font-size: 1.7rem;
+          line-height: 1.1;
+          color: var(--rosa-hover);
+        }
+        .ofertas-carrusel :global(.slide-acciones) {
+          margin-top: auto;
+          padding-top: 8px;
+        }
+        .ofertas-carrusel :global(.slide-variante) {
+          margin-bottom: 8px;
+          width: 100%;
+          padding: 6px 10px;
+          border: 1px solid var(--linea);
+          border-radius: var(--radio);
+          background: var(--blanco);
+          color: var(--tinta);
+          font-family: var(--sans);
+          font-size: 0.82rem;
+        }
+        .ofertas-carrusel :global(.slide-accion) {
+          display: flex;
+          justify-content: center;
+          min-height: 28px;
+        }
+        .ofertas-carrusel :global(.slide-agregar) {
+          font-family: var(--sans);
+          font-size: 0.8rem;
+          padding: 7px 22px;
+          border-radius: 999px;
+          border: 1px solid var(--rosa);
+          background: var(--blanco);
+          color: var(--rosa);
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .ofertas-carrusel :global(.slide-agregar:hover) {
+          background: var(--rosa);
+          color: #fff;
+        }
+        .ofertas-carrusel :global(.slide-agotado) {
+          font-size: 0.78rem;
+          color: var(--gris);
+          padding: 7px 0;
+        }
 
         .carrusel-controles {
-          margin-top: 18px;
+          margin-top: 12px;
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 18px;
         }
         .carrusel-flecha {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 3;
+          box-shadow: var(--sombra);
           width: 34px;
           height: 34px;
           border-radius: 50%;
@@ -281,6 +414,12 @@ export default function OfertasCarousel({ productos }) {
           justify-content: center;
           cursor: pointer;
           transition: background 0.25s, color 0.25s;
+        }
+        .carrusel-flecha.izq {
+          left: -6px;
+        }
+        .carrusel-flecha.der {
+          right: -6px;
         }
         .carrusel-flecha:hover {
           background: var(--rosa);
@@ -304,27 +443,6 @@ export default function OfertasCarousel({ productos }) {
         .punto.activo {
           background: var(--rosa);
           transform: scale(1.25);
-        }
-
-        @media (max-width: 640px) {
-          .slide-card {
-            padding: 14px;
-          }
-          .slide-top {
-            gap: 10px;
-          }
-          .slide-precio-box {
-            padding: 12px 8px;
-          }
-          .slide-nombre {
-            font-size: 0.88rem;
-          }
-          .slide-desc {
-            display: none;
-          }
-          .num {
-            font-size: 1.5rem;
-          }
         }
       `}</style>
     </div>

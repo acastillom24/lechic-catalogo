@@ -25,34 +25,14 @@ export default async function Home() {
   const b = config.bienvenida;
 
   const productosOferta = await getProductosPorMarca("ofertas");
-  const ofertasDestacadas = elegirOfertasAleatorias(productosOferta, 5);
+  const ofertasDestacadas = elegirOfertasAleatorias(productosOferta, 6);
 
   return (
     <>
-      {/* ---------- HERO ---------- */}
-      <section className="hero">
-        <div className="contenedor">
-          <p className="hero-eyebrow">{config.instagram}</p>
-          <h1 className="hero-titulo serif">{config.marca}</h1>
-          <p className="hero-sub serif">
-            Donde el lujo y la accesibilidad se combinan
-          </p>
-          <div className="hero-cta">
-            <Link href="#catalogos" className="btn btn-solido">
-              Ver catálogos
-            </Link>
-            <Link href="/info" className="btn">
-              Cómo comprar
-            </Link>
-          </div>
-        </div>
-      </section>
-
       {/* ---------- OFERTAS DESTACADAS ---------- */}
       {ofertasDestacadas.length > 0 && (
         <section className="ofertas-seccion">
           <div className="contenedor">
-            <h2 className="seccion-titulo">Ofertas destacadas</h2>
             <div className="ofertas-carrusel-wrap">
               <OfertasCarousel productos={ofertasDestacadas} />
             </div>
@@ -109,47 +89,18 @@ export default async function Home() {
       </section>
 
       <style>{`
-        .hero {
-          text-align: center;
-          padding: 24px 0 64px;
-        }
-        .hero-eyebrow {
-          font-size: 0.72rem;
-          letter-spacing: 0.4em;
-          text-transform: uppercase;
-          color: var(--gris);
-          padding-left: 0.4em;
-        }
-        .hero-titulo {
-          font-weight: 600;
-          font-size: clamp(3.4rem, 13vw, 6.5rem);
-          line-height: 0.9;
+        .marcas-seccion .seccion-titulo {
           color: var(--rosa);
-          margin-top: 14px;
         }
-        .hero-sub {
-          font-style: italic;
-          font-size: clamp(1.05rem, 3.5vw, 1.5rem);
-          color: var(--gris);
-          margin-top: 12px;
-        }
-        .hero-cta {
-          margin-top: 30px;
-          display: flex;
-          gap: 12px;
-          justify-content: center;
-          flex-wrap: wrap;
-        }
-
         .ofertas-seccion {
-          padding: 8px 0 20px;
+          padding: 10px 0 8px;
         }
         .ofertas-carrusel-wrap {
           margin-top: 16px;
         }
 
         .marcas-seccion {
-          padding: 40px 0 20px;
+          padding: 20px 0 20px;
         }
         .marcas-grid {
           margin-top: 34px;
@@ -190,6 +141,7 @@ export default async function Home() {
           font-weight: 600;
           font-size: 1.7rem;
           line-height: 1.05;
+          color: var(--tinta);
           margin: 12px 0 8px;
         }
         .marca-card-desc {
