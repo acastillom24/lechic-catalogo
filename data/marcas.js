@@ -196,6 +196,15 @@ const marcas = [
       { slug: "perfumery", nombre: "Perfumería" },
     ],
   },
+  {
+    slug: "hogar",
+    nombre: "Hogar",
+    descripcion: "Productos para el hogar",
+    color: "#CFD4D9",
+    categorias: [
+      { slug: "home", nombre: "Todo para el hogar" },
+    ],
+  },
 ];
 
 module.exports = marcas;

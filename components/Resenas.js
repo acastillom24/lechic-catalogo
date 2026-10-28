@@ -488,7 +488,7 @@ export default function Resenas({
           break-inside: avoid;
           background: var(--blanco);
           border-radius: 8px;
-          box-shadow: 0 1px 8px rgba(36, 26, 31, 0.14);
+          box-shadow: 0 1px 8px rgba(122, 45, 87, 0.14);
           padding: 20px 22px;
           margin-bottom: 18px;
         }

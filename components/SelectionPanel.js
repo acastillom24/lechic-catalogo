@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useSeleccion } from "../lib/SelectionContext";
 import { getConfig } from "../lib/data";
 import CantidadControl from "./CantidadControl";
@@ -18,6 +19,12 @@ export default function SelectionPanel() {
 
   const config = getConfig();
 
+  const [entregaId, setEntregaId] = useState("recojo");
+  const entrega =
+    config.entregas.find((e) => e.id === entregaId) || config.entregas[0];
+  const embalaje = entrega.embalaje;
+  const totalAprox = totalPrecio + embalaje;
+
   // Arma el mensaje de WhatsApp con todo el detalle.
   function construirMensaje() {
     const lineas = items.map(
@@ -26,10 +33,18 @@ export default function SelectionPanel() {
           config.moneda
         } ${i.precio * i.cantidad}`
     );
+    const resumen =
+      embalaje > 0
+        ? `Entrega: ${entrega.nombre}\n` +
+          `Subtotal: ${config.moneda} ${totalPrecio}\n` +
+          `Embalaje (${entrega.nombre}): ${config.moneda} ${embalaje}\n` +
+          `Total aprox.: ${config.moneda} ${totalAprox}\n\n` +
+          `Nota: el costo por embalaje para envíos por agencia es ${config.moneda} ${embalaje}.`
+        : `Entrega: ${entrega.nombre}\nTotal aprox.: ${config.moneda} ${totalAprox}`;
     const cuerpo =
       `Hola ${config.marca}, quiero consultar por:\n\n` +
       lineas.join("\n") +
-      `\n\nTotal aprox.: ${config.moneda} ${totalPrecio}`;
+      `\n\n${resumen}`;
     return encodeURIComponent(cuerpo);
   }
 
@@ -119,15 +134,52 @@ export default function SelectionPanel() {
         {/* Pie con total y consulta */}
         {items.length > 0 && (
           <footer className="sel-pie">
+            <div className="sel-destino" role="radiogroup" aria-label="Entrega">
+              <span className="sel-destino-label">
+                ¿Cómo recibirás tu pedido?
+              </span>
+              <div className="sel-destino-opciones">
+                {config.entregas.map((e) => (
+                  <button
+                    key={e.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={entregaId === e.id}
+                    className={`sel-destino-op ${
+                      entregaId === e.id ? "activo" : ""
+                    }`}
+                    onClick={() => setEntregaId(e.id)}
+                  >
+                    {e.nombre}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {embalaje > 0 && (
+              <>
+                <div className="sel-fila">
+                  <span>Subtotal</span>
+                  <span>
+                    {config.moneda} {totalPrecio}
+                  </span>
+                </div>
+                <div className="sel-fila">
+                  <span>Embalaje ({entrega.nombre})</span>
+                  <span>
+                    {config.moneda} {embalaje}
+                  </span>
+                </div>
+              </>
+            )}
             <div className="sel-total">
               <span>Total aproximado</span>
               <strong className="serif">
-                {config.moneda} {totalPrecio}
+                {config.moneda} {totalAprox}
               </strong>
             </div>
             <p className="sel-total-nota">
-              Referencial. El monto final se confirma por mensaje (no incluye
-              envío).
+              Referencial. El monto final se confirma por mensaje.
+              {entrega.nota ? ` ${entrega.nota}` : ""}
             </p>
             <a
               href={waUrl}
@@ -148,7 +200,7 @@ export default function SelectionPanel() {
         .sel-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(36, 26, 31, 0.4);
+          background: rgba(122, 45, 87, 0.4);
           opacity: 0;
           visibility: hidden;
           transition: opacity 0.3s;
@@ -165,7 +217,7 @@ export default function SelectionPanel() {
           height: 100%;
           width: min(420px, 92vw);
           background: var(--papel);
-          box-shadow: -10px 0 40px rgba(36, 26, 31, 0.16);
+          box-shadow: -10px 0 40px rgba(122, 45, 87, 0.16);
           transform: translateX(100%);
           transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
           z-index: 61;
@@ -283,6 +335,40 @@ export default function SelectionPanel() {
           border-top: 1px solid var(--linea);
           padding: 18px 22px 22px;
           background: var(--papel-hondo);
+        }
+        .sel-destino {
+          margin-bottom: 14px;
+        }
+        .sel-destino-label {
+          font-size: 0.78rem;
+          color: var(--gris);
+        }
+        .sel-destino-opciones {
+          display: flex;
+          gap: 8px;
+          margin-top: 6px;
+        }
+        .sel-destino-op {
+          flex: 1;
+          padding: 8px 6px;
+          border-radius: 999px;
+          border: 1px solid var(--linea);
+          background: var(--papel);
+          font-size: 0.82rem;
+          color: var(--tinta);
+          cursor: pointer;
+        }
+        .sel-destino-op.activo {
+          border-color: var(--rosa);
+          background: var(--rosa);
+          color: #fff;
+        }
+        .sel-fila {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.82rem;
+          color: var(--gris);
+          margin-bottom: 4px;
         }
         .sel-total {
           display: flex;

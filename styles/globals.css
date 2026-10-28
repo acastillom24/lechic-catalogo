@@ -11,11 +11,11 @@
   --rosa-hover: #c81f6c;
   --rosa-suave: #f8a8cc;
   --rosa-tenue: #fde4ef;
-  --tinta: #241a1f;
+  --tinta: #7a2d57;
   --papel: #fbf7f4;
   --papel-hondo: #f3ebe6;
   --linea: #ead9d0;
-  --gris: #8a7a72;
+  --gris: #8c6f7d;
   --blanco: #ffffff;
   --oferta: #e8267f;
 
@@ -26,8 +26,8 @@
   /* Medidas */
   --ancho-max: 1160px;
   --radio: 6px;
-  --sombra: 0 10px 30px rgba(36, 26, 31, 0.08);
-  --sombra-hover: 0 18px 44px rgba(36, 26, 31, 0.14);
+  --sombra: 0 10px 30px rgba(122, 45, 87, 0.08);
+  --sombra-hover: 0 18px 44px rgba(122, 45, 87, 0.14);
 }
 
 * {
