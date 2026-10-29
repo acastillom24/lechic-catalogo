@@ -3,14 +3,16 @@ import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
 import { SeleccionProvider } from "../../lib/SelectionContext";
 import SelectionPanel from "../../components/SelectionPanel";
+import { ConfigProvider } from "../../lib/ConfigContext";
+import { getConfigSitio } from "../../lib/config";
 
-export const metadata = {
-  title: "Le Chic · Catálogo de fragancias y belleza",
-  description:
-    "Catálogo Le Chic: Ésika, L'Bel, Cyzone, Yanbal, Natura, Avon, Dupree, Oriflame e importaciones.",
-};
+export async function generateMetadata() {
+  const { seo } = await getConfigSitio();
+  return { title: seo.titulo, description: seo.descripcion };
+}
 
-export default function RootLayout({ children }) {
+export default async function RootLayout({ children }) {
+  const config = await getConfigSitio();
   return (
     <html lang="es">
       <head>
@@ -26,12 +28,14 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <SeleccionProvider>
-          <Navbar />
-          <main>{children}</main>
-          <Footer />
-          <SelectionPanel />
-        </SeleccionProvider>
+        <ConfigProvider valor={config}>
+          <SeleccionProvider>
+            <Navbar />
+            <main>{children}</main>
+            <Footer />
+            <SelectionPanel />
+          </SeleccionProvider>
+        </ConfigProvider>
       </body>
     </html>
   );

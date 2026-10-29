@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { getConfig } from "../lib/data";
+import { getConfigSitio } from "../lib/config";
 
-export default function Footer() {
-  const config = getConfig();
+export default async function Footer() {
+  const config = await getConfigSitio();
   return (
     <footer className="pie">
       <div className="contenedor">
@@ -17,6 +17,11 @@ export default function Footer() {
           <a href={config.tiktokUrl} target="_blank" rel="noopener noreferrer">
             TikTok
           </a>
+          {config.facebookUrl && (
+            <a href={config.facebookUrl} target="_blank" rel="noopener noreferrer">
+              Facebook
+            </a>
+          )}
           <Link href="/info">Cómo comprar</Link>
         </div>
         <p className="pie-nota">

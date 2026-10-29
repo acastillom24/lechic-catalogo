@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { getConfig } from "../lib/data";
+import { useConfig } from "../lib/ConfigContext";
 import { useSeleccion, construirKey } from "../lib/SelectionContext";
 import CantidadControl from "./CantidadControl";
 
@@ -15,7 +15,7 @@ function calcularPorVista() {
   return 1;
 }
 
-function OfertaCard({ producto, config, agregar, items, cambiarCantidad }) {
+function OfertaCard({ producto, config, agregar, items, cambiarCantidad, onInteraccion }) {
   const [varIdx, setVarIdx] = useState(0);
   const varias = producto.variantes.length > 1;
   const variante = producto.variantes[varIdx];
@@ -28,6 +28,7 @@ function OfertaCard({ producto, config, agregar, items, cambiarCantidad }) {
 
   // Igual que en la vista de marca: agrega sin abrir el panel.
   function agregarSeleccion() {
+    onInteraccion();
     agregar(
       {
         key,
@@ -101,8 +102,14 @@ function OfertaCard({ producto, config, agregar, items, cambiarCantidad }) {
             compacto
             eliminarEn1
             cantidad={linea.cantidad}
-            onMenos={() => cambiarCantidad(key, linea.cantidad - 1)}
-            onMas={() => cambiarCantidad(key, linea.cantidad + 1)}
+            onMenos={() => {
+              onInteraccion();
+              cambiarCantidad(key, linea.cantidad - 1);
+            }}
+            onMas={() => {
+              onInteraccion();
+              cambiarCantidad(key, linea.cantidad + 1);
+            }}
           />
         ) : (
           <button
@@ -120,11 +127,13 @@ function OfertaCard({ producto, config, agregar, items, cambiarCantidad }) {
 }
 
 export default function OfertasCarousel({ productos }) {
-  const config = getConfig();
+  const config = useConfig();
   const { agregar, items, cambiarCantidad } = useSeleccion();
   const [indice, setIndice] = useState(0);
   const [porVista, setPorVista] = useState(1);
+  const [interacciones, setInteracciones] = useState(0);
   const timerRef = useRef(null);
+  const dobleRef = useRef(false);
   const total = productos.length;
   const posiciones = Math.max(1, total - porVista + 1);
 
@@ -142,6 +151,11 @@ export default function OfertasCarousel({ productos }) {
 
   const irA = (i) => setIndice((i + posiciones) % posiciones);
 
+  function pausarExtra() {
+    dobleRef.current = true;
+    setInteracciones((n) => n + 1);
+  }
+
   useEffect(() => {
     if (posiciones <= 1) return;
 
@@ -150,12 +164,15 @@ export default function OfertasCarousel({ productos }) {
     ).matches;
     if (prefiereMenosMovimiento) return;
 
-    timerRef.current = setInterval(() => {
+    // Tras agregar o cambiar la cantidad, la próxima transición tarda el doble.
+    const espera = dobleRef.current ? INTERVALO_MS * 2 : INTERVALO_MS;
+    timerRef.current = setTimeout(() => {
+      dobleRef.current = false;
       setIndice((i) => (i + 1) % posiciones);
-    }, INTERVALO_MS);
+    }, espera);
 
-    return () => clearInterval(timerRef.current);
-  }, [indice, posiciones]);
+    return () => clearTimeout(timerRef.current);
+  }, [indice, posiciones, interacciones]);
 
   if (total === 0) return null;
 
@@ -179,6 +196,7 @@ export default function OfertasCarousel({ productos }) {
                 agregar={agregar}
                 items={items}
                 cambiarCantidad={cambiarCantidad}
+                onInteraccion={pausarExtra}
               />
             </div>
           ))}

@@ -2,7 +2,7 @@
 
 Catálogo web de fragancias y belleza. Construido con **Next.js**, se
 despliega **gratis en Vercel**, y los productos viven en una base de datos
-real (**Supabase**: Postgres + Storage de imágenes). Se administran desde
+real (**Neon**: Postgres, y **Cloudinary** para las imágenes). Se administran desde
 un panel web en `/admin` — no hace falta tocar código ni hacer `git push`
 para dar de alta un producto.
 
@@ -11,12 +11,12 @@ para dar de alta un producto.
 ## 🚀 Desplegar en Vercel
 
 1. Crea un repositorio en GitHub y sube esta carpeta.
-2. Sigue **"Configurar la base de datos (Supabase)"** más abajo y ten a
-   mano `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD` y
+2. Sigue **"Configurar la base de datos (Neon)"** más abajo y ten a
+   mano `DATABASE_URL`, las 3 variables `CLOUDINARY_*`, `ADMIN_PASSWORD` y
    `ADMIN_SESSION_SECRET`.
 3. Entra a [vercel.com](https://vercel.com) e inicia sesión con GitHub.
 4. **Add New → Project** → elige el repositorio.
-5. En **Environment Variables**, agrega las 4 variables del paso 2.
+5. En **Environment Variables**, agrega las variables del paso 2.
 6. **Deploy**. En 1–2 minutos tienes tu URL (ej: `lechic.vercel.app`).
 
 A partir de ahí, **cada vez que hagas `git push`, Vercel actualiza el
@@ -27,33 +27,32 @@ cada minuto).
 
 ---
 
-## 🗄️ Configurar la base de datos (Supabase) — una sola vez
+## 🗄️ Configurar la base de datos (Neon) e imágenes (Cloudinary) — una sola vez
 
-1. Crea un proyecto gratis en [supabase.com](https://supabase.com).
-2. **SQL Editor → New query** → pega todo el contenido de
-   [`supabase/schema.sql`](supabase/schema.sql) → **Run**. Esto crea las
-   tablas `productos` y `variantes`, y el bucket de Storage `productos`
-   (público) donde se guardan las fotos que subas desde el panel.
-3. **Project Settings → API** → copia el **Project URL** y el
-   **service_role secret** (no el `anon`/`public`).
-4. Copia `.env.local.example` como `.env.local` y completa:
-   ```
-   SUPABASE_URL=...
-   SUPABASE_SERVICE_ROLE_KEY=...
-   ADMIN_PASSWORD=una-contraseña-tuya
-   ADMIN_SESSION_SECRET=(genera una con el comando de abajo)
-   ```
+1. Crea un proyecto gratis en [neon.tech](https://neon.tech) y copia las
+   dos cadenas de conexión: la **pooled** (`DATABASE_URL`) y la **direct**
+   (`DIRECT_DATABASE_URL`).
+2. Crea una cuenta gratis en [cloudinary.com](https://cloudinary.com) y
+   copia `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y
+   `CLOUDINARY_API_SECRET`. Las fotos se guardan en la carpeta `lechic/`.
+3. Copia `.env.local.example` como `.env.local` y completa las variables
+   (más `ADMIN_PASSWORD` y `ADMIN_SESSION_SECRET`):
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
    ```
-5. Migra el catálogo actual (94 productos) a la base de datos, una sola
-   vez:
+4. Crea las tablas y carga el respaldo (`public/data/*.csv`):
    ```bash
    npm install
-   npm run migrar-datos
+   npm run neon:schema     # aplica neon/schema.sql
+   npm run neon:importar   # carga productos, variantes y reseñas
    ```
-   Es seguro volver a correrlo — no duplica nada, sobreescribe por id.
-6. Define las mismas 4 variables en Vercel (**Settings → Environment
+5. (Opcional) Sube las fotos del respaldo `public/images/productos` a
+   Cloudinary, cruzándolas con las variantes:
+   ```bash
+   npm run fotos:analizar  # solo genera el reporte en neon/reportes/
+   npm run fotos:subir     # optimiza (sharp) y sube las que cruzan
+   ```
+6. Define las mismas variables en Vercel (**Settings → Environment
    Variables**) antes de desplegar.
 
 ---
@@ -140,13 +139,14 @@ lechic/
 │                             fuente que migró a la base de datos una vez
 ├── lib/
 │   ├── data.js            ← Capa de acceso a datos (marcas/config
-│   │                          síncronos; productos vía Supabase, async)
-│   ├── supabaseServer.js  ← Cliente de Supabase (solo servidor)
+│   │                          síncronos; productos vía Neon, async)
+│   ├── db.js              ← Cliente de Neon/Postgres (solo servidor)
+│   ├── storage.js         ← Subida de imágenes a Cloudinary (carpeta lechic/)
 │   ├── auth.js            ← Password + cookie de sesión del panel
 │   └── slug.js            ← Genera el "id" de un producto a partir del nombre
 ├── proxy.js               ← Protege /admin (redirige a /admin/login sin sesión)
-├── supabase/schema.sql    ← Esquema de la base de datos (correr una vez)
-├── scripts/migrar-datos.js← Migración única de data/productos.js → Supabase
+├── neon/schema.sql        ← Esquema de la base de datos (npm run neon:schema)
+├── scripts/               ← neon-schema, importar-csv-neon, migrar-fotos
 ├── components/
 │   ├── admin/             ← Formularios y UI del panel
 │   └── ...                ← Componentes del sitio público (sin cambios)
@@ -160,7 +160,7 @@ lechic/
 por eso el panel no lleva el Navbar/Footer del catálogo. Ambos comparten
 la misma capa de datos (`lib/data.js`), así que si el día de mañana
 quieres cambiar de proveedor de base de datos, solo tocas `lib/data.js` y
-`lib/supabaseServer.js`.
+`lib/db.js`.
 
 ---
 
@@ -176,9 +176,8 @@ npm run build    # verifica que todo compile antes de publicar
 
 - `/admin` usa **una sola contraseña compartida** (`ADMIN_PASSWORD`),
   pensada para un equipo pequeño de confianza, no para multiusuario.
-- La `SUPABASE_SERVICE_ROLE_KEY` tiene permisos totales sobre la base de
-  datos: solo se usa en el servidor (nunca llega al navegador) y nunca
-  debe subirse al repo (`.env.local` ya está en `.gitignore`).
-- Las imágenes se suben a un bucket **público** de Supabase Storage (para
+- `DATABASE_URL` y `CLOUDINARY_API_SECRET` dan acceso total: solo se usan
+  en el servidor (nunca llegan al navegador) y nunca deben subirse al repo (`.env.local` ya está en `.gitignore`).
+- Las imágenes se suben a Cloudinary con URL **pública** (para
   que se vean en el catálogo sin login); no subas ahí nada que no deba
   ser público.

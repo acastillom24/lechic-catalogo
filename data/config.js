@@ -15,10 +15,20 @@ const config = {
   instagramUrl: "https://www.instagram.com/lechic_ofertas",
   tiktok: "@lechicimportsac",
   tiktokUrl: "https://www.tiktok.com/@lechicimportsac",
+  // Opcional: si se deja vacío, el enlace no se muestra.
+  facebookUrl: "",
   telefono: "+51 985219626",
   // El número para el enlace de WhatsApp va sin espacios ni signos.
   whatsapp: "51985219626",
   moneda: "S/",
+
+  // --- SEO (título y descripción que ven Google y las redes) ---
+  seo: {
+    titulo: "Le Chic · Catálogo de fragancias y belleza",
+    descripcion:
+      "Catálogo Le Chic: Ésika, L'Bel, Cyzone, Yanbal, Natura, Avon, Dupree, Oriflame e importaciones.",
+  },
+
   // Formas de entrega que elige el cliente. El embalaje solo se cobra
   // cuando el envío se gestiona por agencia (Shalom).
   entregas: [

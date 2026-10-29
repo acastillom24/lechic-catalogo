@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { getMarcas, getConfig } from "../lib/data";
+import marcasEstaticas from "../data/marcas";
+import { useConfig } from "../lib/ConfigContext";
 import SelectionButton from "./SelectionButton";
 
 export default function Navbar() {
-  const marcas = getMarcas();
-  const config = getConfig();
+  const marcas = marcasEstaticas;
+  const config = useConfig();
   const [abierto, setAbierto] = useState(false);
   const palabrasMarca = config.marca.split(" ");
 
