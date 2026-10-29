@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { getConfig } from "../lib/data";
+import { useConfig } from "../lib/ConfigContext";
 import { useSeleccion, construirKey } from "../lib/SelectionContext";
 import CantidadControl from "./CantidadControl";
 
@@ -14,7 +14,7 @@ import CantidadControl from "./CantidadControl";
  *  el botón pasa a [− n +] (con tacho cuando hay 1).
  */
 export default function ProductCard({ producto, marca }) {
-  const config = getConfig();
+  const config = useConfig();
   const { items, agregar, cambiarCantidad } = useSeleccion();
   const [idx, setIdx] = useState(0);
   const toque = useRef(null);
@@ -97,18 +97,23 @@ export default function ProductCard({ producto, marca }) {
           draggable={false}
         >
           {/* Si no existe el archivo, se ve el marco con el nombre. */}
-          <img
-            key={variante.imagen}
-            src={variante.imagen}
-            alt={`${producto.nombre} ${varias ? variante.nombre : ""}`}
-            loading="lazy"
-            draggable={false}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              e.currentTarget.nextElementSibling.style.display = "flex";
-            }}
-          />
-          <div className="tarjeta-img-fallback" style={{ display: "none" }}>
+          {variante.imagen && (
+            <img
+              key={variante.imagen}
+              src={variante.imagen}
+              alt={`${producto.nombre} ${varias ? variante.nombre : ""}`}
+              loading="lazy"
+              draggable={false}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.nextElementSibling.style.display = "flex";
+              }}
+            />
+          )}
+          <div
+            className="tarjeta-img-fallback"
+            style={{ display: variante.imagen ? "none" : "flex" }}
+          >
             <span>{producto.nombre}</span>
           </div>
         </Link>

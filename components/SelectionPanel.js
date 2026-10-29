@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSeleccion } from "../lib/SelectionContext";
-import { getConfig } from "../lib/data";
+import { useConfig } from "../lib/ConfigContext";
 import CantidadControl from "./CantidadControl";
 
 export default function SelectionPanel() {
@@ -17,7 +17,7 @@ export default function SelectionPanel() {
     cerrar,
   } = useSeleccion();
 
-  const config = getConfig();
+  const config = useConfig();
 
   const [entregaId, setEntregaId] = useState("recojo");
   const entrega =

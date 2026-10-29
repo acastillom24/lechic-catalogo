@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { getMarcas, getConfig, getProductosPorMarca } from "../../lib/data";
+import { getMarcas, getProductosPorMarca } from "../../lib/data";
+import { getConfigSitio } from "../../lib/config";
 import OfertasCarousel from "../../components/OfertasCarousel";
 
 // Igual que /marca/[slug] y /producto/[id]: sin esto, la home consulta
-// Supabase en cada visita (render 100% dinámico), lo que dispara mucho
+// la base de datos en cada visita (render 100% dinámico), lo que dispara mucho
 // más tráfico/logs de los necesarios en la página más visitada del sitio.
 export const revalidate = 60;
 
@@ -21,7 +22,7 @@ function elegirOfertasAleatorias(productos, cantidad) {
 
 export default async function Home() {
   const marcas = getMarcas();
-  const config = getConfig();
+  const config = await getConfigSitio();
   const b = config.bienvenida;
 
   const productosOferta = await getProductosPorMarca("ofertas");

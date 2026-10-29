@@ -1,16 +1,14 @@
-import { supabaseServer } from "../../../../lib/supabaseServer";
+import { query } from "../../../../lib/db";
 import { alternarResena, eliminarResena } from "../actions";
 
 export const metadata = { title: "Reseñas · Panel Le Chic" };
 export const dynamic = "force-dynamic";
 
 export default async function AdminResenasPage() {
-  const { data } = await supabaseServer()
-    .from("resenas")
-    .select("id, producto_id, nombre, estrellas, comentario, aprobado, created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
-  const resenas = data || [];
+  const resenas = await query(
+    `select id, producto_id, nombre, estrellas, comentario, aprobado, created_at
+     from resenas order by created_at desc limit 200`
+  );
 
   return (
     <div className="form-grid">

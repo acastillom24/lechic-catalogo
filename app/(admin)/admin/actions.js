@@ -11,12 +11,11 @@ import {
   passwordCorrecta,
   crearValorSesion,
 } from "../../../lib/auth";
-import { supabaseServer } from "../../../lib/supabaseServer";
+import { query, transaction } from "../../../lib/db";
+import { subirArchivo } from "../../../lib/storage";
 import { slugify } from "../../../lib/slug";
 import { getMarca, getCategoria } from "../../../lib/data";
-import { optimizarImagen, CACHE_CONTROL_IMAGEN } from "../../../lib/optimizarImagen";
-
-const BUCKET = "productos";
+import { optimizarImagen } from "../../../lib/optimizarImagen";
 
 // ============================================================
 //  SESIÓN
@@ -87,23 +86,17 @@ function extensionDe(archivo) {
 
 async function subirImagen(archivo, productoId, indice) {
   const bufferOriginal = Buffer.from(await archivo.arrayBuffer());
-  const { buffer, ext, contentType } = await optimizarImagen(
+  const { buffer } = await optimizarImagen(
     bufferOriginal,
     extensionDe(archivo),
     archivo.type
   );
-  const ruta = `${productoId}/${indice}-${Date.now()}.${ext}`;
-  const supabase = supabaseServer();
-  const { error } = await supabase.storage
-    .from(BUCKET)
-    .upload(ruta, buffer, {
-      contentType,
-      cacheControl: CACHE_CONTROL_IMAGEN,
-      upsert: true,
-    });
-  if (error) throw new Error(`No se pudo subir la imagen: ${error.message}`);
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(ruta);
-  return data.publicUrl;
+  const ruta = `${productoId}/${indice}-${Date.now()}`;
+  try {
+    return await subirArchivo(buffer, ruta);
+  } catch (err) {
+    throw new Error(`No se pudo subir la imagen: ${err.message}`);
+  }
 }
 
 // ============================================================
@@ -146,18 +139,12 @@ export async function guardarProducto(prevState, formData) {
       }
     }
 
-    const supabase = supabaseServer();
-
     if (modo === "crear") {
       if (!id) id = nombre;
       id = slugify(id);
       if (!id) return { error: "No se pudo generar un id válido a partir del nombre." };
 
-      const { data: existente } = await supabase
-        .from("productos")
-        .select("id")
-        .eq("id", id)
-        .maybeSingle();
+      const [existente] = await query("select id from productos where id = $1", [id]);
       if (existente) {
         return { error: `Ya existe un producto con el id "${id}". Elige otro id.` };
       }
@@ -197,24 +184,31 @@ export async function guardarProducto(prevState, formData) {
       destacado,
     };
 
-    if (modo === "crear") {
-      const { error } = await supabase
-        .from("productos")
-        .insert({ ...filaProducto, orden: Date.now() });
-      if (error) return { error: `No se pudo crear el producto: ${error.message}` };
-    } else {
-      const { error } = await supabase.from("productos").update(filaProducto).eq("id", id);
-      if (error) return { error: `No se pudo actualizar el producto: ${error.message}` };
-    }
-
-    await supabase.from("variantes").delete().eq("producto_id", id);
-    if (variantesFinal.length) {
-      const { error } = await supabase.from("variantes").insert(variantesFinal);
-      if (error) {
-        return {
-          error: `El producto se guardó, pero hubo un error con las variantes: ${error.message}`,
-        };
-      }
+    // Producto + variantes en una sola transacción (todo o nada).
+    try {
+      await transaction((t) => [
+        modo === "crear"
+          ? t.query(
+              `insert into productos (id, marca, categoria, nombre, descripcion, aromas, destacado, orden)
+               values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+              [id, marca, categoria, nombre, descripcion, aromasProducto, destacado, Date.now()]
+            )
+          : t.query(
+              `update productos set marca=$2, categoria=$3, nombre=$4, descripcion=$5, aromas=$6, destacado=$7
+               where id = $1`,
+              [id, marca, categoria, nombre, descripcion, aromasProducto, destacado]
+            ),
+        t.query("delete from variantes where producto_id = $1", [id]),
+        ...variantesFinal.map((v) =>
+          t.query(
+            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden)
+             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [v.producto_id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden]
+          )
+        ),
+      ]);
+    } catch (err) {
+      return { error: `No se pudo guardar el producto: ${err.message}` };
     }
 
     revalidatePath("/", "layout");
@@ -233,105 +227,13 @@ export async function guardarProducto(prevState, formData) {
 // ============================================================
 
 export async function eliminarProducto(id) {
-  const supabase = supabaseServer();
-  const { data: producto } = await supabase
-    .from("productos")
-    .select("marca")
-    .eq("id", id)
-    .maybeSingle();
-
-  const { error } = await supabase.from("productos").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const [producto] = await query("select marca from productos where id = $1", [id]);
+  await query("delete from productos where id = $1", [id]);
 
   revalidatePath("/", "layout");
   if (producto?.marca) revalidatePath(`/marca/${producto.marca}`);
   revalidatePath("/admin");
   redirect("/admin?eliminado=1");
-}
-
-// ============================================================
-//  SUBIR IMÁGENES EN LOTE (por nombre de archivo)
-// ============================================================
-//  Complemento a la importación por CSV: un CSV no puede llevar
-//  archivos, así que las fotos se suben una por una (nunca todas juntas
-//  en un solo request, por el límite de tamaño de Vercel) desde
-//  /admin/imagenes. Cada archivo debe llamarse:
-//    id_producto__nombre_de_la_variante.ext
-//  y esta acción busca esa variante (por producto + nombre, ignorando
-//  tildes/mayúsculas) y le asigna la imagen subida.
-//
-//  A diferencia de las demás acciones de este archivo, esta se llama
-//  directamente desde el cliente (no a través de un <form action=...>),
-//  así que nunca usa redirect(): siempre devuelve un objeto de
-//  resultado para que la página pueda mostrar el progreso archivo por
-//  archivo.
-
-export async function subirImagenPorNombre(formData) {
-  const archivo = formData.get("archivo");
-  if (!archivo || typeof archivo !== "object" || !("size" in archivo) || archivo.size === 0) {
-    return { ok: false, error: "Archivo vacío o inválido." };
-  }
-
-  const ext = extensionDe(archivo);
-  const base = (archivo.name || "").replace(/\.[^.]+$/, "");
-  const partes = base.split("__");
-  if (partes.length !== 2 || !partes[0] || !partes[1]) {
-    return {
-      ok: false,
-      error: `El nombre debe ser "id_producto__nombre_variante.${ext}".`,
-    };
-  }
-  const [idProducto, parteVariante] = partes;
-
-  try {
-    const supabase = supabaseServer();
-
-    const { data: variantes, error: errorConsulta } = await supabase
-      .from("variantes")
-      .select("id, nombre")
-      .eq("producto_id", idProducto);
-    if (errorConsulta) return { ok: false, error: errorConsulta.message };
-    if (!variantes || variantes.length === 0) {
-      return { ok: false, error: `No existe el producto "${idProducto}".` };
-    }
-
-    const slugBuscado = slugify(parteVariante);
-    const variante = variantes.find((v) => slugify(v.nombre) === slugBuscado);
-    if (!variante) {
-      const disponibles = variantes.map((v) => slugify(v.nombre)).join(", ") || "(ninguna)";
-      return {
-        ok: false,
-        error: `"${idProducto}" no tiene una variante "${parteVariante}". Disponibles: ${disponibles}.`,
-      };
-    }
-
-    const bufferOriginal = Buffer.from(await archivo.arrayBuffer());
-    const { buffer, ext: extFinal, contentType } = await optimizarImagen(
-      bufferOriginal,
-      ext,
-      archivo.type
-    );
-    const ruta = `${idProducto}/${slugBuscado}.${extFinal}`;
-    const { error: errorSubida } = await supabase.storage
-      .from(BUCKET)
-      .upload(ruta, buffer, { contentType, cacheControl: CACHE_CONTROL_IMAGEN, upsert: true });
-    if (errorSubida) return { ok: false, error: `No se pudo subir la imagen: ${errorSubida.message}` };
-
-    const { data: publica } = supabase.storage.from(BUCKET).getPublicUrl(ruta);
-    const { error: errorUpdate } = await supabase
-      .from("variantes")
-      .update({ imagen: publica.publicUrl })
-      .eq("id", variante.id);
-    if (errorUpdate) return { ok: false, error: errorUpdate.message };
-
-    revalidatePath("/", "layout");
-    revalidatePath(`/producto/${idProducto}`);
-    revalidatePath("/admin");
-
-    return { ok: true, producto: idProducto, variante: variante.nombre };
-  } catch (err) {
-    return { ok: false, error: err.message || "Error inesperado al subir la imagen." };
-  }
 }
 
 // ============================================================
@@ -449,31 +351,36 @@ export async function importarCsv(prevState, formData) {
     };
   }
 
-  const supabase = supabaseServer();
   const marcasTocadas = new Set();
   let ok = 0;
   const errores = [];
 
   for (const producto of productosPorId.values()) {
-    const { variantes, ...filaProducto } = producto;
-    const { error: errorProducto } = await supabase
-      .from("productos")
-      .upsert({ ...filaProducto, orden: Date.now() }, { onConflict: "id" });
-    if (errorProducto) {
-      errores.push(`${producto.id}: ${errorProducto.message}`);
-      continue;
+    const { variantes, ...p } = producto;
+    try {
+      await transaction((t) => [
+        t.query(
+          `insert into productos (id, marca, categoria, nombre, descripcion, aromas, destacado, orden)
+           values ($1,$2,$3,$4,$5,$6,$7,$8)
+           on conflict (id) do update set marca=excluded.marca, categoria=excluded.categoria,
+             nombre=excluded.nombre, descripcion=excluded.descripcion, aromas=excluded.aromas,
+             destacado=excluded.destacado, orden=excluded.orden`,
+          [p.id, p.marca, p.categoria, p.nombre, p.descripcion, p.aromas, p.destacado, Date.now()]
+        ),
+        t.query("delete from variantes where producto_id = $1", [p.id]),
+        ...variantes.map((v) =>
+          t.query(
+            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden)
+             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden]
+          )
+        ),
+      ]);
+      ok++;
+      marcasTocadas.add(p.marca);
+    } catch (err) {
+      errores.push(`${p.id}: ${err.message}`);
     }
-
-    await supabase.from("variantes").delete().eq("producto_id", producto.id);
-    const filasVariantes = variantes.map((v) => ({ ...v, producto_id: producto.id }));
-    const { error: errorVariantes } = await supabase.from("variantes").insert(filasVariantes);
-    if (errorVariantes) {
-      errores.push(`${producto.id} (variantes): ${errorVariantes.message}`);
-      continue;
-    }
-
-    ok++;
-    marcasTocadas.add(producto.marca);
   }
 
   revalidatePath("/", "layout");
@@ -495,18 +402,161 @@ export async function importarCsv(prevState, formData) {
 // ============================================================
 
 export async function alternarResena(id, aprobado) {
-  const { error } = await supabaseServer()
-    .from("resenas")
-    .update({ aprobado })
-    .eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("update resenas set aprobado = $1 where id = $2", [aprobado, id]);
   revalidatePath("/admin/resenas");
   revalidatePath("/producto/[id]", "page");
 }
 
 export async function eliminarResena(id) {
-  const { error } = await supabaseServer().from("resenas").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  await query("delete from resenas where id = $1", [id]);
   revalidatePath("/admin/resenas");
   revalidatePath("/producto/[id]", "page");
+}
+
+// ============================================================
+//  CONFIGURACIÓN GENERAL DEL SITIO
+// ============================================================
+//  El formulario envía todo el objeto como JSON (`configJson`). Aquí se
+//  valida y se guarda en la tabla `configuracion` (clave "sitio"); lo que
+//  no esté guardado cae a los valores por defecto de data/config.js.
+
+const ICONOS_PAGO = ["tarjeta", "transferencia", "movil", "efectivo"];
+
+function txt(valor, etiqueta, { max = 200, requerido = false } = {}) {
+  const t = (valor ?? "").toString().trim();
+  if (requerido && !t) throw new Error(`"${etiqueta}" es obligatorio.`);
+  if (t.length > max) throw new Error(`"${etiqueta}" no puede superar ${max} caracteres.`);
+  return t;
+}
+
+function urlHttps(valor, etiqueta, { requerido = false } = {}) {
+  const t = txt(valor, etiqueta, { max: 300, requerido });
+  if (t && !/^https:\/\/[^\s]+$/i.test(t)) {
+    throw new Error(`"${etiqueta}" debe empezar con https:// y no tener espacios.`);
+  }
+  return t;
+}
+
+function lista(valor, etiqueta, { maxItems = 12, max = 500 } = {}) {
+  const items = (Array.isArray(valor) ? valor : [])
+    .map((x) => (x ?? "").toString().trim())
+    .filter(Boolean);
+  if (items.length > maxItems) throw new Error(`"${etiqueta}" admite hasta ${maxItems} líneas.`);
+  for (const i of items) {
+    if (i.length > max) throw new Error(`Una línea de "${etiqueta}" supera ${max} caracteres.`);
+  }
+  return items;
+}
+
+function validarConfig(c) {
+  const whatsapp = txt(c.whatsapp, "WhatsApp", { max: 20, requerido: true }).replace(/\D/g, "");
+  if (whatsapp.length < 8 || whatsapp.length > 15) {
+    throw new Error('"WhatsApp" debe tener entre 8 y 15 dígitos, con código de país (ej: 51985219626).');
+  }
+
+  const entregas = (Array.isArray(c.entregas) ? c.entregas : []).map((e, i) => {
+    const nombre = txt(e.nombre, `Entrega ${i + 1}: nombre`, { max: 60, requerido: true });
+    const embalaje = Number(e.embalaje);
+    if (!Number.isFinite(embalaje) || embalaje < 0 || embalaje > 1000) {
+      throw new Error(`Entrega "${nombre}": el embalaje debe ser un número desde 0.`);
+    }
+    return {
+      id: txt(e.id, "id", { max: 40 }) || slugify(nombre) || `entrega-${i + 1}`,
+      nombre,
+      embalaje,
+      nota: txt(e.nota, `Entrega "${nombre}": nota`, { max: 300 }),
+    };
+  });
+  if (entregas.length < 1 || entregas.length > 6) {
+    throw new Error("Debe haber entre 1 y 6 formas de entrega.");
+  }
+
+  const metodosPago = (Array.isArray(c.metodosPago) ? c.metodosPago : [])
+    .map((m) => ({
+      nombre: txt(m.nombre, "Método de pago", { max: 60 }),
+      icono: ICONOS_PAGO.includes(m.icono) ? m.icono : "tarjeta",
+    }))
+    .filter((m) => m.nombre);
+  if (metodosPago.length > 10) throw new Error("Máximo 10 métodos de pago.");
+
+  const politicas = (Array.isArray(c.politicas) ? c.politicas : [])
+    .map((p) => ({
+      titulo: txt(p.titulo, "Título de política", { max: 80 }),
+      puntos: lista(p.puntos, "Puntos de política"),
+    }))
+    .filter((p) => p.titulo && p.puntos.length);
+  if (politicas.length > 12) throw new Error("Máximo 12 políticas.");
+
+  const b = c.bienvenida || {};
+  const valores = (Array.isArray(b.valores) ? b.valores : [])
+    .map((v) => ({
+      titulo: txt(v.titulo, "Valor: título", { max: 60 }),
+      texto: txt(v.texto, "Valor: texto", { max: 500 }),
+    }))
+    .filter((v) => v.titulo && v.texto);
+  if (valores.length > 6) throw new Error("Máximo 6 valores en la bienvenida.");
+
+  return {
+    marca: txt(c.marca, "Nombre de la marca", { max: 60, requerido: true }),
+    instagram: txt(c.instagram, "Instagram (usuario)", { max: 60 }),
+    instagramUrl: urlHttps(c.instagramUrl, "Instagram (URL)"),
+    tiktok: txt(c.tiktok, "TikTok (usuario)", { max: 60 }),
+    tiktokUrl: urlHttps(c.tiktokUrl, "TikTok (URL)"),
+    facebookUrl: urlHttps(c.facebookUrl, "Facebook (URL)"),
+    telefono: txt(c.telefono, "Teléfono", { max: 30, requerido: true }),
+    whatsapp,
+    moneda: txt(c.moneda, "Moneda", { max: 5, requerido: true }),
+    seo: {
+      titulo: txt(c.seo?.titulo, "Título SEO", { max: 120, requerido: true }),
+      descripcion: txt(c.seo?.descripcion, "Descripción SEO", { max: 300 }),
+    },
+    entregas,
+    bienvenida: {
+      titulo: txt(b.titulo, "Bienvenida: título", { max: 400 }),
+      subtitulo: txt(b.subtitulo, "Bienvenida: subtítulo", { max: 100 }),
+      intro: txt(b.intro, "Bienvenida: introducción", { max: 400 }),
+      valores,
+      cierre: txt(b.cierre, "Bienvenida: cierre", { max: 400 }),
+    },
+    horario: {
+      texto: txt(c.horario?.texto, "Horario", { max: 100, requerido: true }),
+      nota: txt(c.horario?.nota, "Nota del horario", { max: 300 }),
+    },
+    dinamicaCompra: lista(c.dinamicaCompra, "Dinámica de compra", { max: 200 }),
+    metodosPago,
+    envios: {
+      lima: lista(c.envios?.lima, "Envíos Lima", { maxItems: 10, max: 300 }),
+      provincias: lista(c.envios?.provincias, "Envíos provincias", { maxItems: 10, max: 300 }),
+    },
+    politicas,
+  };
+}
+
+export async function guardarConfiguracion(prevState, formData) {
+  let valor;
+  try {
+    valor = validarConfig(JSON.parse((formData.get("configJson") || "{}").toString()));
+  } catch (err) {
+    return { error: err.message || "No se pudo leer el formulario." };
+  }
+
+  try {
+    await query(
+      `insert into configuracion (clave, valor) values ('sitio', $1::jsonb)
+       on conflict (clave) do update set valor = excluded.valor, updated_at = now()`,
+      [JSON.stringify(valor)]
+    );
+  } catch (err) {
+    return { error: `No se pudo guardar: ${err.message}` };
+  }
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/configuracion");
+  return { ok: "Configuración guardada. Ya se ve en el sitio." };
+}
+
+export async function restablecerConfiguracion() {
+  await query("delete from configuracion where clave = 'sitio'");
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/configuracion");
 }
