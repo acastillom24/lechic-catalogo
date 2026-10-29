@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { getConfig } from "../lib/data";
+import { useConfig } from "../lib/ConfigContext";
 import { useSeleccion, construirKey } from "../lib/SelectionContext";
 
 export default function ProductDetail({ producto, marca, categoria, children }) {
-  const config = getConfig();
+  const config = useConfig();
   const { agregar } = useSeleccion();
   const [idx, setIdx] = useState(0);
   const [agregado, setAgregado] = useState(false);
@@ -62,15 +62,20 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
               <span>Agotado</span>
             </div>
           )}
-          <img
-            src={variante.imagen}
-            alt={`${producto.nombre} ${varias ? variante.nombre : ""}`}
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-              e.currentTarget.nextElementSibling.style.display = "flex";
-            }}
-          />
-          <div className="detalle-img-fallback" style={{ display: "none" }}>
+          {variante.imagen && (
+            <img
+              src={variante.imagen}
+              alt={`${producto.nombre} ${varias ? variante.nombre : ""}`}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+                e.currentTarget.nextElementSibling.style.display = "flex";
+              }}
+            />
+          )}
+          <div
+            className="detalle-img-fallback"
+            style={{ display: variante.imagen ? "none" : "flex" }}
+          >
             <span>{producto.nombre}</span>
           </div>
         </div>

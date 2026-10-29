@@ -1,9 +1,9 @@
-import { getConfig } from "../../../lib/data";
+import { getConfigSitio } from "../../../lib/config";
 
 export const metadata = { title: "Cómo comprar · Le Chic" };
 
-export default function InfoPage() {
-  const config = getConfig();
+export default async function InfoPage() {
+  const config = await getConfigSitio();
 
   return (
     <div className="contenedor info">
