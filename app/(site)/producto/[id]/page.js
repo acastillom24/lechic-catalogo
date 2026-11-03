@@ -6,8 +6,18 @@ import { getResumen, getResenas } from "../../../../lib/resenas";
 
 // Los productos ahora viven en la base de datos y pueden cambiar sin un
 // nuevo deploy (alta/edición desde /admin), así que la página se genera
-// bajo demanda y se refresca cada minuto en vez de fijarse en build time.
-export const revalidate = 60;
+// bajo demanda. Las acciones de /admin llaman revalidatePath() para
+// refrescarla al instante; las 24 h son solo una red de seguridad
+// (60 s agotaba los límites de ISR Writes / CPU de Vercel Hobby).
+export const revalidate = 86400;
+
+// Sin generateStaticParams, Next trata la ruta como 100% dinámica y la
+// renderiza (con consultas a Neon) en CADA visita, ignorando `revalidate`.
+// Devolver [] no genera nada en build, pero activa ISR: cada producto se
+// genera en su primera visita y luego se sirve desde caché.
+export function generateStaticParams() {
+  return [];
+}
 
 export async function generateMetadata({ params }) {
   const { id } = await params;

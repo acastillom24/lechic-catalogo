@@ -5,6 +5,7 @@ import { SeleccionProvider } from "../../lib/SelectionContext";
 import SelectionPanel from "../../components/SelectionPanel";
 import { ConfigProvider } from "../../lib/ConfigContext";
 import { getConfigSitio } from "../../lib/config";
+import { Analytics } from "@vercel/analytics/next";
 
 export async function generateMetadata() {
   const { seo } = await getConfigSitio();
@@ -36,6 +37,7 @@ export default async function RootLayout({ children }) {
             <SelectionPanel />
           </SeleccionProvider>
         </ConfigProvider>
+        <Analytics />
       </body>
     </html>
   );
