@@ -3,10 +3,11 @@ import { getMarcas, getProductosPorMarca } from "../../lib/data";
 import { getConfigSitio } from "../../lib/config";
 import OfertasCarousel from "../../components/OfertasCarousel";
 
-// Igual que /marca/[slug] y /producto/[id]: sin esto, la home consulta
-// la base de datos en cada visita (render 100% dinámico), lo que dispara mucho
-// más tráfico/logs de los necesarios en la página más visitada del sitio.
-export const revalidate = 60;
+// Igual que /marca/[slug] y /producto/[id]: página ISR. La frescura la da
+// revalidatePath() desde las acciones de /admin; las 24 h son solo una red de
+// seguridad. Un valor bajo (p. ej. 60 s) agotó los límites de ISR Writes y
+// Fluid Active CPU del plan Hobby de Vercel.
+export const revalidate = 86400;
 
 function elegirOfertasAleatorias(productos, cantidad) {
   const disponibles = productos.filter((p) =>
