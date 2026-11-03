@@ -7,9 +7,10 @@ import {
 } from "../../../../lib/data";
 import BrandView from "../../../../components/BrandView";
 
-// Los productos vienen de la base de datos: refrescamos cada minuto para
-// que las altas/ediciones hechas desde /admin aparezcan sin nuevo deploy.
-export const revalidate = 60;
+// Los productos vienen de la base de datos. Las altas/ediciones hechas desde
+// /admin llaman revalidatePath() y refrescan la página al instante; las 24 h
+// son solo una red de seguridad (60 s agotaba los límites de Vercel Hobby).
+export const revalidate = 86400;
 
 // La lista de marcas es estática (data/marcas.js), así que las rutas
 // se siguen generando en build time. Los productos de cada marca ahora
