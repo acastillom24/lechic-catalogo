@@ -656,7 +656,18 @@
 .barras { display: grid; gap: 8px; }
 .barra-fila { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
 .barra-pista { background: var(--linea); border-radius: 4px; height: 10px; overflow: hidden; }
-.barra-relleno { background: var(--rosa); height: 100%; }
+.barra-relleno { background: var(--rosa); height: 100%; transition: filter .15s; }
+.barras .barra-fila { position: relative; padding: 3px 4px; margin: 0 -4px; border-radius: 6px; outline: none; cursor: default; }
+.barras .barra-fila:hover, .barras .barra-fila:focus-visible { background: var(--rosa-tenue); }
+.barras .barra-fila:hover .barra-relleno, .barras .barra-fila:focus-visible .barra-relleno { filter: brightness(.9); }
+.barras .barra-fila::after {
+  content: attr(data-tip);
+  position: absolute; left: 114px; bottom: calc(100% - 2px); z-index: 3;
+  background: var(--blanco, #fff); color: inherit; border: 1px solid var(--linea); border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 6px 10px; font-size: 12px; white-space: nowrap;
+  opacity: 0; transform: translateY(2px); pointer-events: none; transition: opacity .12s, transform .12s;
+}
+.barras .barra-fila:hover::after, .barras .barra-fila:focus-visible::after { opacity: 1; transform: none; }
 .dash-svg { width: 100%; height: auto; display: block; }
 .admin-nav a.activo { font-weight: 600; text-decoration: underline; }
 .campo input:not([type]),

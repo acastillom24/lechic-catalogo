@@ -1,16 +1,16 @@
 import Link from "next/link";
-import { getDashboardVentas } from "../../../../lib/ventas";
+import { getDashboardVentas, getVentasAnuales } from "../../../../lib/ventas";
 import { getResumenCatalogo } from "../../../../lib/dashboard";
 import { resolverPeriodo, hoyLima, ATAJOS, PERIODOS } from "../../../../lib/periodos";
 import { leerFiltrosVentas } from "../../../../lib/filtros-ventas";
 import { TELEFONO_SIN_DATO } from "../../../../lib/ventas-core";
+import ComparativoAnual from "../../../../components/admin/dashboard/ComparativoAnual";
+import Tendencia from "../../../../components/admin/dashboard/Tendencia";
 import DashboardFiltros from "../../../../components/admin/DashboardFiltros";
 import {
   Kpi,
   Barras,
   Seccion,
-  Tendencia,
-  formatoClave,
   soles,
   solesDec,
   entero,
@@ -65,9 +65,10 @@ export default async function DashboardPage({ searchParams }) {
   if (destino) exportar.set("destino", destino);
 
   const esStock = tab === "stock";
-  const [v, c] = await Promise.all([
+  const [v, c, anual] = await Promise.all([
     esStock ? null : getDashboardVentas({ ...periodo, categoria, destino }),
     esStock ? getResumenCatalogo() : null,
+    tab === "ventas" ? getVentasAnuales({ categoria, destino }) : null,
   ]);
 
   return (
@@ -105,14 +106,14 @@ export default async function DashboardPage({ searchParams }) {
         />
       )}
 
-      {tab === "ventas" && v && <VentasTab v={v} periodo={periodo} />}
+      {tab === "ventas" && v && <VentasTab v={v} periodo={periodo} anual={anual} />}
       {tab === "clientes" && v && <ClientesTab v={v} />}
       {esStock && c && <StockTab c={c} />}
     </div>
   );
 }
 
-function VentasTab({ v, periodo }) {
+function VentasTab({ v, periodo, anual }) {
   const etiquetaPrev = `vs ${periodo.previo.desde === periodo.previo.hasta ? periodo.previo.desde : "periodo anterior"}`;
   return (
     <>
@@ -174,9 +175,18 @@ function VentasTab({ v, periodo }) {
       ) : (
         <Seccion
           titulo={v.tendenciaPorMes ? "Ventas por mes" : "Ventas por día"}
-          nota="Pasa el cursor sobre una barra para ver el monto y el número de ventas."
+          nota="Pasa el cursor sobre una columna para ver el monto y el número de ventas."
         >
-          <Tendencia datos={v.tendencia} etiqueta={formatoClave} />
+          <Tendencia datos={v.tendencia} />
+        </Seccion>
+      )}
+
+      {anual && (
+        <Seccion
+          titulo={`Ventas por mes: ${anual.anio} vs ${anual.anio - 1}`}
+          nota={`Acumulado ${anual.anio}: ${soles(anual.totalActual)} · ${anual.anio - 1}: ${soles(anual.totalPrevio)}. No depende del periodo elegido.`}
+        >
+          <ComparativoAnual anio={anual.anio} meses={anual.meses} />
         </Seccion>
       )}
 
