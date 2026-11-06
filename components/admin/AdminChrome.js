@@ -23,8 +23,6 @@ export default function AdminChrome({ children }) {
           <span className="admin-topbar-marca">Panel Le Chic</span>
           <nav className="admin-nav">
             <Link href="/admin">Productos</Link>
-            <Link href="/admin/productos/nuevo">Nuevo producto</Link>
-            <Link href="/admin/importar">Importar CSV</Link>
             <Link href="/admin/resenas">Reseñas</Link>
             <Link href="/admin/configuracion">Configuración</Link>
             <Link href="/" target="_blank">

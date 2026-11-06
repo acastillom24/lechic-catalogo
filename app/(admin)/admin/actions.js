@@ -16,6 +16,7 @@ import { subirArchivo } from "../../../lib/storage";
 import { slugify } from "../../../lib/slug";
 import { getMarca, getCategoria } from "../../../lib/data";
 import { optimizarImagen } from "../../../lib/optimizarImagen";
+import { aplicarMovimiento, fijarStock } from "../../../lib/inventario";
 
 // ============================================================
 //  SESIÓN
@@ -162,7 +163,16 @@ export async function guardarProducto(prevState, formData) {
       if (archivo && typeof archivo === "object" && "size" in archivo && archivo.size > 0) {
         imagen = await subirImagen(archivo, id, i);
       }
+      const stockMinimo = parseNumero(v.stockMinimo) ?? 0;
+      if (!Number.isInteger(stockMinimo) || stockMinimo < 0) {
+        return { error: `Variante "${v.nombre}": el stock mínimo debe ser un entero desde 0.` };
+      }
+      const costo = parseNumero(v.costo);
+      if (costo !== null && costo < 0) {
+        return { error: `Variante "${v.nombre}": el costo no puede ser negativo.` };
+      }
       variantesFinal.push({
+        id: Number.isInteger(Number(v.id)) && Number(v.id) > 0 ? Number(v.id) : null,
         producto_id: id,
         nombre: v.nombre.toString().trim(),
         precio: parseNumero(v.precio),
@@ -171,8 +181,19 @@ export async function guardarProducto(prevState, formData) {
         imagen,
         aromas: Array.isArray(v.aromas) ? v.aromas.filter(Boolean) : [],
         orden: i,
+        sku: (v.sku || "").toString().trim() || null,
+        stock_minimo: stockMinimo,
+        costo,
+        activo: v.activo !== false,
       });
     }
+
+    const skus = variantesFinal.map((v) => v.sku).filter(Boolean);
+    if (new Set(skus).size !== skus.length) {
+      return { error: "Hay SKUs repetidos entre las variantes de este producto." };
+    }
+    const existentes = variantesFinal.filter((v) => v.id !== null);
+    const nuevas = variantesFinal.filter((v) => v.id === null);
 
     const filaProducto = {
       id,
@@ -198,16 +219,45 @@ export async function guardarProducto(prevState, formData) {
                where id = $1`,
               [id, marca, categoria, nombre, descripcion, aromasProducto, destacado]
             ),
-        t.query("delete from variantes where producto_id = $1", [id]),
-        ...variantesFinal.map((v) =>
+        // Las variantes existentes se ACTUALIZAN por id (así no se pierden SKU,
+        // stock ni historial de movimientos). `stock` solo se toca si la variante
+        // no tiene control de cantidad: si lo tiene, lo manda stock_actual.
+        ...existentes.map((v) =>
           t.query(
-            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden)
-             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [v.producto_id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden]
+            `update variantes set nombre=$3, precio=$4, precio_oferta=$5,
+               stock = case when stock_actual is null then $6 else stock end,
+               imagen=$7, aromas=$8, orden=$9, sku=$10, stock_minimo=$11, costo=$12, activo=$13
+             where id = $1 and producto_id = $2`,
+            [v.id, id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+             v.sku, v.stock_minimo, v.costo, v.activo]
+          )
+        ),
+        // Variantes quitadas del formulario: con control de cantidad se desactivan
+        // (conservan historial); sin control se eliminan.
+        t.query(
+          `update variantes set activo = false
+            where producto_id = $1 and id <> all($2::bigint[]) and stock_actual is not null`,
+          [id, existentes.map((v) => v.id)]
+        ),
+        t.query(
+          `delete from variantes
+            where producto_id = $1 and id <> all($2::bigint[]) and stock_actual is null`,
+          [id, existentes.map((v) => v.id)]
+        ),
+        ...nuevas.map((v) =>
+          t.query(
+            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+               sku, stock_minimo, costo, activo)
+             values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [v.producto_id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+             v.sku, v.stock_minimo, v.costo, v.activo]
           )
         ),
       ]);
     } catch (err) {
+      if (String(err.message).includes("variantes_sku_uniq")) {
+        return { error: "Ese SKU ya lo usa otra variante. Cada SKU debe ser único." };
+      }
       return { error: `No se pudo guardar el producto: ${err.message}` };
     }
 
@@ -234,6 +284,20 @@ export async function eliminarProducto(id) {
   if (producto?.marca) revalidatePath(`/marca/${producto.marca}`);
   revalidatePath("/admin");
   redirect("/admin?eliminado=1");
+}
+
+/** Elimina varios productos a la vez (filas marcadas en la tabla). */
+export async function eliminarProductos(ids) {
+  const lista = [...new Set((Array.isArray(ids) ? ids : []).map((x) => String(x)).filter(Boolean))];
+  if (!lista.length || lista.length > 500) redirect("/admin");
+
+  const marcas = await query("select distinct marca from productos where id = any($1::text[])", [lista]);
+  const borrados = await query("delete from productos where id = any($1::text[]) returning id", [lista]);
+
+  revalidatePath("/", "layout");
+  for (const { marca } of marcas) revalidatePath(`/marca/${marca}`);
+  revalidatePath("/admin");
+  redirect(`/admin?eliminados=${borrados.length}`);
 }
 
 // ============================================================
@@ -333,6 +397,16 @@ export async function importarCsv(prevState, formData) {
     }
 
     const producto = productosPorId.get(id);
+    const stockCantidad = parseNumero(fila.stock_cantidad);
+    const stockMinimo = parseNumero(fila.stock_minimo) ?? 0;
+    if (
+      (stockCantidad !== null && (!Number.isInteger(stockCantidad) || stockCantidad < 0)) ||
+      !Number.isInteger(stockMinimo) ||
+      stockMinimo < 0
+    ) {
+      omitidas.push(`Fila ${numeroFila}: "stock_cantidad" y "stock_minimo" deben ser enteros desde 0.`);
+      return;
+    }
     producto.variantes.push({
       nombre: (fila.nombre_variante || "Único").toString().trim() || "Único",
       precio: parseNumero(fila.precio),
@@ -341,6 +415,10 @@ export async function importarCsv(prevState, formData) {
       imagen: (fila.imagen || "").toString().trim() || null,
       aromas: parseAromas((fila.aromas_variante || "").toString().replaceAll("|", ",")),
       orden: producto.variantes.length,
+      sku: (fila.sku || "").toString().trim() || null,
+      stock_cantidad: stockCantidad,
+      stock_minimo: stockMinimo,
+      costo: parseNumero(fila.costo),
     });
   });
 
@@ -367,15 +445,77 @@ export async function importarCsv(prevState, formData) {
              destacado=excluded.destacado, orden=excluded.orden`,
           [p.id, p.marca, p.categoria, p.nombre, p.descripcion, p.aromas, p.destacado, Date.now()]
         ),
-        t.query("delete from variantes where producto_id = $1", [p.id]),
-        ...variantes.map((v) =>
-          t.query(
-            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden)
-             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden]
-          )
+        // Variantes: se actualizan (por SKU o, sin SKU, por nombre) en vez de
+        // borrar y reinsertar, para conservar stock e historial.
+        ...variantes.flatMap((v) =>
+          v.sku
+            ? [
+                t.query(
+                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+                     sku, stock_minimo, costo, activo)
+                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
+                   on conflict (sku) where sku is not null do update set
+                     producto_id=excluded.producto_id, nombre=excluded.nombre, precio=excluded.precio,
+                     precio_oferta=excluded.precio_oferta,
+                     stock = case when variantes.stock_actual is null then excluded.stock else variantes.stock end,
+                     imagen=excluded.imagen, aromas=excluded.aromas, orden=excluded.orden,
+                     stock_minimo=excluded.stock_minimo, costo=excluded.costo, activo=true`,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                   v.sku, v.stock_minimo, v.costo]
+                ),
+              ]
+            : [
+                t.query(
+                  `update variantes set precio=$3, precio_oferta=$4,
+                     stock = case when stock_actual is null then $5 else stock end,
+                     imagen=$6, aromas=$7, orden=$8, stock_minimo=$9, costo=$10, activo=true
+                   where producto_id = $1 and nombre = $2`,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                   v.stock_minimo, v.costo]
+                ),
+                t.query(
+                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+                     stock_minimo, costo, activo)
+                   select $1::text, $2::text, $3::numeric, $4::numeric, $5::boolean, $6::text, $7::text[], $8::int,
+                          $9::int, $10::numeric, true
+                   where not exists (select 1 from variantes where producto_id = $1 and nombre = $2)`,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                   v.stock_minimo, v.costo]
+                ),
+              ]
+        ),
+        // Variantes que ya no vienen en el CSV: con control de cantidad se
+        // desactivan (conservan historial); sin control se eliminan.
+        t.query(
+          `update variantes set activo = false
+            where producto_id = $1 and stock_actual is not null
+              and not (nombre = any($2::text[]) or coalesce(sku,'') = any($3::text[]))`,
+          [p.id, variantes.map((v) => v.nombre), variantes.map((v) => v.sku || "")]
+        ),
+        t.query(
+          `delete from variantes
+            where producto_id = $1 and stock_actual is null
+              and not (nombre = any($2::text[]) or coalesce(sku,'') = any($3::text[]))`,
+          [p.id, variantes.map((v) => v.nombre), variantes.map((v) => v.sku || "")]
         ),
       ]);
+
+      // Cantidades de stock del CSV (columna opcional "stock_cantidad"): se
+      // aplican como ajustes con historial (origen "csv").
+      for (const v of variantes) {
+        if (v.stock_cantidad === null) continue;
+        const [fila] = v.sku
+          ? await query("select id from variantes where sku = $1", [v.sku])
+          : await query("select id from variantes where producto_id = $1 and nombre = $2", [p.id, v.nombre]);
+        if (fila) {
+          await fijarStock({
+            varianteId: Number(fila.id),
+            cantidad: v.stock_cantidad,
+            motivo: "Importación CSV",
+            origen: "csv",
+          });
+        }
+      }
       ok++;
       marcasTocadas.add(p.marca);
     } catch (err) {
@@ -395,6 +535,53 @@ export async function importarCsv(prevState, formData) {
       errores,
     },
   };
+}
+
+// ============================================================
+//  INVENTARIO: movimientos manuales
+// ============================================================
+//  operacion: "entrada" | "salida" | "fijar" (conteo físico: deja el stock
+//  en la cantidad indicada y registra la diferencia como ajuste).
+
+export async function registrarMovimiento(prevState, formData) {
+  const varianteId = Number(formData.get("varianteId"));
+  const operacion = (formData.get("operacion") || "").toString();
+  const cantidad = Number(formData.get("cantidad"));
+  const motivo = (formData.get("motivo") || "").toString().trim().slice(0, 200);
+
+  if (!Number.isInteger(varianteId) || varianteId <= 0) return { error: "Variante inválida." };
+  if (!Number.isInteger(cantidad) || cantidad < 0 || (operacion !== "fijar" && cantidad === 0)) {
+    return { error: "Ingresa una cantidad entera válida." };
+  }
+
+  let r;
+  try {
+    if (operacion === "fijar") {
+      r = await fijarStock({ varianteId, cantidad, motivo });
+    } else if (operacion === "entrada" || operacion === "salida") {
+      r = await aplicarMovimiento({
+        varianteId,
+        tipo: operacion,
+        cantidad,
+        motivo: motivo || (operacion === "entrada" ? "Ingreso de mercadería" : "Salida manual"),
+        origen: "manual",
+      });
+    } else {
+      return { error: "Operación inválida." };
+    }
+  } catch (err) {
+    return { error: `No se pudo registrar: ${err.message}` };
+  }
+
+  if (r.estado === "insuficiente") {
+    return { error: `Stock insuficiente (hay ${r.stock ?? 0}).` };
+  }
+  if (r.estado === "no_encontrada") return { error: "La variante ya no existe." };
+  if (r.estado !== "ok") return { error: `No se aplicó el movimiento (${r.estado}).` };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
+  return { ok: `Stock actualizado: ${r.stock}.` };
 }
 
 // ============================================================
