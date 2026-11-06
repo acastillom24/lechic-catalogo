@@ -4,6 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cerrarSesion } from "../../app/(admin)/admin/actions";
 
+const ENLACES = [
+  ["/admin/dashboard", "Dashboard", false],
+  ["/admin", "Productos", true],
+  ["/admin/ventas", "Ventas", false],
+  ["/admin/ventas/pendientes", "Pendientes", true],
+  ["/admin/resenas", "Reseñas", false],
+  ["/admin/configuracion", "Configuración", false],
+];
+
 /**
  * Envuelve las páginas de /admin con una barra superior (título,
  * navegación y botón de cerrar sesión). En /admin/login no se
@@ -16,17 +25,24 @@ export default function AdminChrome({ children }) {
 
   if (esLogin) return children;
 
+  // Activo: coincidencia exacta, o prefijo salvo que exista un enlace más específico.
+  const activo = (href, exacto) =>
+    pathname === href ||
+    (!exacto &&
+      pathname.startsWith(href + "/") &&
+      !ENLACES.some(([h]) => h !== href && h.startsWith(href + "/") && pathname.startsWith(h)));
+
   return (
     <>
       <header className="admin-topbar">
         <div className="admin-topbar-inner">
           <span className="admin-topbar-marca">Panel Le Chic</span>
           <nav className="admin-nav">
-            <Link href="/admin">Productos</Link>
-            <Link href="/admin/productos/nuevo">Nuevo producto</Link>
-            <Link href="/admin/importar">Importar CSV</Link>
-            <Link href="/admin/resenas">Reseñas</Link>
-            <Link href="/admin/configuracion">Configuración</Link>
+            {ENLACES.map(([href, texto, exacto]) => (
+              <Link key={href} href={href} className={activo(href, exacto) ? "activo" : undefined}>
+                {texto}
+              </Link>
+            ))}
             <Link href="/" target="_blank">
               Ver sitio ↗
             </Link>

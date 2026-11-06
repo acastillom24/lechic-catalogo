@@ -1,6 +1,7 @@
 "use client";
 
 import { eliminarProducto } from "../../app/(admin)/admin/actions";
+import { IconoPapelera } from "./Iconos";
 
 export default function EliminarProductoBoton({ id, nombre }) {
   const accion = eliminarProducto.bind(null, id);
@@ -14,8 +15,8 @@ export default function EliminarProductoBoton({ id, nombre }) {
         }
       }}
     >
-      <button type="submit" className="btn-admin peligro">
-        Eliminar producto
+      <button type="submit" className="btn-ico-texto peligro">
+        <IconoPapelera /> Eliminar producto
       </button>
     </form>
   );

@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { guardarProducto } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
+import { IconoMas, IconoPapelera, IconoGuardar } from "./Iconos";
 
 function nuevaVariante() {
   return {
@@ -14,11 +15,17 @@ function nuevaVariante() {
     aromas: "",
     imagenExistente: null,
     previewLocal: null,
+    id: null,
+    sku: "",
+    stockMinimo: 0,
+    costo: "",
+    activo: true,
+    stockActual: null,
   };
 }
 
-export default function ProductoForm({ modo, marcas, producto }) {
-  const [estado, accion, enviando] = useActionState(guardarProducto, {});
+export default function ProductoForm({ modo, marcas, producto, accionGuardar }) {
+  const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
   const [idTocadoManualmente, setIdTocadoManualmente] = useState(modo === "editar");
@@ -42,6 +49,12 @@ export default function ProductoForm({ modo, marcas, producto }) {
           aromas: (v.aromas || []).join(", "),
           imagenExistente: v.imagen || null,
           previewLocal: null,
+          id: v.id ?? null,
+          sku: v.sku || "",
+          stockMinimo: v.stockMinimo ?? 0,
+          costo: v.costo ?? "",
+          activo: v.activo !== false,
+          stockActual: v.stockActual ?? null,
         }))
       : [nuevaVariante()]
   );
@@ -73,6 +86,11 @@ export default function ProductoForm({ modo, marcas, producto }) {
 
   const variantesJson = JSON.stringify(
     variantes.map((v) => ({
+      id: v.id,
+      sku: v.sku,
+      stockMinimo: v.stockMinimo,
+      costo: v.costo,
+      activo: v.activo,
       nombre: v.nombre,
       precio: v.precio,
       precioOferta: v.precioOferta,
@@ -86,7 +104,7 @@ export default function ProductoForm({ modo, marcas, producto }) {
   );
 
   return (
-    <form action={accion} className="form-grid admin-card" encType="multipart/form-data">
+    <form action={accion} className="form-grid admin-card">
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
 
       <input type="hidden" name="modo" value={modo} />
@@ -190,8 +208,8 @@ export default function ProductoForm({ modo, marcas, producto }) {
       <div className="form-grid">
         <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
           <h3 style={{ fontSize: "1rem", color: "var(--tinta)" }}>Variantes</h3>
-          <button type="button" className="btn-admin" onClick={agregarVariante}>
-            + Agregar variante
+          <button type="button" className="btn-ico-texto" onClick={agregarVariante}>
+            <IconoMas /> Agregar variante
           </button>
         </div>
 
@@ -216,15 +234,65 @@ export default function ProductoForm({ modo, marcas, producto }) {
                   placeholder='Ej: "Único", "50 ml", "Rosa"'
                 />
               </div>
-              <label className="campo-check" style={{ marginTop: 22 }}>
-                <input
-                  type="checkbox"
-                  checked={v.stock}
-                  onChange={(e) => actualizarVariante(i, { stock: e.target.checked })}
-                />
-                Con stock disponible
-              </label>
+              {v.stockActual === null ? (
+                <label className="campo-check" style={{ marginTop: 22 }}>
+                  <input
+                    type="checkbox"
+                    checked={v.stock}
+                    onChange={(e) => actualizarVariante(i, { stock: e.target.checked })}
+                  />
+                  Con stock disponible
+                </label>
+              ) : (
+                <div className="campo" style={{ marginTop: 22 }}>
+                  <strong>Stock: {v.stockActual}</strong>{" "}
+                  <a href={`/admin?q=${encodeURIComponent(v.sku || nombre)}`}>
+                    Ajustar en Inventario
+                  </a>
+                </div>
+              )}
             </div>
+
+            <div className="form-fila">
+              <div className="campo">
+                <label>SKU (código único, enlaza con facturación)</label>
+                <input
+                  type="text"
+                  value={v.sku}
+                  onChange={(e) => actualizarVariante(i, { sku: e.target.value })}
+                  placeholder="Ej: YB-ROSA-50"
+                />
+              </div>
+              <div className="campo">
+                <label>Stock mínimo (alerta)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={v.stockMinimo}
+                  onChange={(e) => actualizarVariante(i, { stockMinimo: e.target.value })}
+                />
+              </div>
+              <div className="campo">
+                <label>Costo (S/, opcional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={v.costo}
+                  onChange={(e) => actualizarVariante(i, { costo: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <label className="campo-check">
+              <input
+                type="checkbox"
+                checked={v.activo}
+                onChange={(e) => actualizarVariante(i, { activo: e.target.checked })}
+              />
+              Activa (visible en el sitio)
+            </label>
 
             <div className="form-fila">
               <div className="campo">

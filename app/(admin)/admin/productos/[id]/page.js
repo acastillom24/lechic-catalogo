@@ -7,7 +7,7 @@ export const metadata = { title: "Editar producto · Panel Le Chic" };
 
 export default async function EditarProductoPage({ params }) {
   const { id } = await params;
-  const producto = await getProducto(id);
+  const producto = await getProducto(id, { incluirInactivas: true });
   if (!producto) notFound();
 
   const marcas = getMarcas();

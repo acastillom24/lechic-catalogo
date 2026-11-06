@@ -12,10 +12,16 @@ import {
   crearValorSesion,
 } from "../../../lib/auth";
 import { query, transaction } from "../../../lib/db";
-import { subirArchivo } from "../../../lib/storage";
 import { slugify } from "../../../lib/slug";
 import { getMarca, getCategoria } from "../../../lib/data";
-import { optimizarImagen } from "../../../lib/optimizarImagen";
+import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
+import { aplicarMovimiento, fijarStock } from "../../../lib/inventario";
+import {
+  crearUsuarioVentas,
+  cambiarPasswordUsuarioVentas,
+  eliminarUsuarioVentas,
+  cerrarVenta,
+} from "../../../lib/ventas";
 
 // ============================================================
 //  SESIÓN
@@ -55,170 +61,12 @@ export async function cerrarSesion() {
 }
 
 // ============================================================
-//  AYUDANTES
-// ============================================================
-
-function parseNumero(valor) {
-  if (valor === null || valor === undefined || valor === "") return null;
-  const n = Number(valor);
-  return Number.isFinite(n) ? n : null;
-}
-
-function parseAromas(texto) {
-  return (texto || "")
-    .toString()
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function extensionDe(archivo) {
-  const porNombre = (archivo.name || "").split(".").pop();
-  if (porNombre && porNombre.length <= 5) return porNombre.toLowerCase();
-  const mapa = {
-    "image/jpeg": "jpg",
-    "image/png": "png",
-    "image/webp": "webp",
-    "image/gif": "gif",
-  };
-  return mapa[archivo.type] || "jpg";
-}
-
-async function subirImagen(archivo, productoId, indice) {
-  const bufferOriginal = Buffer.from(await archivo.arrayBuffer());
-  const { buffer } = await optimizarImagen(
-    bufferOriginal,
-    extensionDe(archivo),
-    archivo.type
-  );
-  const ruta = `${productoId}/${indice}-${Date.now()}`;
-  try {
-    return await subirArchivo(buffer, ruta);
-  } catch (err) {
-    throw new Error(`No se pudo subir la imagen: ${err.message}`);
-  }
-}
-
-// ============================================================
 //  CREAR / EDITAR PRODUCTO (formulario manual)
 // ============================================================
 
 export async function guardarProducto(prevState, formData) {
-  try {
-    const modo = (formData.get("modo") || "crear").toString();
-    const idOriginal = formData.get("idOriginal");
-    let id = (formData.get("id") || "").toString().trim();
-    const marca = (formData.get("marca") || "").toString();
-    const categoria = (formData.get("categoria") || "").toString();
-    const nombre = (formData.get("nombre") || "").toString().trim();
-    const descripcion = (formData.get("descripcion") || "").toString().trim();
-    const destacado = formData.get("destacado") === "on";
-    const aromasProducto = parseAromas(formData.get("aromasProducto"));
-
-    if (!nombre) return { error: "El nombre es obligatorio." };
-    if (!marca || !getMarca(marca)) return { error: "Elige una marca válida." };
-    if (!categoria || !getCategoria(marca, categoria)) {
-      return { error: "Elige una categoría válida para esa marca." };
-    }
-
-    let variantesEntrada;
-    try {
-      variantesEntrada = JSON.parse((formData.get("variantesJson") || "[]").toString());
-    } catch {
-      return { error: "No se pudieron leer las variantes. Vuelve a intentarlo." };
-    }
-    if (!Array.isArray(variantesEntrada) || variantesEntrada.length === 0) {
-      return { error: "Agrega al menos una variante." };
-    }
-    for (const v of variantesEntrada) {
-      if (!v.nombre || !v.nombre.toString().trim()) {
-        return {
-          error:
-            'Cada variante necesita un nombre (usa "Único" si el producto no tiene variantes).',
-        };
-      }
-    }
-
-    if (modo === "crear") {
-      if (!id) id = nombre;
-      id = slugify(id);
-      if (!id) return { error: "No se pudo generar un id válido a partir del nombre." };
-
-      const [existente] = await query("select id from productos where id = $1", [id]);
-      if (existente) {
-        return { error: `Ya existe un producto con el id "${id}". Elige otro id.` };
-      }
-    } else {
-      id = (idOriginal || "").toString();
-      if (!id) return { error: "Falta el id del producto a editar." };
-    }
-
-    // Sube imágenes nuevas (solo para las variantes donde se eligió un archivo).
-    const variantesFinal = [];
-    for (let i = 0; i < variantesEntrada.length; i++) {
-      const v = variantesEntrada[i];
-      const archivo = formData.get(`variante_imagen_${i}`);
-      let imagen = v.imagenExistente || null;
-      if (archivo && typeof archivo === "object" && "size" in archivo && archivo.size > 0) {
-        imagen = await subirImagen(archivo, id, i);
-      }
-      variantesFinal.push({
-        producto_id: id,
-        nombre: v.nombre.toString().trim(),
-        precio: parseNumero(v.precio),
-        precio_oferta: parseNumero(v.precioOferta),
-        stock: v.stock !== false,
-        imagen,
-        aromas: Array.isArray(v.aromas) ? v.aromas.filter(Boolean) : [],
-        orden: i,
-      });
-    }
-
-    const filaProducto = {
-      id,
-      marca,
-      categoria,
-      nombre,
-      descripcion,
-      aromas: aromasProducto,
-      destacado,
-    };
-
-    // Producto + variantes en una sola transacción (todo o nada).
-    try {
-      await transaction((t) => [
-        modo === "crear"
-          ? t.query(
-              `insert into productos (id, marca, categoria, nombre, descripcion, aromas, destacado, orden)
-               values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-              [id, marca, categoria, nombre, descripcion, aromasProducto, destacado, Date.now()]
-            )
-          : t.query(
-              `update productos set marca=$2, categoria=$3, nombre=$4, descripcion=$5, aromas=$6, destacado=$7
-               where id = $1`,
-              [id, marca, categoria, nombre, descripcion, aromasProducto, destacado]
-            ),
-        t.query("delete from variantes where producto_id = $1", [id]),
-        ...variantesFinal.map((v) =>
-          t.query(
-            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden)
-             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [v.producto_id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden]
-          )
-        ),
-      ]);
-    } catch (err) {
-      return { error: `No se pudo guardar el producto: ${err.message}` };
-    }
-
-    revalidatePath("/", "layout");
-    revalidatePath(`/marca/${marca}`);
-    revalidatePath(`/producto/${id}`);
-    revalidatePath("/admin");
-  } catch (err) {
-    return { error: err.message || "Error inesperado al guardar el producto." };
-  }
-
+  const r = await guardarProductoDesdeForm(formData);
+  if (r.error) return r;
   redirect("/admin?guardado=1");
 }
 
@@ -234,6 +82,20 @@ export async function eliminarProducto(id) {
   if (producto?.marca) revalidatePath(`/marca/${producto.marca}`);
   revalidatePath("/admin");
   redirect("/admin?eliminado=1");
+}
+
+/** Elimina varios productos a la vez (filas marcadas en la tabla). */
+export async function eliminarProductos(ids) {
+  const lista = [...new Set((Array.isArray(ids) ? ids : []).map((x) => String(x)).filter(Boolean))];
+  if (!lista.length || lista.length > 500) redirect("/admin");
+
+  const marcas = await query("select distinct marca from productos where id = any($1::text[])", [lista]);
+  const borrados = await query("delete from productos where id = any($1::text[]) returning id", [lista]);
+
+  revalidatePath("/", "layout");
+  for (const { marca } of marcas) revalidatePath(`/marca/${marca}`);
+  revalidatePath("/admin");
+  redirect(`/admin?eliminados=${borrados.length}`);
 }
 
 // ============================================================
@@ -333,6 +195,16 @@ export async function importarCsv(prevState, formData) {
     }
 
     const producto = productosPorId.get(id);
+    const stockCantidad = parseNumero(fila.stock_cantidad);
+    const stockMinimo = parseNumero(fila.stock_minimo) ?? 0;
+    if (
+      (stockCantidad !== null && (!Number.isInteger(stockCantidad) || stockCantidad < 0)) ||
+      !Number.isInteger(stockMinimo) ||
+      stockMinimo < 0
+    ) {
+      omitidas.push(`Fila ${numeroFila}: "stock_cantidad" y "stock_minimo" deben ser enteros desde 0.`);
+      return;
+    }
     producto.variantes.push({
       nombre: (fila.nombre_variante || "Único").toString().trim() || "Único",
       precio: parseNumero(fila.precio),
@@ -341,6 +213,10 @@ export async function importarCsv(prevState, formData) {
       imagen: (fila.imagen || "").toString().trim() || null,
       aromas: parseAromas((fila.aromas_variante || "").toString().replaceAll("|", ",")),
       orden: producto.variantes.length,
+      sku: (fila.sku || "").toString().trim() || null,
+      stock_cantidad: stockCantidad,
+      stock_minimo: stockMinimo,
+      costo: parseNumero(fila.costo),
     });
   });
 
@@ -367,15 +243,77 @@ export async function importarCsv(prevState, formData) {
              destacado=excluded.destacado, orden=excluded.orden`,
           [p.id, p.marca, p.categoria, p.nombre, p.descripcion, p.aromas, p.destacado, Date.now()]
         ),
-        t.query("delete from variantes where producto_id = $1", [p.id]),
-        ...variantes.map((v) =>
-          t.query(
-            `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden)
-             values ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden]
-          )
+        // Variantes: se actualizan (por SKU o, sin SKU, por nombre) en vez de
+        // borrar y reinsertar, para conservar stock e historial.
+        ...variantes.flatMap((v) =>
+          v.sku
+            ? [
+                t.query(
+                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+                     sku, stock_minimo, costo, activo)
+                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
+                   on conflict (sku) where sku is not null do update set
+                     producto_id=excluded.producto_id, nombre=excluded.nombre, precio=excluded.precio,
+                     precio_oferta=excluded.precio_oferta,
+                     stock = case when variantes.stock_actual is null then excluded.stock else variantes.stock end,
+                     imagen=excluded.imagen, aromas=excluded.aromas, orden=excluded.orden,
+                     stock_minimo=excluded.stock_minimo, costo=excluded.costo, activo=true`,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                   v.sku, v.stock_minimo, v.costo]
+                ),
+              ]
+            : [
+                t.query(
+                  `update variantes set precio=$3, precio_oferta=$4,
+                     stock = case when stock_actual is null then $5 else stock end,
+                     imagen=$6, aromas=$7, orden=$8, stock_minimo=$9, costo=$10, activo=true
+                   where producto_id = $1 and nombre = $2`,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                   v.stock_minimo, v.costo]
+                ),
+                t.query(
+                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+                     stock_minimo, costo, activo)
+                   select $1::text, $2::text, $3::numeric, $4::numeric, $5::boolean, $6::text, $7::text[], $8::int,
+                          $9::int, $10::numeric, true
+                   where not exists (select 1 from variantes where producto_id = $1 and nombre = $2)`,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                   v.stock_minimo, v.costo]
+                ),
+              ]
+        ),
+        // Variantes que ya no vienen en el CSV: con control de cantidad se
+        // desactivan (conservan historial); sin control se eliminan.
+        t.query(
+          `update variantes set activo = false
+            where producto_id = $1 and stock_actual is not null
+              and not (nombre = any($2::text[]) or coalesce(sku,'') = any($3::text[]))`,
+          [p.id, variantes.map((v) => v.nombre), variantes.map((v) => v.sku || "")]
+        ),
+        t.query(
+          `delete from variantes
+            where producto_id = $1 and stock_actual is null
+              and not (nombre = any($2::text[]) or coalesce(sku,'') = any($3::text[]))`,
+          [p.id, variantes.map((v) => v.nombre), variantes.map((v) => v.sku || "")]
         ),
       ]);
+
+      // Cantidades de stock del CSV (columna opcional "stock_cantidad"): se
+      // aplican como ajustes con historial (origen "csv").
+      for (const v of variantes) {
+        if (v.stock_cantidad === null) continue;
+        const [fila] = v.sku
+          ? await query("select id from variantes where sku = $1", [v.sku])
+          : await query("select id from variantes where producto_id = $1 and nombre = $2", [p.id, v.nombre]);
+        if (fila) {
+          await fijarStock({
+            varianteId: Number(fila.id),
+            cantidad: v.stock_cantidad,
+            motivo: "Importación CSV",
+            origen: "csv",
+          });
+        }
+      }
       ok++;
       marcasTocadas.add(p.marca);
     } catch (err) {
@@ -395,6 +333,53 @@ export async function importarCsv(prevState, formData) {
       errores,
     },
   };
+}
+
+// ============================================================
+//  INVENTARIO: movimientos manuales
+// ============================================================
+//  operacion: "entrada" | "salida" | "fijar" (conteo físico: deja el stock
+//  en la cantidad indicada y registra la diferencia como ajuste).
+
+export async function registrarMovimiento(prevState, formData) {
+  const varianteId = Number(formData.get("varianteId"));
+  const operacion = (formData.get("operacion") || "").toString();
+  const cantidad = Number(formData.get("cantidad"));
+  const motivo = (formData.get("motivo") || "").toString().trim().slice(0, 200);
+
+  if (!Number.isInteger(varianteId) || varianteId <= 0) return { error: "Variante inválida." };
+  if (!Number.isInteger(cantidad) || cantidad < 0 || (operacion !== "fijar" && cantidad === 0)) {
+    return { error: "Ingresa una cantidad entera válida." };
+  }
+
+  let r;
+  try {
+    if (operacion === "fijar") {
+      r = await fijarStock({ varianteId, cantidad, motivo });
+    } else if (operacion === "entrada" || operacion === "salida") {
+      r = await aplicarMovimiento({
+        varianteId,
+        tipo: operacion,
+        cantidad,
+        motivo: motivo || (operacion === "entrada" ? "Ingreso de mercadería" : "Salida manual"),
+        origen: "manual",
+      });
+    } else {
+      return { error: "Operación inválida." };
+    }
+  } catch (err) {
+    return { error: `No se pudo registrar: ${err.message}` };
+  }
+
+  if (r.estado === "insuficiente") {
+    return { error: `Stock insuficiente (hay ${r.stock ?? 0}).` };
+  }
+  if (r.estado === "no_encontrada") return { error: "La variante ya no existe." };
+  if (r.estado !== "ok") return { error: `No se aplicó el movimiento (${r.estado}).` };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin");
+  return { ok: `Stock actualizado: ${r.stock}.` };
 }
 
 // ============================================================
@@ -559,4 +544,42 @@ export async function restablecerConfiguracion() {
   await query("delete from configuracion where clave = 'sitio'");
   revalidatePath("/", "layout");
   revalidatePath("/admin/configuracion");
+}
+
+// ============================================================
+//  VENTAS: usuarios del panel /sales y cierre de pendientes
+// ============================================================
+
+export async function crearUsuarioVentasAccion(prevState, formData) {
+  try {
+    await crearUsuarioVentas(
+      (formData.get("usuario") || "").toString(),
+      (formData.get("password") || "").toString()
+    );
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidatePath("/admin/configuracion");
+  return { ok: "Usuario creado.", n: Date.now() };
+}
+
+export async function cambiarPasswordVentasAccion(id, prevState, formData) {
+  try {
+    await cambiarPasswordUsuarioVentas(Number(id), (formData.get("password") || "").toString());
+  } catch (err) {
+    return { error: err.message };
+  }
+  return { ok: "Contraseña actualizada.", n: Date.now() };
+}
+
+export async function eliminarUsuarioVentasAccion(id) {
+  await eliminarUsuarioVentas(Number(id));
+  revalidatePath("/admin/configuracion");
+}
+
+export async function cerrarVentaAccion(id) {
+  await cerrarVenta(Number(id));
+  revalidatePath("/admin/ventas");
+  revalidatePath("/admin/ventas/pendientes");
+  revalidatePath("/admin/dashboard");
 }
