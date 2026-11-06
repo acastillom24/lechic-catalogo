@@ -29,6 +29,7 @@ import {
   TIPOS_CLIENTE,
   TELEFONO_SIN_DATO,
 } from "../../../lib/ventas-core";
+import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 
 /** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
 export async function requerirUsuarioVentas() {
@@ -156,4 +157,12 @@ export async function eliminarVentaDelDia(id) {
   const usuario = await requerirUsuarioVentas();
   await eliminarVentaPropia(Number(id), usuario.id);
   revalidatePath("/sales");
+}
+
+/** Alta de producto desde /sales. Solo crea: nunca modifica productos existentes. */
+export async function crearProductoVentas(prevState, formData) {
+  await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { soloCrear: true });
+  if (r.error) return r;
+  redirect("/sales?producto=1");
 }

@@ -96,6 +96,8 @@ export default async function SalesPage({ searchParams }) {
             hrefPendientes={hrefVista("pendientes")}
           />
 
+          {params?.producto === "1" && <div className="mensaje-ok">Producto creado correctamente.</div>}
+
           {(nueva || ventaEdicion) && (
             <VentaForm
               hoy={hoy}

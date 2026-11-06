@@ -290,7 +290,12 @@ function FilaProducto({ v, controlada, bajo, marcada, abierta, onAlternar, onMov
         <td>
           {controlada ? (
             <strong>
-              {v.stock_actual} {bajo && <span className="pill agotado">Bajo</span>}
+              {v.stock_actual}{" "}
+              {Number(v.stock_actual) <= 0 ? (
+                <span className="pill agotado">Agotado</span>
+              ) : (
+                bajo && <span className="pill agotado">Bajo</span>
+              )}
             </strong>
           ) : v.stock ? (
             <span style={{ color: "var(--gris)" }}>Disponible (sin control)</span>

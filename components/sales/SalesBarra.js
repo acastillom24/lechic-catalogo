@@ -57,6 +57,9 @@ export default function SalesBarra({ q, vista, pendientes, hrefNueva, hrefHoy, h
       )}
 
       <div className="admin-barra-der">
+        <Link href="/sales/productos/nuevo" className="btn-ico-texto primario">
+          <IconoMas /> Agregar producto
+        </Link>
         <Link href={hrefNueva} className="btn-ico-texto primario">
           <IconoMas /> Registrar venta
         </Link>

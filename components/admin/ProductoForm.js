@@ -24,8 +24,8 @@ function nuevaVariante() {
   };
 }
 
-export default function ProductoForm({ modo, marcas, producto }) {
-  const [estado, accion, enviando] = useActionState(guardarProducto, {});
+export default function ProductoForm({ modo, marcas, producto, accionGuardar }) {
+  const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
   const [idTocadoManualmente, setIdTocadoManualmente] = useState(modo === "editar");
@@ -104,7 +104,7 @@ export default function ProductoForm({ modo, marcas, producto }) {
   );
 
   return (
-    <form action={accion} className="form-grid admin-card" encType="multipart/form-data">
+    <form action={accion} className="form-grid admin-card">
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
 
       <input type="hidden" name="modo" value={modo} />

@@ -1,4 +1,5 @@
 import { getInventario, getMovimientos, getAlertasStock } from "../../../lib/inventario";
+import Link from "next/link";
 import TablaProductos from "../../../components/admin/TablaProductos";
 import Paginacion from "../../../components/admin/Paginacion";
 
@@ -64,20 +65,12 @@ export default async function AdminProductosPage({ searchParams }) {
         <h1 className="admin-titulo">Productos ({total})</h1>
       </div>
 
-      <TablaProductos
-        filas={filas}
-        q={q}
-        filtro={filtro}
-        total={total}
-        hrefNuevo="/admin/productos/nuevo"
-        alertas={alertas.length}
-        hrefAlertas={href({ filtro: "alertas" })}
-        hrefSinFiltro={href({ filtro: "" })}
-      />
-
       {historialId && (
         <div className="admin-card">
-          <h3 style={{ fontSize: "1rem", marginBottom: 8 }}>Historial (últimos 30 movimientos)</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <h3 style={{ fontSize: "1rem" }}>Historial (últimos 30 movimientos)</h3>
+            <Link href={href({ pagina: pagina > 1 ? pagina : "" })} className="btn-ico" aria-label="Cerrar historial">✕</Link>
+          </div>
           {movimientos.length === 0 ? (
             <p style={{ color: "var(--gris)" }}>Sin movimientos registrados.</p>
           ) : (
@@ -110,6 +103,17 @@ export default async function AdminProductosPage({ searchParams }) {
           )}
         </div>
       )}
+
+      <TablaProductos
+        filas={filas}
+        q={q}
+        filtro={filtro}
+        total={total}
+        hrefNuevo="/admin/productos/nuevo"
+        alertas={alertas.length}
+        hrefAlertas={href({ filtro: "alertas" })}
+        hrefSinFiltro={href({ filtro: "" })}
+      />
 
       <Paginacion
         pagina={pagina}
