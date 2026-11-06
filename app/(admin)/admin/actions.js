@@ -17,6 +17,12 @@ import { slugify } from "../../../lib/slug";
 import { getMarca, getCategoria } from "../../../lib/data";
 import { optimizarImagen } from "../../../lib/optimizarImagen";
 import { aplicarMovimiento, fijarStock } from "../../../lib/inventario";
+import {
+  crearUsuarioVentas,
+  cambiarPasswordUsuarioVentas,
+  eliminarUsuarioVentas,
+  cerrarVenta,
+} from "../../../lib/ventas";
 
 // ============================================================
 //  SESIÓN
@@ -746,4 +752,42 @@ export async function restablecerConfiguracion() {
   await query("delete from configuracion where clave = 'sitio'");
   revalidatePath("/", "layout");
   revalidatePath("/admin/configuracion");
+}
+
+// ============================================================
+//  VENTAS: usuarios del panel /sales y cierre de pendientes
+// ============================================================
+
+export async function crearUsuarioVentasAccion(prevState, formData) {
+  try {
+    await crearUsuarioVentas(
+      (formData.get("usuario") || "").toString(),
+      (formData.get("password") || "").toString()
+    );
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidatePath("/admin/configuracion");
+  return { ok: "Usuario creado.", n: Date.now() };
+}
+
+export async function cambiarPasswordVentasAccion(id, prevState, formData) {
+  try {
+    await cambiarPasswordUsuarioVentas(Number(id), (formData.get("password") || "").toString());
+  } catch (err) {
+    return { error: err.message };
+  }
+  return { ok: "Contraseña actualizada.", n: Date.now() };
+}
+
+export async function eliminarUsuarioVentasAccion(id) {
+  await eliminarUsuarioVentas(Number(id));
+  revalidatePath("/admin/configuracion");
+}
+
+export async function cerrarVentaAccion(id) {
+  await cerrarVenta(Number(id));
+  revalidatePath("/admin/ventas");
+  revalidatePath("/admin/ventas/pendientes");
+  revalidatePath("/admin/dashboard");
 }

@@ -91,20 +91,23 @@
 .btn-admin {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: #efecea;
+  color: var(--tinta);
   font-family: var(--sans);
-  font-size: 0.85rem;
-  padding: 10px 18px;
-  border-radius: var(--radio);
-  border: 1px solid var(--rosa);
-  color: var(--rosa);
-  background: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
 }
 
-.btn-admin:hover {
-  background: var(--rosa-tenue);
+.btn-admin:hover:not(:disabled) {
+  background: #e3dfdc;
 }
 
 .btn-admin.solido {
@@ -112,16 +115,15 @@
   color: #fff;
 }
 
-.btn-admin.solido:hover {
+.btn-admin.solido:hover:not(:disabled) {
   background: var(--rosa-hover);
 }
 
 .btn-admin.peligro {
-  border-color: #c0392b;
   color: #c0392b;
 }
 
-.btn-admin.peligro:hover {
+.btn-admin.peligro:hover:not(:disabled) {
   background: #fdecea;
 }
 
@@ -639,3 +641,116 @@
   width: 44px;
   height: 44px;
 }
+
+/* ---------- Ventas (/sales y reportes) ---------- */
+.venta-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.venta-grid .venta-ancho { grid-column: 1 / -1; }
+.venta-acciones { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.campo small { display: block; margin-top: 4px; color: var(--gris); font-size: 12px; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.kpi { padding: 16px; }
+.kpi-valor { font-size: 24px; font-weight: 600; }
+.kpi-etiqueta { font-size: 13px; color: var(--gris); }
+.kpi-sub { font-size: 12px; color: var(--gris); margin-top: 2px; }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.barras { display: grid; gap: 8px; }
+.barra-fila { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+.barra-pista { background: var(--linea); border-radius: 4px; height: 10px; overflow: hidden; }
+.barra-relleno { background: var(--rosa); height: 100%; }
+.dash-svg { width: 100%; height: auto; display: block; }
+.admin-nav a.activo { font-weight: 600; text-decoration: underline; }
+.campo input:not([type]),
+.campo input[type="date"] {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  padding: 10px 12px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: #fff;
+  color: var(--tinta);
+}
+.pill.cerrada { background: #efecea; color: var(--gris); }
+.venta-form .campo-check { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+
+/* ---------- Pestañas y atajos de periodo (dashboard) ---------- */
+.admin-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--linea);
+}
+
+.admin-tab {
+  padding: 10px 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gris);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.admin-tab:hover {
+  color: var(--tinta);
+}
+
+.admin-tab.activo {
+  color: var(--rosa-hover);
+  border-bottom-color: var(--rosa);
+}
+
+.chips-periodo {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.chip-per {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #efecea;
+  color: var(--tinta);
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.chip-per:hover {
+  background: #e3dfdc;
+}
+
+.chip-per.activo {
+  background: var(--rosa-tenue);
+  color: var(--rosa-hover);
+}
+
+.admin-rango {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gris);
+  font-size: 0.82rem;
+}
+
+.admin-rango input[type="date"] {
+  height: 32px;
+  border: 1px solid var(--linea);
+  border-radius: 8px;
+  padding: 0 8px;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  background: #fff;
+  color: var(--tinta);
+}
+
+.nota-periodo {
+  font-size: 0.8rem;
+  color: var(--gris);
+}
+
+.delta-pos { color: #2e7d32; }
+.delta-neg { color: #c0392b; }

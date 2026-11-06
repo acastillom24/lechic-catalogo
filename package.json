@@ -10,9 +10,12 @@
     "lint": "next lint",
     "neon:schema": "node --env-file=.env.local scripts/neon-schema.js",
     "neon:schema:dev": "node --env-file=.env.dev scripts/neon-schema.js",
-    "neon:importar":"node --env-file=.env.local scripts/importar-csv-neon.js",
+    "neon:importar": "node --env-file=.env.local scripts/importar-csv-neon.js",
     "fotos:analizar": "node --env-file=.env.local scripts/migrar-fotos.js",
-    "fotos:subir": "node --env-file=.env.local scripts/migrar-fotos.js --subir"
+    "fotos:subir": "node --env-file=.env.local scripts/migrar-fotos.js --subir",
+    "ventas:limpiar": "node scripts/limpiar-ventas-csv.js",
+    "ventas:importar": "node --env-file=.env.local scripts/importar-ventas.js",
+    "ventas:importar:dev": "node --env-file=.env.dev scripts/importar-ventas.js"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",

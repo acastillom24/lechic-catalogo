@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import { guardarProducto } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
+import { IconoMas, IconoPapelera, IconoGuardar } from "./Iconos";
 
 function nuevaVariante() {
   return {
@@ -207,8 +208,8 @@ export default function ProductoForm({ modo, marcas, producto }) {
       <div className="form-grid">
         <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
           <h3 style={{ fontSize: "1rem", color: "var(--tinta)" }}>Variantes</h3>
-          <button type="button" className="btn-admin" onClick={agregarVariante}>
-            + Agregar variante
+          <button type="button" className="btn-ico-texto" onClick={agregarVariante}>
+            <IconoMas /> Agregar variante
           </button>
         </div>
 

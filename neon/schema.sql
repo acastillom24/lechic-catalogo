@@ -127,3 +127,45 @@ create unique index if not exists movimientos_idem_uniq
   on movimientos_inventario (idempotency_key) where idempotency_key is not null;
 create index if not exists movimientos_variante_idx
   on movimientos_inventario (variante_id, created_at desc);
+
+-- ============================================================
+--  VENTAS (panel /sales + reportes en /admin)
+--  telefono es obligatorio: 9 dígitos. '999999999' = "sin teléfono"
+--  (único valor repetido permitido).
+-- ============================================================
+create table if not exists usuarios_ventas (
+  id            bigint generated always as identity primary key,
+  usuario       text not null,
+  password_hash text not null,
+  activo        boolean not null default true,
+  created_at    timestamptz not null default now()
+);
+create unique index if not exists usuarios_ventas_usuario_uniq
+  on usuarios_ventas (lower(usuario));
+
+create table if not exists ventas (
+  id             bigint generated always as identity primary key,
+  fecha          date not null default ((now() at time zone 'America/Lima')::date),
+  telefono       text not null
+                 check (telefono ~ '^[0-9]{9}$'
+                        and (telefono = '999999999' or telefono !~ '^([0-9])\1{8}$')),
+  cliente_ref    text,                       -- ID original si era Instagram/nombre
+  categoria      text not null check (categoria in ('CATALOGOS','IMPORTADOS')),
+  monto          numeric(10,2) not null check (monto >= 0),
+  adelanto       numeric(10,2) not null default 0 check (adelanto >= 0),
+  estado         text not null default 'cerrada' check (estado in ('pendiente','cerrada')),
+  destino        text check (destino in ('LIMA','PROVINCIA','RECOJO')),
+  courier        text,
+  tipo_cliente   text check (tipo_cliente in ('NUEVO','RECOMPRA')),
+  metodo_pago    text,
+  comprobante    text,
+  notas          text,
+  registrado_por bigint references usuarios_ventas(id) on delete set null,
+  origen         text not null default 'web' check (origen in ('web','csv')),
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now(),
+  cerrada_at     timestamptz
+);
+create index if not exists ventas_fecha_idx    on ventas (fecha desc);
+create index if not exists ventas_telefono_idx on ventas (telefono);
+create index if not exists ventas_pendientes_idx on ventas (fecha) where estado = 'pendiente';
