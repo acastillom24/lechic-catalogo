@@ -62,16 +62,22 @@ cada minuto).
 Entra a `tusitio.com/admin` con la contraseña que definiste en
 `ADMIN_PASSWORD`.
 
-- **Productos** (`/admin`): lista con buscador, precio y stock. Cada fila
-  tiene un botón **Editar**.
-- **Nuevo producto** (`/admin/productos/nuevo`): formulario con nombre,
+- **Productos** (`/admin`): una sola pantalla con una fila por variante
+  (foto, SKU, marca, stock, mínimo y precio), buscador y filtros (stock bajo,
+  sin control). Marca filas con la casilla para **Eliminar** o **Exportar**
+  seleccionados; el botón **Exportar** también permite descargar los
+  resultados de la búsqueda o todo el catálogo; **Importar CSV** abre el
+  importador en la misma pantalla. Cada fila tiene **Stock** (movimientos),
+  **Historial** y **Editar**.
+- **Nuevo producto** (`/admin/productos/nuevo`, botón «+ Agregar producto»): formulario con nombre,
   marca, categoría, descripción, aromas y variantes (cada variante con su
   precio, precio de oferta, stock e imagen — se sube directo desde tu
   computadora o celular, no hace falta subir nada a `public/` a mano).
 - **Editar / eliminar**: desde `/admin/productos/[id]`, mismo formulario
   precargado, con botón de eliminar.
-- **Importar CSV** (`/admin/importar`): para cargar o actualizar muchos
-  productos de una vez. La página explica el formato exacto de columnas
+- **Importar / exportar CSV** (botones en `/admin`): para cargar o actualizar
+  muchos productos de una vez. El archivo exportado usa el mismo formato y se
+  puede reimportar. El panel explica el formato exacto de columnas
   (una fila = una variante, aromas separados por `|`). Reimportar un
   `id_producto` existente reemplaza sus variantes por completo. Un CSV
   es solo texto — no puede llevar las fotos adentro, así que la columna
@@ -109,6 +115,85 @@ variantes en dos tandas o comprime las imágenes antes de subirlas.
 Si necesitas agregar una marca o categoría nueva, edita `data/marcas.js`,
 haz `git push`, y ya aparece disponible como opción en el formulario de
 `/admin`.
+
+### Inventario
+
+El catálogo también puede llevar el inventario de cada variante. Es opcional
+y convive con el «hay / no hay» de siempre.
+
+**Campos por variante**: `sku` (código único, es el que usa facturación para
+reconocer el producto), `stock_actual` (cantidad; vacío = sin control de
+cantidad, la variante sigue usando solo el interruptor «hay stock»),
+`stock_minimo` (umbral de alerta), `costo` y `activo`.
+
+- La cantidad **solo cambia mediante movimientos** (`movimientos_inventario`):
+  entrada, salida, ajuste o devolución, cada uno con motivo, origen
+  (`manual`, `facturacion`, `csv`), usuario y el stock resultante. Nunca se
+  edita a mano sin dejar rastro. Con cantidad definida, «hay stock» se deriva
+  solo (`stock_actual > 0`).
+- **Inventario** (dentro de `/admin`): filtros (bajo mínimo, agotado, sin
+  control), alertas, registro de movimientos y su historial.
+- **Importar CSV**: columnas opcionales `sku`, `stock_cantidad`,
+  `stock_minimo` y `costo`. Al reimportar, las variantes se actualizan por
+  `sku` (o por nombre) en vez de borrarse, para no perder el historial.
+- Una variante con control de cantidad que se quita del formulario se
+  **desactiva** (deja de verse en la tienda) en lugar de eliminarse.
+
+#### Integración con facturación (opcional)
+
+Un sistema de facturación puede descontar stock al emitir y devolverlo al
+anular. Los sistemas siguen siendo independientes: solo se comunican por este
+endpoint firmado. Ver el lado de facturación en el README de
+`facturacion_sunat`.
+
+`POST /api/inventario/movimientos`
+
+| Cabecera | Valor |
+|---|---|
+| `X-Timestamp` | segundos Unix (se rechaza si difiere más de 5 min) |
+| `X-Signature` | `sha256=` + HMAC-SHA256 hex de `"{timestamp}.{cuerpo crudo}"` con `INVENTARIO_WEBHOOK_SECRET` |
+
+```json
+{
+  "evento": "emitido",            // "emitido" | "anulado" | "prueba"
+  "empresa": "mi-empresa",
+  "comprobante": { "id": "uuid", "tipo_doc": "03", "serie": "B001", "correlativo": "25" },
+  "items": [ { "codigo": "SKU-001", "cantidad": 2 } ]
+}
+```
+
+- `emitido` → **salida** por cada `codigo` (= `sku`). Puede dejar el stock
+  negativo: la venta ya ocurrió y queda visible en las alertas.
+- `anulado` → **devolución**, solo si existe la salida del mismo comprobante.
+- `prueba` → valida URL y firma sin tocar stock.
+- Códigos repetidos en un mismo envío se suman. `tipo_doc` puede ser `01`,
+  `03` o `NV` (nota de venta).
+- **Idempotente**: cada ítem usa la clave
+  `facturacion:{empresa}:{comprobante.id}:{evento}:{codigo}`; reenviar el
+  mismo evento no vuelve a mover el stock.
+- Respuestas: `200 {"resultados":[{"codigo","estado"}]}` con estado `ok`,
+  `duplicado`, `sin_control` (variante sin control de cantidad),
+  `no_encontrada` (sku inexistente), `sin_salida_previa` (devolución sin
+  salida previa); `400` cuerpo inválido (máx. 200 ítems); `401` firma o
+  timestamp inválidos; `413` cuerpo de más de 256 KB; `503` sin secreto
+  configurado; `500` error de BD (el emisor reintenta).
+
+Ejemplo firmado con `curl`:
+
+```bash
+SECRETO="el-mismo-valor-de-INVENTARIO_WEBHOOK_SECRET"
+CUERPO='{"evento":"prueba","empresa":"mi-empresa","comprobante":{"id":"prueba","tipo_doc":"","serie":"","correlativo":""},"items":[]}'
+TS=$(date +%s)
+FIRMA=$(printf '%s.%s' "$TS" "$CUERPO" | openssl dgst -sha256 -hmac "$SECRETO" -hex | sed 's/^.* //')
+curl -X POST https://tusitio.com/api/inventario/movimientos \
+  -H "content-type: application/json" -H "x-timestamp: $TS" \
+  -H "x-signature: sha256=$FIRMA" -d "$CUERPO"
+```
+
+**Para activarlo**: define `INVENTARIO_WEBHOOK_SECRET` (un valor largo y
+aleatorio, distinto en develop y en producción) en `.env.local` y en las
+variables de Vercel, y aplica el esquema (`npm run neon:schema`; en develop
+`npm run neon:schema:dev`). Sin el secreto, el endpoint responde 503.
 
 ---
 
@@ -171,6 +256,21 @@ npm install
 npm run dev      # abre http://localhost:3000 (necesita .env.local)
 npm run build    # verifica que todo compile antes de publicar
 ```
+
+### Probar el admin contra develop
+
+`npm run dev` usa `.env.local` (producción). Para probar el panel contra la
+base de datos y Cloudinary de develop, usa `.env.dev` (ignorado por git, con
+`DATABASE_URL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` y `CLOUDINARY_*`):
+
+```bash
+npm run dev:dev  # Next.js cargando .env.dev en vez de .env.local
+```
+
+1. Abre http://localhost:3000/admin.
+2. Entra con el `ADMIN_PASSWORD` de `.env.dev`.
+3. Verifica que `DATABASE_URL` apunte a la rama de develop de Neon antes de
+   editar productos o subir fotos.
 
 ## 🔐 Notas de seguridad
 

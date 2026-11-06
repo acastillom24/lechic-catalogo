@@ -48,8 +48,15 @@ export default function ImportarCsvForm() {
             lugar. Si la dejas vacía, súbela después editando el producto manualmente.
           </li>
           <li>
+            Inventario (columnas opcionales): <code>sku</code>, <code>stock_cantidad</code>,{" "}
+            <code>stock_minimo</code> y <code>costo</code>. Con <code>stock_cantidad</code> la
+            variante pasa a tener control de cantidad y queda un ajuste en su historial.
+          </li>
+          <li>
             Al reimportar un <code>id_producto</code> que ya existe, sus variantes se
-            reemplazan por completo con lo que traiga el CSV.
+            actualizan: por <code>sku</code> si lo traen o, si no, por nombre de variante. Las
+            que ya no aparezcan se eliminan, salvo las que tienen control de cantidad: esas
+            solo se desactivan para conservar su historial.
           </li>
         </ul>
       </div>

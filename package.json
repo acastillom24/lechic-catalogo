@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:dev": "node scripts/dev-develop.js",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
     "neon:schema": "node --env-file=.env.local scripts/neon-schema.js",
-    "neon:importar": "node --env-file=.env.local scripts/importar-csv-neon.js",
+    "neon:schema:dev": "node --env-file=.env.dev scripts/neon-schema.js",
+    "neon:importar":"node --env-file=.env.local scripts/importar-csv-neon.js",
     "fotos:analizar": "node --env-file=.env.local scripts/migrar-fotos.js",
     "fotos:subir": "node --env-file=.env.local scripts/migrar-fotos.js --subir"
   },
