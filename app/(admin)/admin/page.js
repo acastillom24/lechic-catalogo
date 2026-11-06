@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { getInventario, getMovimientos, getAlertasStock } from "../../../lib/inventario";
 import TablaProductos from "../../../components/admin/TablaProductos";
+import Paginacion from "../../../components/admin/Paginacion";
 
 export const metadata = { title: "Productos · Panel Le Chic" };
 export const dynamic = "force-dynamic";
@@ -111,23 +111,13 @@ export default async function AdminProductosPage({ searchParams }) {
         </div>
       )}
 
-      {totalPaginas > 1 && (
-        <nav className="admin-paginacion">
-          {pagina > 1 ? (
-            <Link href={href({ pagina: pagina - 1 })} className="btn-admin">← Anterior</Link>
-          ) : (
-            <span className="btn-admin" style={{ opacity: 0.4 }}>← Anterior</span>
-          )}
-          <span>
-            Página {pagina} de {totalPaginas}
-          </span>
-          {pagina < totalPaginas ? (
-            <Link href={href({ pagina: pagina + 1 })} className="btn-admin">Siguiente →</Link>
-          ) : (
-            <span className="btn-admin" style={{ opacity: 0.4 }}>Siguiente →</span>
-          )}
-        </nav>
-      )}
+      <Paginacion
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        hrefAnterior={href({ pagina: pagina - 1 })}
+        hrefSiguiente={href({ pagina: pagina + 1 })}
+      />
+
     </div>
   );
 }
