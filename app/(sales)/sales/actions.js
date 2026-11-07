@@ -30,6 +30,7 @@ import {
   TELEFONO_SIN_DATO,
 } from "../../../lib/ventas-core";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
+import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 
 /** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
 export async function requerirUsuarioVentas() {
@@ -163,5 +164,22 @@ export async function crearProductoVentas(prevState, formData) {
   await requerirUsuarioVentas();
   const r = await guardarProductoDesdeForm(formData, { soloCrear: true });
   if (r.error) return r;
-  redirect("/sales?producto=1");
+  redirect("/sales/productos?creado=1");
+}
+
+/**
+ * Edición de producto desde /sales. Modo restringido: nunca elimina productos
+ * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
+ */
+export async function editarProductoVentas(prevState, formData) {
+  await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { restringido: true });
+  if (r.error) return r;
+  redirect("/sales/productos?guardado=1");
+}
+
+/** Movimiento de stock desde /sales (entrada, salida o conteo); queda el usuario en el historial. */
+export async function registrarMovimientoVentas(prevState, formData) {
+  const usuario = await requerirUsuarioVentas();
+  return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
 }

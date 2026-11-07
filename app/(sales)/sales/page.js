@@ -2,7 +2,8 @@ import Link from "next/link";
 import VentaForm from "../../../components/sales/VentaForm";
 import SalesBarra from "../../../components/sales/SalesBarra";
 import { IconoEditar, IconoPapelera } from "../../../components/admin/Iconos";
-import { requerirUsuarioVentas, cerrarSesionVentas, eliminarVentaDelDia } from "./actions";
+import SalesCabecera from "../../../components/sales/SalesCabecera";
+import { requerirUsuarioVentas, eliminarVentaDelDia } from "./actions";
 import {
   getDefaultsVenta,
   getVentasSales,
@@ -67,23 +68,7 @@ export default async function SalesPage({ searchParams }) {
 
   return (
     <>
-      <header className="admin-topbar">
-        <div className="admin-topbar-inner">
-          <span className="admin-topbar-marca">Ventas Le Chic</span>
-          <nav className="admin-nav">
-            <Link href="/sales" className={vista === "hoy" ? "activo" : undefined}>
-              Hoy
-            </Link>
-            <Link href="/sales?vista=pendientes" className={vista === "pendientes" ? "activo" : undefined}>
-              Pendientes{pendientes > 0 ? ` (${pendientes})` : ""}
-            </Link>
-            <span style={{ opacity: 0.7 }}>{usuario.usuario}</span>
-          </nav>
-          <form action={cerrarSesionVentas} className="admin-logout">
-            <button type="submit">Cerrar sesión</button>
-          </form>
-        </div>
-      </header>
+      <SalesCabecera usuario={usuario} activa="ventas" pendientes={pendientes} />
 
       <main className="admin-main">
         <div className="form-grid">
@@ -95,8 +80,6 @@ export default async function SalesPage({ searchParams }) {
             hrefHoy={hrefVista("hoy")}
             hrefPendientes={hrefVista("pendientes")}
           />
-
-          {params?.producto === "1" && <div className="mensaje-ok">Producto creado correctamente.</div>}
 
           {(nueva || ventaEdicion) && (
             <VentaForm

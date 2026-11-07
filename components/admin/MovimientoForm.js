@@ -4,8 +4,8 @@ import { useActionState } from "react";
 import { registrarMovimiento } from "../../app/(admin)/admin/actions";
 
 /** Formulario compacto por fila: entrada / salida / fijar (conteo). */
-export default function MovimientoForm({ varianteId }) {
-  const [estado, accion, enviando] = useActionState(registrarMovimiento, {});
+export default function MovimientoForm({ varianteId, accionMovimiento = registrarMovimiento }) {
+  const [estado, accion, enviando] = useActionState(accionMovimiento, {});
 
   return (
     <form action={accion} style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
