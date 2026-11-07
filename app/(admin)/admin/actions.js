@@ -23,6 +23,16 @@ import {
   eliminarUsuarioVentas,
   cerrarVenta,
 } from "../../../lib/ventas";
+import {
+  crearColaborador,
+  actualizarColaborador,
+  cambiarEstadoColaborador,
+  marcarIngreso,
+  marcarSalida,
+  reabrirAsistencia,
+  fijarExtras,
+  eliminarAsistencia,
+} from "../../../lib/asistencias";
 
 // ============================================================
 //  SESIÓN
@@ -546,4 +556,74 @@ export async function cerrarVentaAccion(id) {
   revalidatePath("/admin/ventas");
   revalidatePath("/admin/ventas/pendientes");
   revalidatePath("/admin/dashboard");
+}
+
+// ============================================================
+//  COLABORADORES Y ASISTENCIAS
+// ============================================================
+
+const CAMPOS_COLABORADOR = [
+  "nombre", "cargo", "jornada", "tipo_pago", "multiplicador",
+  "tarifa", "hora_entrada", "hora_salida", "refrigerio_min",
+];
+
+/** id = 0 crea un colaborador; id > 0 lo actualiza. */
+export async function guardarColaboradorAccion(id, prevState, formData) {
+  const datos = {};
+  for (const c of CAMPOS_COLABORADOR) datos[c] = (formData.get(c) || "").toString();
+  try {
+    if (Number(id) > 0) await actualizarColaborador(Number(id), datos);
+    else await crearColaborador(datos);
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/asistencias");
+  return { ok: Number(id) > 0 ? "Cambios guardados." : "Trabajador agregado.", n: Date.now() };
+}
+
+export async function estadoColaboradorAccion(id, activo) {
+  await cambiarEstadoColaborador(Number(id), Boolean(activo));
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/asistencias");
+}
+
+function revalidarAsistencias() {
+  revalidatePath("/admin/asistencias");
+  revalidatePath("/admin/asistencias/reporte");
+}
+
+export async function marcarIngresoAccion(colaboradorId, fecha, prevState, formData) {
+  try {
+    await marcarIngreso(Number(colaboradorId), fecha, (formData.get("hora") || "").toString());
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidarAsistencias();
+  return { n: Date.now() };
+}
+
+export async function marcarSalidaAccion(asistenciaId, prevState, formData) {
+  try {
+    await marcarSalida(Number(asistenciaId), (formData.get("hora") || "").toString());
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidarAsistencias();
+  return { n: Date.now() };
+}
+
+export async function extrasAccion(asistenciaId, aprobadas) {
+  await fijarExtras(Number(asistenciaId), aprobadas);
+  revalidarAsistencias();
+}
+
+export async function reabrirAsistenciaAccion(asistenciaId) {
+  await reabrirAsistencia(Number(asistenciaId));
+  revalidarAsistencias();
+}
+
+export async function eliminarAsistenciaAccion(asistenciaId) {
+  await eliminarAsistencia(Number(asistenciaId));
+  revalidarAsistencias();
 }

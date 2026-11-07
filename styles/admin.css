@@ -309,6 +309,7 @@
 .campo input[type="text"],
 .campo input[type="number"],
 .campo input[type="password"],
+.campo input[type="time"],
 .campo select,
 .campo textarea {
   width: 100%;

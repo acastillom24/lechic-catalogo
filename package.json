@@ -15,6 +15,7 @@
     "fotos:subir": "node --env-file=.env.local scripts/migrar-fotos.js --subir",
     "ventas:limpiar": "node scripts/limpiar-ventas-csv.js",
     "ventas:importar": "node --env-file=.env.local scripts/importar-ventas.js",
+    "asistencias:seed:dev": "node --env-file=.env.dev scripts/seed-asistencias.js",
     "ventas:importar:dev": "node --env-file=.env.dev scripts/importar-ventas.js"
   },
   "dependencies": {

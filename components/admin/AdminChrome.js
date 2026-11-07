@@ -9,6 +9,7 @@ const ENLACES = [
   ["/admin", "Productos", true],
   ["/admin/ventas", "Ventas", false],
   ["/admin/ventas/pendientes", "Pendientes", true],
+  ["/admin/asistencias", "Asistencias", false],
   ["/admin/resenas", "Reseñas", false],
   ["/admin/configuracion", "Configuración", false],
 ];
