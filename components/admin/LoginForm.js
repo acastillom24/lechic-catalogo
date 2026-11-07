@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { iniciarSesion } from "../../app/(admin)/admin/actions";
+import PasswordInput from "../PasswordInput";
 
 export default function LoginForm({ redirectTo }) {
   const [estado, accion, enviando] = useActionState(iniciarSesion, {});
@@ -15,10 +16,9 @@ export default function LoginForm({ redirectTo }) {
           <input type="hidden" name="redirect" value={redirectTo || "/admin"} />
           <div className="campo">
             <label htmlFor="password">Contraseña</label>
-            <input
+            <PasswordInput
               id="password"
               name="password"
-              type="password"
               required
               autoFocus
               autoComplete="current-password"

@@ -23,7 +23,7 @@ import {
   normalizarTelefono,
   parsearMonto,
   validarVenta,
-  estadoSegunAdelanto,
+  ESTADOS,
   CATEGORIAS,
   DESTINOS,
   TIPOS_CLIENTE,
@@ -95,10 +95,9 @@ async function guardarVenta(formData) {
   const adelanto = parsearMonto(texto(formData, "adelanto")) ?? 0;
   if (monto === null) return { error: "Ingresa el monto." };
 
-  // Con adelanto parcial la venta queda pendiente. Al editar, "pago completo"
-  // la cierra aunque se conserve el adelanto registrado.
-  const estado =
-    id && formData.get("cerrar") === "1" ? "cerrada" : estadoSegunAdelanto(monto, adelanto);
+  // El estado lo elige el usuario (el adelanto puede ser 0 y pagarse después).
+  const estadoForm = texto(formData, "estado");
+  const estado = ESTADOS.includes(estadoForm) ? estadoForm : "pendiente";
 
   const venta = {
     fecha: texto(formData, "fecha"),

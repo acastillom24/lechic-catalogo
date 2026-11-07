@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { iniciarSesionVentas } from "../../app/(sales)/sales/actions";
+import PasswordInput from "../PasswordInput";
 
 export default function SalesLoginForm() {
   const [estado, accion, enviando] = useActionState(iniciarSesionVentas, {});
@@ -18,7 +19,7 @@ export default function SalesLoginForm() {
           </div>
           <div className="campo">
             <label htmlFor="password">Contraseña</label>
-            <input id="password" name="password" type="password" required autoComplete="current-password" />
+            <PasswordInput id="password" name="password" required autoComplete="current-password" />
           </div>
           <button type="submit" className="btn-admin solido" disabled={enviando}>
             {enviando ? "Entrando..." : "Entrar"}

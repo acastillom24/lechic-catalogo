@@ -18,8 +18,7 @@ import {
  *  - Nueva: tras guardar se reinicia con los valores por defecto.
  *  - Edición (`venta`): al guardar vuelve a la lista (`volverHref`).
  * Si hay un error se conservan los datos escritos.
- * El estado ya no se elige: adelanto parcial => pendiente. Al editar, el
- * check "Pago completo" cierra la venta.
+ * El estado (pendiente/cerrada) lo elige el usuario; el adelanto puede ser 0.
  */
 export default function VentaForm({ hoy, defaults, venta, volverHref }) {
   const router = useRouter();
@@ -92,7 +91,7 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
             placeholder="0.00"
             defaultValue={Number(val("adelanto", 0)) > 0 ? val("adelanto") : ""}
           />
-          <small>Con adelanto parcial la venta queda pendiente.</small>
+          <small>Puede ser 0 si el cliente adelanta después.</small>
         </div>
 
         <div className="campo">
@@ -144,17 +143,14 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
           <input id="notas" name="notas" defaultValue={val("notas")} />
         </div>
 
-        {editando && (
-          <label className="campo-check venta-ancho">
-            <input
-              type="checkbox"
-              name="cerrar"
-              value="1"
-              defaultChecked={v ? v.cerrar === "1" : venta.estado === "cerrada"}
-            />
-            Pago completo recibido: cerrar la venta
-          </label>
-        )}
+        <div className="campo">
+          <label htmlFor="estado">Estado de la venta</label>
+          <select id="estado" name="estado" defaultValue={val("estado", "pendiente")}>
+            <option value="pendiente">Pendiente</option>
+            <option value="cerrada">Cerrada (finalizada)</option>
+          </select>
+          <small>Déjala pendiente hasta que el cliente complete el pago.</small>
+        </div>
       </div>
 
       <div className="venta-acciones">

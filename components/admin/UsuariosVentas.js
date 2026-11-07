@@ -7,15 +7,15 @@ import {
   eliminarUsuarioVentasAccion,
 } from "../../app/(admin)/admin/actions";
 import { IconoMas, IconoLlave, IconoPapelera, IconoUsuario } from "./Iconos";
+import PasswordInput from "../PasswordInput";
 
 /** Cambio de contraseña de un usuario (campo + botón de llave). */
 function CambiarPassword({ id }) {
   const [estado, accion, enviando] = useActionState(cambiarPasswordVentasAccion.bind(null, id), {});
   return (
     <form action={accion} key={estado?.n || "nuevo"} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-      <input
+      <PasswordInput
         name="password"
-        type="password"
         required
         minLength={6}
         placeholder="Nueva contraseña"
@@ -57,7 +57,7 @@ export default function UsuariosVentas({ usuarios }) {
           </div>
           <div className="campo">
             <label htmlFor="nuevo-password">Contraseña (mín. 6)</label>
-            <input id="nuevo-password" name="password" type="password" required minLength={6} autoComplete="new-password" />
+            <PasswordInput id="nuevo-password" name="password" required minLength={6} autoComplete="new-password" />
           </div>
         </div>
         <div>
