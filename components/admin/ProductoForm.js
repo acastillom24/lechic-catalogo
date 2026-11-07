@@ -24,7 +24,7 @@ function nuevaVariante() {
   };
 }
 
-export default function ProductoForm({ modo, marcas, producto, accionGuardar }) {
+export default function ProductoForm({ modo, marcas, producto, accionGuardar, restringido = false }) {
   const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
@@ -217,7 +217,7 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar }) 
           <div className="variante-card" key={v.key}>
             <div className="variante-card-cabecera">
               <h4>Variante {i + 1}</h4>
-              {variantes.length > 1 && (
+              {!restringido && variantes.length > 1 && (
                 <button type="button" className="btn-admin peligro" onClick={() => quitarVariante(i)}>
                   Quitar
                 </button>
@@ -246,9 +246,11 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar }) 
               ) : (
                 <div className="campo" style={{ marginTop: 22 }}>
                   <strong>Stock: {v.stockActual}</strong>{" "}
-                  <a href={`/admin?q=${encodeURIComponent(v.sku || nombre)}`}>
-                    Ajustar en Inventario
-                  </a>
+                  {!restringido && (
+                    <a href={`/admin?q=${encodeURIComponent(v.sku || nombre)}`}>
+                      Ajustar en Inventario
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -263,6 +265,8 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar }) 
                   placeholder="Ej: YB-ROSA-50"
                 />
               </div>
+              {!restringido && (
+                <>
               <div className="campo">
                 <label>Stock mínimo (alerta)</label>
                 <input
@@ -283,6 +287,8 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar }) 
                   onChange={(e) => actualizarVariante(i, { costo: e.target.value })}
                 />
               </div>
+                </>
+              )}
             </div>
 
             <label className="campo-check">

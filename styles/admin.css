@@ -309,6 +309,7 @@
 .campo input[type="text"],
 .campo input[type="number"],
 .campo input[type="password"],
+.campo input[type="time"],
 .campo select,
 .campo textarea {
   width: 100%;
@@ -318,6 +319,37 @@
   border: 1px solid var(--linea);
   border-radius: var(--radio);
   background: #fff;
+  color: var(--tinta);
+}
+
+.password-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input input {
+  padding-right: 40px !important;
+}
+
+.password-ojo {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--gris);
+  cursor: pointer;
+  border-radius: 6px;
+}
+
+.password-ojo:hover {
   color: var(--tinta);
 }
 

@@ -23,13 +23,14 @@ import {
   normalizarTelefono,
   parsearMonto,
   validarVenta,
-  estadoSegunAdelanto,
+  ESTADOS,
   CATEGORIAS,
   DESTINOS,
   TIPOS_CLIENTE,
   TELEFONO_SIN_DATO,
 } from "../../../lib/ventas-core";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
+import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 
 /** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
 export async function requerirUsuarioVentas() {
@@ -95,10 +96,9 @@ async function guardarVenta(formData) {
   const adelanto = parsearMonto(texto(formData, "adelanto")) ?? 0;
   if (monto === null) return { error: "Ingresa el monto." };
 
-  // Con adelanto parcial la venta queda pendiente. Al editar, "pago completo"
-  // la cierra aunque se conserve el adelanto registrado.
-  const estado =
-    id && formData.get("cerrar") === "1" ? "cerrada" : estadoSegunAdelanto(monto, adelanto);
+  // El estado lo elige el usuario (el adelanto puede ser 0 y pagarse después).
+  const estadoForm = texto(formData, "estado");
+  const estado = ESTADOS.includes(estadoForm) ? estadoForm : "pendiente";
 
   const venta = {
     fecha: texto(formData, "fecha"),
@@ -164,5 +164,22 @@ export async function crearProductoVentas(prevState, formData) {
   await requerirUsuarioVentas();
   const r = await guardarProductoDesdeForm(formData, { soloCrear: true });
   if (r.error) return r;
-  redirect("/sales?producto=1");
+  redirect("/sales/productos?creado=1");
+}
+
+/**
+ * Edición de producto desde /sales. Modo restringido: nunca elimina productos
+ * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
+ */
+export async function editarProductoVentas(prevState, formData) {
+  await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { restringido: true });
+  if (r.error) return r;
+  redirect("/sales/productos?guardado=1");
+}
+
+/** Movimiento de stock desde /sales (entrada, salida o conteo); queda el usuario en el historial. */
+export async function registrarMovimientoVentas(prevState, formData) {
+  const usuario = await requerirUsuarioVentas();
+  return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
 }

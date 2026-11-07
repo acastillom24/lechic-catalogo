@@ -15,13 +15,24 @@ import { query, transaction } from "../../../lib/db";
 import { slugify } from "../../../lib/slug";
 import { getMarca, getCategoria } from "../../../lib/data";
 import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
-import { aplicarMovimiento, fijarStock } from "../../../lib/inventario";
+import { fijarStock } from "../../../lib/inventario";
+import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 import {
   crearUsuarioVentas,
   cambiarPasswordUsuarioVentas,
   eliminarUsuarioVentas,
   cerrarVenta,
 } from "../../../lib/ventas";
+import {
+  crearColaborador,
+  actualizarColaborador,
+  cambiarEstadoColaborador,
+  marcarIngreso,
+  marcarSalida,
+  reabrirAsistencia,
+  fijarExtras,
+  eliminarAsistencia,
+} from "../../../lib/asistencias";
 
 // ============================================================
 //  SESIÓN
@@ -342,44 +353,7 @@ export async function importarCsv(prevState, formData) {
 //  en la cantidad indicada y registra la diferencia como ajuste).
 
 export async function registrarMovimiento(prevState, formData) {
-  const varianteId = Number(formData.get("varianteId"));
-  const operacion = (formData.get("operacion") || "").toString();
-  const cantidad = Number(formData.get("cantidad"));
-  const motivo = (formData.get("motivo") || "").toString().trim().slice(0, 200);
-
-  if (!Number.isInteger(varianteId) || varianteId <= 0) return { error: "Variante inválida." };
-  if (!Number.isInteger(cantidad) || cantidad < 0 || (operacion !== "fijar" && cantidad === 0)) {
-    return { error: "Ingresa una cantidad entera válida." };
-  }
-
-  let r;
-  try {
-    if (operacion === "fijar") {
-      r = await fijarStock({ varianteId, cantidad, motivo });
-    } else if (operacion === "entrada" || operacion === "salida") {
-      r = await aplicarMovimiento({
-        varianteId,
-        tipo: operacion,
-        cantidad,
-        motivo: motivo || (operacion === "entrada" ? "Ingreso de mercadería" : "Salida manual"),
-        origen: "manual",
-      });
-    } else {
-      return { error: "Operación inválida." };
-    }
-  } catch (err) {
-    return { error: `No se pudo registrar: ${err.message}` };
-  }
-
-  if (r.estado === "insuficiente") {
-    return { error: `Stock insuficiente (hay ${r.stock ?? 0}).` };
-  }
-  if (r.estado === "no_encontrada") return { error: "La variante ya no existe." };
-  if (r.estado !== "ok") return { error: `No se aplicó el movimiento (${r.estado}).` };
-
-  revalidatePath("/", "layout");
-  revalidatePath("/admin");
-  return { ok: `Stock actualizado: ${r.stock}.` };
+  return registrarMovimientoDesdeForm(formData);
 }
 
 // ============================================================
@@ -582,4 +556,74 @@ export async function cerrarVentaAccion(id) {
   revalidatePath("/admin/ventas");
   revalidatePath("/admin/ventas/pendientes");
   revalidatePath("/admin/dashboard");
+}
+
+// ============================================================
+//  COLABORADORES Y ASISTENCIAS
+// ============================================================
+
+const CAMPOS_COLABORADOR = [
+  "nombre", "cargo", "jornada", "tipo_pago", "multiplicador",
+  "tarifa", "hora_entrada", "hora_salida", "refrigerio_min",
+];
+
+/** id = 0 crea un colaborador; id > 0 lo actualiza. */
+export async function guardarColaboradorAccion(id, prevState, formData) {
+  const datos = {};
+  for (const c of CAMPOS_COLABORADOR) datos[c] = (formData.get(c) || "").toString();
+  try {
+    if (Number(id) > 0) await actualizarColaborador(Number(id), datos);
+    else await crearColaborador(datos);
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/asistencias");
+  return { ok: Number(id) > 0 ? "Cambios guardados." : "Trabajador agregado.", n: Date.now() };
+}
+
+export async function estadoColaboradorAccion(id, activo) {
+  await cambiarEstadoColaborador(Number(id), Boolean(activo));
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/asistencias");
+}
+
+function revalidarAsistencias() {
+  revalidatePath("/admin/asistencias");
+  revalidatePath("/admin/asistencias/reporte");
+}
+
+export async function marcarIngresoAccion(colaboradorId, fecha, prevState, formData) {
+  try {
+    await marcarIngreso(Number(colaboradorId), fecha, (formData.get("hora") || "").toString());
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidarAsistencias();
+  return { n: Date.now() };
+}
+
+export async function marcarSalidaAccion(asistenciaId, prevState, formData) {
+  try {
+    await marcarSalida(Number(asistenciaId), (formData.get("hora") || "").toString());
+  } catch (err) {
+    return { error: err.message };
+  }
+  revalidarAsistencias();
+  return { n: Date.now() };
+}
+
+export async function extrasAccion(asistenciaId, aprobadas) {
+  await fijarExtras(Number(asistenciaId), aprobadas);
+  revalidarAsistencias();
+}
+
+export async function reabrirAsistenciaAccion(asistenciaId) {
+  await reabrirAsistencia(Number(asistenciaId));
+  revalidarAsistencias();
+}
+
+export async function eliminarAsistenciaAccion(asistenciaId) {
+  await eliminarAsistencia(Number(asistenciaId));
+  revalidarAsistencias();
 }

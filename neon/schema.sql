@@ -169,3 +169,44 @@ create table if not exists ventas (
 create index if not exists ventas_fecha_idx    on ventas (fecha desc);
 create index if not exists ventas_telefono_idx on ventas (telefono);
 create index if not exists ventas_pendientes_idx on ventas (fecha) where estado = 'pendiente';
+
+-- ============================================================
+--  ASISTENCIAS Y PAGO DE COLABORADORES (/admin/asistencias)
+--  colaboradores.multiplicador: factor sobre la tarifa por hora para
+--  las horas extra aprobadas (ej. 1.25).
+--  asistencias guarda una copia (snapshot) de tarifa, multiplicador,
+--  horas netas y refrigerio al marcar el ingreso: cambiar la
+--  configuración después no altera lo ya registrado.
+-- ============================================================
+create table if not exists colaboradores (
+  id             bigint generated always as identity primary key,
+  nombre         text not null,
+  cargo          text not null default '',
+  jornada        text not null check (jornada in ('MEDIO_TIEMPO','COMPLETO')),
+  tipo_pago      text not null check (tipo_pago in ('SEMANAL','QUINCENAL','MENSUAL')),
+  multiplicador  numeric(4,2) not null default 1.25 check (multiplicador >= 1),
+  tarifa         numeric(10,2) not null check (tarifa >= 0),   -- S/ por hora
+  hora_entrada   time not null,
+  hora_salida    time not null,
+  refrigerio_min integer not null default 0 check (refrigerio_min >= 0),
+  activo         boolean not null default true,
+  fecha_baja     date,
+  created_at     timestamptz not null default now()
+);
+
+create table if not exists asistencias (
+  id               bigint generated always as identity primary key,
+  colaborador_id   bigint not null references colaboradores(id) on delete cascade,
+  fecha            date not null default ((now() at time zone 'America/Lima')::date),
+  hora_ingreso     time not null,
+  hora_salida      time,                       -- null = aún no marca salida
+  -- snapshot de la configuración vigente al marcar el ingreso
+  tarifa           numeric(10,2) not null,
+  multiplicador    numeric(4,2) not null,
+  minutos_jornada  integer not null,           -- horas netas programadas, en minutos
+  refrigerio_min   integer not null default 0,
+  extras_aprobadas boolean not null default false,
+  created_at       timestamptz not null default now(),
+  unique (colaborador_id, fecha)
+);
+create index if not exists asistencias_fecha_idx on asistencias (fecha desc);
