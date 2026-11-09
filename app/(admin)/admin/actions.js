@@ -14,6 +14,7 @@ import {
 import { query, transaction } from "../../../lib/db";
 import { slugify } from "../../../lib/slug";
 import { getMarcas, getPestanas } from "../../../lib/data";
+import { getConfigMarcas } from "../../../lib/marcas-config";
 import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
 import { fijarStock } from "../../../lib/inventario";
 import { refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock } from "../../../lib/saga-sync";
@@ -941,6 +942,49 @@ export async function guardarPestanasConfig(prevState, formData) {
   }
   revalidarMarcasPestanas();
   return { ok: "Pestañas y categorías guardadas.", n: Date.now() };
+}
+
+/**
+ * Cambia el identificador (slug) de una marca o de una pestaña ya existente y migra los productos
+ * que lo usan (productos.marca / productos.pestana) en una sola transacción.
+ * tipo: "marca" | "pestana".
+ */
+export async function renombrarIdentificador(tipo, viejo, nuevo) {
+  try {
+    if (tipo !== "marca" && tipo !== "pestana") throw new Error("Tipo inválido.");
+    const slugNuevo = slugConfig(nuevo, tipo === "marca" ? "Marca" : "Pestaña");
+    const slugViejo = String(viejo || "");
+    if (slugNuevo === slugViejo) throw new Error("El identificador nuevo es igual al actual.");
+
+    const { marcas, pestanasCrudas } = await getConfigMarcas();
+    const lista = tipo === "marca" ? marcas : pestanasCrudas;
+    if (!lista.some((x) => x.slug === slugViejo)) throw new Error(`No existe "${slugViejo}". Recarga la página.`);
+    if (lista.some((x) => x.slug === slugNuevo)) throw new Error(`Ya existe "${slugNuevo}".`);
+
+    const renombrar = (x) => (x.slug === slugViejo ? { ...x, slug: slugNuevo } : x);
+    const upsert = `insert into configuracion (clave, valor) values ($1, $2::jsonb)
+                    on conflict (clave) do update set valor = excluded.valor, updated_at = now()`;
+
+    if (tipo === "marca") {
+      const nuevas = marcas.map(renombrar);
+      await transaction((t) => [
+        t.query("update productos set marca = $2 where marca = $1", [slugViejo, slugNuevo]),
+        t.query(upsert, ["marcas", JSON.stringify(nuevas)]),
+      ]);
+    } else {
+      const nuevasPestanas = pestanasCrudas.map(renombrar);
+      const nuevasMarcas = marcas.map((m) => (m.pestanaDefault === slugViejo ? { ...m, pestanaDefault: slugNuevo } : m));
+      await transaction((t) => [
+        t.query("update productos set pestana = $2 where pestana = $1", [slugViejo, slugNuevo]),
+        t.query(upsert, ["pestanas", JSON.stringify(nuevasPestanas)]),
+        t.query(upsert, ["marcas", JSON.stringify(nuevasMarcas)]),
+      ]);
+    }
+  } catch (err) {
+    return { error: err.message || "No se pudo cambiar el identificador." };
+  }
+  revalidarMarcasPestanas();
+  return { ok: `Identificador cambiado a "${nuevo}".` };
 }
 
 /** Vuelve a los valores de data/marcas.js. */

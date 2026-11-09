@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { guardarMarcasConfig } from "../../app/(admin)/admin/actions";
+import { guardarMarcasConfig, renombrarIdentificador } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
 
 /**
@@ -25,12 +25,25 @@ export default function MarcasConfig({ marcas, pestanas }) {
       return n;
     });
 
+  const [aviso, setAviso] = useState(null);
+  async function cambiarIdentificador(i) {
+    const viejo = filas[i].slug;
+    const nuevo = (window.prompt(`Nuevo identificador para "${viejo}" (minúsculas, números y guiones):`, viejo) || "").trim();
+    if (!nuevo || nuevo === viejo) return;
+    if (!window.confirm(`Se cambiará "${viejo}" por "${nuevo}" y se migrarán los productos de esta marca. ¿Continuar?`)) return;
+    const r = await renombrarIdentificador("marca", viejo, nuevo);
+    if (r.ok) cambiar(i, { slug: nuevo });
+    setAviso(r);
+  }
+
   const envio = filas.map(({ slug, nombre, nombreSaga, pestanaDefault }) => ({ slug, nombre, nombreSaga, pestanaDefault }));
 
   return (
     <form action={accion} className="form-grid">
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
+      {aviso?.error && <div className="mensaje-error">{aviso.error}</div>}
+      {aviso?.ok && <div className="mensaje-ok">{aviso.ok}</div>}
       <input type="hidden" name="marcasJson" value={JSON.stringify(envio)} />
 
       <section className="admin-card form-grid">
@@ -53,7 +66,25 @@ export default function MarcasConfig({ marcas, pestanas }) {
             </div>
             <div className="campo">
               <label>Identificador</label>
-              <input value={m.slug} readOnly={m.existente} onChange={(e) => cambiar(i, { slug: e.target.value })} />
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <input
+                  value={m.slug}
+                  readOnly={m.existente}
+                  onChange={(e) => cambiar(i, { slug: e.target.value })}
+                  style={{ flex: 1, minWidth: 0 }}
+                />
+                {m.existente && (
+                  <button
+                    type="button"
+                    className="btn-admin"
+                    onClick={() => cambiarIdentificador(i)}
+                    title="Cambiar identificador"
+                    aria-label="Cambiar identificador"
+                  >
+                    ✏️
+                  </button>
+                )}
+              </div>
             </div>
             <div className="campo">
               <label>Nombre exacto en SAGA</label>

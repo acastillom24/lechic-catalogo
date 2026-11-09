@@ -6,6 +6,10 @@ const nextConfig = {
     // Agrega dominios remotos aquí si mueves las fotos a un servicio externo.
     remotePatterns: [],
   },
+  async redirects() {
+    // Dupree pasó a llamarse Azzorti: conserva los enlaces antiguos.
+    return [{ source: "/marca/dupree", destination: "/marca/azzorti", permanent: true }];
+  },
   experimental: {
     serverActions: {
       // Vercel limita el cuerpo de una función serverless a 4.5 MB; el

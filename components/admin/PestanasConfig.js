@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { guardarPestanasConfig, restablecerMarcasPestanas } from "../../app/(admin)/admin/actions";
+import { guardarPestanasConfig, restablecerMarcasPestanas, renombrarIdentificador } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
 
 /**
@@ -23,6 +23,16 @@ export default function PestanasConfig({ pestanas, categorias }) {
     );
   const agregarTab = () =>
     setTabs((t) => [...t, { slug: "", nombre: "", descripcion: "", color: "#f06595", categorias: [], existente: false }]);
+  const [aviso, setAviso] = useState(null);
+  async function cambiarIdentificador(i) {
+    const viejo = tabs[i].slug;
+    const nuevo = (window.prompt(`Nuevo identificador para "${viejo}" (minúsculas, números y guiones):`, viejo) || "").trim();
+    if (!nuevo || nuevo === viejo) return;
+    if (!window.confirm(`Se cambiará "${viejo}" por "${nuevo}": cambia la URL /marca/${viejo} y se migrarán los productos de esta pestaña. ¿Continuar?`)) return;
+    const r = await renombrarIdentificador("pestana", viejo, nuevo);
+    if (r.ok) cambiarTab(i, { slug: nuevo });
+    setAviso(r);
+  }
   const quitarTab = (i) => setTabs((t) => t.filter((_, j) => j !== i));
   const moverTab = (i, d) =>
     setTabs((t) => {
@@ -54,6 +64,8 @@ export default function PestanasConfig({ pestanas, categorias }) {
     <form action={accion} className="form-grid">
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
+      {aviso?.error && <div className="mensaje-error">{aviso.error}</div>}
+      {aviso?.ok && <div className="mensaje-ok">{aviso.ok}</div>}
       <input type="hidden" name="categoriasJson" value={categoriasJson} />
       <input type="hidden" name="pestanasJson" value={pestanasJson} />
 
@@ -125,7 +137,25 @@ export default function PestanasConfig({ pestanas, categorias }) {
                 </div>
                 <div className="campo">
                   <label>Identificador (URL: /marca/…)</label>
-                  <input value={t.slug} readOnly={t.existente} onChange={(e) => cambiarTab(i, { slug: e.target.value })} />
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input
+                      value={t.slug}
+                      readOnly={t.existente}
+                      onChange={(e) => cambiarTab(i, { slug: e.target.value })}
+                      style={{ flex: 1, minWidth: 0 }}
+                    />
+                    {t.existente && (
+                      <button
+                        type="button"
+                        className="btn-admin"
+                        onClick={() => cambiarIdentificador(i)}
+                        title="Cambiar identificador"
+                        aria-label="Cambiar identificador"
+                      >
+                        ✏️
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="campo">
                   <label>Color</label>
