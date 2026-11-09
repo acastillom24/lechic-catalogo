@@ -5,13 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { registrarVenta } from "../../app/(sales)/sales/actions";
 import { IconoCerrar } from "../admin/Iconos";
-import {
-  CATEGORIAS,
-  DESTINOS,
-  TIPOS_CLIENTE,
-  METODOS_PAGO,
-  COURIERS,
-} from "../../lib/ventas-core";
 
 /**
  * Formulario de captura y edición de ventas.
@@ -20,7 +13,7 @@ import {
  * Si hay un error se conservan los datos escritos.
  * El estado (pendiente/cerrada) lo elige el usuario; el adelanto puede ser 0.
  */
-export default function VentaForm({ hoy, defaults, venta, volverHref }) {
+export default function VentaForm({ hoy, defaults, opciones, venta, volverHref }) {
   const router = useRouter();
   const [estado, accion, enviando] = useActionState(registrarVenta, {});
   const v = estado?.valores;
@@ -69,9 +62,19 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
         </div>
 
         <div className="campo">
+          <label htmlFor="cliente_nombre">Nombre del cliente (opcional)</label>
+          <input id="cliente_nombre" name="cliente_nombre" autoComplete="off" maxLength={120} defaultValue={val("cliente_nombre")} />
+        </div>
+
+        <div className="campo">
+          <label htmlFor="distrito">Distrito (opcional)</label>
+          <input id="distrito" name="distrito" autoComplete="off" maxLength={80} defaultValue={val("distrito")} />
+        </div>
+
+        <div className="campo">
           <label htmlFor="categoria">Categoría</label>
           <select id="categoria" name="categoria" required defaultValue={val("categoria", defaults.categoria)}>
-            {CATEGORIAS.map((c) => (
+            {opciones.categorias.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -97,7 +100,7 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
         <div className="campo">
           <label htmlFor="destino">Entrega</label>
           <select id="destino" name="destino" defaultValue={val("destino", defaults.destino) || ""}>
-            {DESTINOS.map((d) => (
+            {opciones.destinos.map((d) => (
               <option key={d}>{d}</option>
             ))}
           </select>
@@ -107,7 +110,7 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
           <label htmlFor="courier">Courier (opcional)</label>
           <select id="courier" name="courier" defaultValue={val("courier") || ""}>
             <option value="">—</option>
-            {COURIERS.map((c) => (
+            {opciones.couriers.map((c) => (
               <option key={c}>{c}</option>
             ))}
           </select>
@@ -117,7 +120,7 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
           <label htmlFor="tipo_cliente">Cliente</label>
           <select id="tipo_cliente" name="tipo_cliente" defaultValue={val("tipo_cliente") || ""}>
             <option value="">Detectar automáticamente</option>
-            {TIPOS_CLIENTE.map((t) => (
+            {opciones.tiposCliente.map((t) => (
               <option key={t}>{t}</option>
             ))}
           </select>
@@ -127,7 +130,7 @@ export default function VentaForm({ hoy, defaults, venta, volverHref }) {
           <label htmlFor="metodo_pago">Método de pago</label>
           <select id="metodo_pago" name="metodo_pago" defaultValue={val("metodo_pago") || ""}>
             <option value="">—</option>
-            {METODOS_PAGO.map((m) => (
+            {opciones.metodosPago.map((m) => (
               <option key={m}>{m}</option>
             ))}
           </select>

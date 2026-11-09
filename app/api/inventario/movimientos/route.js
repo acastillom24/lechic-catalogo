@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { verificarFirma } from "../../../../lib/firma";
 import { aplicarMovimiento } from "../../../../lib/inventario";
 import { query } from "../../../../lib/db";
+import { getComponentesPorSku } from "../../../../lib/packs";
+import { reintentarStockPendiente } from "../../../../lib/saga-sync";
 
 /**
  * Recibe los eventos de facturacion_sunat y mueve el inventario.
@@ -103,40 +105,63 @@ export async function POST(request) {
   try {
     const resultados = [];
     for (const { codigo, cantidad } of datos.items) {
-      if (datos.evento === "emitido") {
-        const r = await aplicarMovimiento({
-          sku: codigo,
-          tipo: "salida",
-          cantidad,
-          motivo: `Venta ${datos.referencia}`,
-          origen: "facturacion",
-          referencia: datos.referencia,
-          idempotencyKey: clave(datos, "emitido", codigo),
-          permitirNegativo: true,
-        });
-        resultados.push({ codigo, estado: r.estado, ...(r.stock !== undefined ? { stock: r.stock } : {}) });
-      } else {
-        // anulado: solo se devuelve lo que realmente se descontó.
-        const salida = await query(
-          "select 1 from movimientos_inventario where idempotency_key = $1",
-          [clave(datos, "emitido", codigo)]
-        );
-        if (!salida.length) {
-          resultados.push({ codigo, estado: "sin_salida_previa" });
-          continue;
-        }
-        const r = await aplicarMovimiento({
-          sku: codigo,
-          tipo: "devolucion",
-          cantidad,
-          motivo: `Anulación ${datos.referencia}`,
-          origen: "facturacion",
-          referencia: datos.referencia,
-          idempotencyKey: clave(datos, "anulado", codigo),
-        });
-        resultados.push({ codigo, estado: r.estado, ...(r.stock !== undefined ? { stock: r.stock } : {}) });
+      // Un pack no tiene stock propio: se descuenta (o devuelve) cada uno de sus componentes.
+      // Un SKU normal es un solo movimiento sobre sí mismo.
+      const componentes = await getComponentesPorSku(codigo);
+      const destinos = componentes
+        ? componentes.map((c) => ({ varianteId: c.id, cantidad: cantidad * c.cantidad, sufijo: `:c${c.id}` }))
+        : [{ sku: codigo, cantidad, sufijo: "" }];
+      if (componentes && !componentes.length) {
+        resultados.push({ codigo, estado: "pack_sin_componentes" });
+        continue;
       }
+
+      const estados = [];
+      let stock;
+      for (const d of destinos) {
+        const destino = d.varianteId ? { varianteId: d.varianteId } : { sku: d.sku };
+        if (datos.evento === "emitido") {
+          const r = await aplicarMovimiento({
+            ...destino,
+            tipo: "salida",
+            cantidad: d.cantidad,
+            motivo: `Venta ${datos.referencia}${componentes ? ` (pack ${codigo})` : ""}`,
+            origen: "facturacion",
+            referencia: datos.referencia,
+            idempotencyKey: clave(datos, "emitido", codigo) + d.sufijo,
+            permitirNegativo: true,
+          });
+          estados.push(r.estado);
+          if (r.stock !== undefined) stock = r.stock;
+        } else {
+          // anulado: solo se devuelve lo que realmente se descontó.
+          const salida = await query(
+            "select 1 from movimientos_inventario where idempotency_key = $1",
+            [clave(datos, "emitido", codigo) + d.sufijo]
+          );
+          if (!salida.length) {
+            estados.push("sin_salida_previa");
+            continue;
+          }
+          const r = await aplicarMovimiento({
+            ...destino,
+            tipo: "devolucion",
+            cantidad: d.cantidad,
+            motivo: `Anulación ${datos.referencia}${componentes ? ` (pack ${codigo})` : ""}`,
+            origen: "facturacion",
+            referencia: datos.referencia,
+            idempotencyKey: clave(datos, "anulado", codigo) + d.sufijo,
+          });
+          estados.push(r.estado);
+          if (r.stock !== undefined) stock = r.stock;
+        }
+      }
+      // Pack: "ok" solo si todos los componentes se movieron; si no, el primer estado que no sea ok.
+      const estado = estados.find((e) => e !== "ok") || "ok";
+      resultados.push({ codigo, estado, ...(!componentes && stock !== undefined ? { stock } : {}) });
     }
+    // Con cada venta/anulación se aprovecha para reintentar avisos de stock a SAGA que hayan fallado.
+    after(() => reintentarStockPendiente({ limite: 5 }));
     return NextResponse.json({ ok: true, resultados });
   } catch (err) {
     // Error de base de datos: 500 para que facturación reintente (todo es idempotente).

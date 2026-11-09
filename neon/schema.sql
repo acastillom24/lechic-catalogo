@@ -107,6 +107,26 @@ alter table variantes add column if not exists activo        boolean not null de
 create unique index if not exists variantes_sku_uniq
   on variantes (sku) where sku is not null;
 
+-- ============================================================
+--  PACKS
+--  Una variante con es_pack = true se arma con otras variantes
+--  (pack_componentes). Su stock NO se guarda: se calcula como
+--  min(floor(disponible_componente / cantidad)) (ver lib/packs.js),
+--  así que si un componente se agota el pack queda en 0. stock_actual
+--  de un pack es siempre NULL y no admite movimientos propios: la venta
+--  de un pack descuenta de sus componentes.
+-- ============================================================
+alter table variantes add column if not exists es_pack boolean not null default false;
+
+create table if not exists pack_componentes (
+  pack_variante_id       bigint  not null references variantes(id) on delete cascade,
+  componente_variante_id bigint  not null references variantes(id) on delete restrict,
+  cantidad               integer not null default 1 check (cantidad > 0),
+  primary key (pack_variante_id, componente_variante_id),
+  check (pack_variante_id <> componente_variante_id)
+);
+create index if not exists pack_componentes_comp_idx on pack_componentes (componente_variante_id);
+
 create table if not exists movimientos_inventario (
   id                bigint generated always as identity primary key,
   variante_id       bigint not null references variantes(id) on delete cascade,
@@ -166,6 +186,13 @@ create table if not exists ventas (
   updated_at     timestamptz not null default now(),
   cerrada_at     timestamptz
 );
+-- Datos opcionales del cliente (campos libres) y listas configurables (categoría, entrega, tipo de cliente):
+-- las listas ya no se limitan en la base, se validan contra Configuración → Ventas.
+alter table ventas add column if not exists distrito        text;
+alter table ventas add column if not exists cliente_nombre  text;
+alter table ventas drop constraint if exists ventas_categoria_check;
+alter table ventas drop constraint if exists ventas_destino_check;
+alter table ventas drop constraint if exists ventas_tipo_cliente_check;
 create index if not exists ventas_fecha_idx    on ventas (fecha desc);
 create index if not exists ventas_telefono_idx on ventas (telefono);
 create index if not exists ventas_pendientes_idx on ventas (fecha) where estado = 'pendiente';
@@ -210,3 +237,181 @@ create table if not exists asistencias (
   unique (colaborador_id, fecha)
 );
 create index if not exists asistencias_fecha_idx on asistencias (fecha desc);
+
+-- ============================================================
+--  INTEGRACIÓN CON SAGA (Seller Center) — fase 1: perfumes
+--  Campos extra del producto/variante que exige SAGA, cuentas SAGA
+--  (con su API key, guardada en la tabla) y el estado de sincronización
+--  por variante/sistema/cuenta.
+-- ============================================================
+alter table productos add column if not exists saga_categoria     text;  -- id de PrimaryCategory en SAGA
+alter table productos add column if not exists modelo             text;
+alter table productos add column if not exists tipo_perfume       text;
+alter table productos add column if not exists genero             text;
+alter table productos drop column if exists notas_aromaticas;  -- reemplazada por los aromas de cada variante
+alter table productos add column if not exists caracteristicas    text;
+alter table productos add column if not exists condicion          text not null default 'Nuevo';
+
+alter table productos add column if not exists sku_padre text;  -- ParentSku en SAGA; solo se usa si usar_sku_padre
+alter table productos add column if not exists usar_sku_padre boolean not null default false;  -- sin marcar: cada variante es un producto suelto en SAGA
+-- Paquete: un solo juego de medidas por producto.
+alter table productos add column if not exists contenido_paquete text;
+alter table productos add column if not exists paquete_ancho     numeric;
+alter table productos add column if not exists paquete_largo     numeric;
+alter table productos add column if not exists paquete_alto      numeric;
+alter table productos add column if not exists paquete_peso      numeric;
+-- Datos generales de SAGA a nivel de producto.
+alter table productos add column if not exists pais_produccion text;  -- "Hecho en"
+alter table productos add column if not exists formato_belleza text not null default 'Frasco';
+-- Campos extra por categoría primaria (ver lib/saga-campos.js): { FeedName: valor }.
+alter table productos add column if not exists saga_extras jsonb not null default '{}'::jsonb;  -- campos por producto
+alter table variantes add column if not exists saga_extras jsonb not null default '{}'::jsonb;  -- campos por variante (color, variante…)
+alter table variantes add column if not exists codigo_barras text;
+alter table variantes add column if not exists volumen       text;  -- medida del frasco, ej. "50 ML"
+-- Datos de SAGA por variante.
+alter table variantes add column if not exists registro_sanitario text;
+alter table variantes add column if not exists descripcion        text;    -- si está vacía se usa la del producto
+alter table variantes add column if not exists cantidad_empaque   text;    -- CantidadContenidaEnElEmpaque, ej. "100ML"
+alter table variantes add column if not exists aromas_saga        text[] not null default '{}';  -- FraganciaPerfume (lista de SAGA)
+
+-- Migraciones desde versiones anteriores de este esquema (idempotentes).
+do $$
+begin
+  -- El registro sanitario estaba en productos: pasa a cada variante.
+  if exists (select 1 from information_schema.columns
+              where table_schema = current_schema() and table_name = 'productos' and column_name = 'registro_sanitario') then
+    update variantes v set registro_sanitario = coalesce(v.registro_sanitario, p.registro_sanitario)
+      from productos p where p.id = v.producto_id;
+    alter table productos drop column registro_sanitario;
+  end if;
+  -- El paquete estaba por variante: pasa al producto (desde su primera variante).
+  if exists (select 1 from information_schema.columns
+              where table_schema = current_schema() and table_name = 'variantes' and column_name = 'paquete_ancho') then
+    update productos p set
+      contenido_paquete = coalesce(p.contenido_paquete, f.contenido_paquete),
+      paquete_ancho     = coalesce(p.paquete_ancho, f.paquete_ancho),
+      paquete_largo     = coalesce(p.paquete_largo, f.paquete_largo),
+      paquete_alto      = coalesce(p.paquete_alto, f.paquete_alto),
+      paquete_peso      = coalesce(p.paquete_peso, f.paquete_peso)
+    from (select distinct on (producto_id) producto_id, contenido_paquete, paquete_ancho, paquete_largo, paquete_alto, paquete_peso
+            from variantes order by producto_id, orden, id) f
+    where f.producto_id = p.id;
+    alter table variantes
+      drop column contenido_paquete, drop column paquete_ancho, drop column paquete_largo,
+      drop column paquete_alto, drop column paquete_peso;
+  end if;
+  -- El país de producción estaba por variante: pasa al producto (desde su primera variante con valor).
+  if exists (select 1 from information_schema.columns
+              where table_schema = current_schema() and table_name = 'variantes' and column_name = 'pais_produccion') then
+    update productos p set pais_produccion = coalesce(p.pais_produccion, f.pais_produccion)
+      from (select distinct on (producto_id) producto_id, pais_produccion
+              from variantes where pais_produccion is not null order by producto_id, orden, id) f
+     where f.producto_id = p.id;
+    alter table variantes drop column pais_produccion;
+  end if;
+end $$;
+
+-- Las fechas de oferta pasan a ser por canal (tabla precios_canal).
+alter table variantes drop column if exists oferta_inicio;
+alter table variantes drop column if exists oferta_fin;
+
+create table if not exists cuentas_saga (
+  alias   text primary key,                -- identifica la cuenta, ej. tienda1
+  nombre  text not null,
+  user_id text,                            -- UserID de Seller Center
+  activo  boolean not null default true
+);
+alter table cuentas_saga add column if not exists api_key  text;  -- solo servidor; nunca se envía al navegador
+alter table cuentas_saga add column if not exists base_url text;  -- elegida de la lista configurable (saga_opciones.urlsBase)
+alter table cuentas_saga add column if not exists operador text;  -- código de unidad de negocio (saga_opciones.operadores)
+
+create table if not exists sincronizaciones (
+  variante_id  bigint not null references variantes(id) on delete cascade,
+  sistema      text   not null default 'saga',
+  cuenta_alias text   not null,
+  estado       text   not null default 'pendiente' check (estado in ('pendiente','publicado','error')),
+  feed_id      text,
+  error        text,
+  ultimo_sync  timestamptz,
+  primary key (variante_id, sistema, cuenta_alias)
+);
+
+-- Cola de reintentos del stock: si avisar a SAGA falla, la fila queda marcada y se reintenta sola.
+alter table sincronizaciones add column if not exists stock_pendiente boolean     not null default false;
+alter table sincronizaciones add column if not exists intentos        int         not null default 0;
+alter table sincronizaciones add column if not exists proximo_intento timestamptz;
+
+-- Cómo quedó registrada la variante en la cuenta: creada desde la web o vinculada a un SKU que ya existía en SAGA.
+alter table sincronizaciones add column if not exists origen text not null default 'creado';
+alter table sincronizaciones drop constraint if exists sincronizaciones_origen_check;
+alter table sincronizaciones add constraint sincronizaciones_origen_check check (origen in ('creado','vinculado'));
+
+-- Imagen principal: SAGA solo la acepta cuando el producto ya existe, así que se envía al terminar el feed de creación.
+alter table sincronizaciones add column if not exists imagen_pendiente boolean not null default false;
+alter table sincronizaciones add column if not exists imagen_feed_id   text;
+
+-- Acción con la que se sincroniza la variante en la cuenta: "crear" (alta desde la web) o el id de una acción
+-- configurable (vincular, vincular_tecnicos, vincular_todo, actualizar o propias). Una variante creada pasa
+-- sola a "vincular" cuando SAGA confirma el alta.
+alter table sincronizaciones add column if not exists accion text not null default 'crear';
+update sincronizaciones set accion = 'vincular' where origen = 'vinculado' and accion = 'crear';
+update sincronizaciones set accion = 'vincular', origen = 'vinculado' where origen = 'creado' and estado = 'publicado' and accion = 'crear';
+
+-- Permite renombrar el alias de una cuenta sin perder su historial.
+alter table sincronizaciones drop constraint if exists sincronizaciones_cuenta_alias_fkey;
+alter table sincronizaciones add constraint sincronizaciones_cuenta_alias_fkey
+  foreign key (cuenta_alias) references cuentas_saga(alias) on update cascade on delete cascade;
+
+-- Precio propio de una variante en una cuenta/plataforma. Cada campo vacío usa el valor de la web.
+create table if not exists precios_canal (
+  variante_id   bigint  not null references variantes(id) on delete cascade,
+  sistema       text    not null default 'saga',
+  cuenta_alias  text    not null references cuentas_saga(alias) on update cascade on delete cascade,
+  precio        numeric,
+  precio_oferta numeric,
+  oferta_inicio date,
+  oferta_fin    date,
+  primary key (variante_id, sistema, cuenta_alias)
+);
+
+-- ============================================================
+--  LIBRO DE RECLAMACIONES (formulario público + monitor en /admin/reclamos)
+--  codigo: LCH-AAAA-NNNNNN (se asigna al guardar). fecha_limite = 15 días
+--  hábiles desde el registro (Ley 31435; sin contar feriados).
+-- ============================================================
+create table if not exists reclamos (
+  id                bigint generated always as identity primary key,
+  codigo            text unique,
+  tipo              text not null check (tipo in ('reclamo','queja')),
+  -- Consumidor
+  nombre            text not null,
+  tipo_documento    text not null check (tipo_documento in ('DNI','CE','Pasaporte','RUC')),
+  documento         text not null,
+  domicilio         text not null,
+  telefono          text not null,
+  email             text not null,
+  es_menor          boolean not null default false,
+  apoderado         text,                 -- padre, madre o apoderado si es menor de edad
+  -- Bien contratado
+  tipo_bien         text not null check (tipo_bien in ('producto','servicio')),
+  descripcion_bien  text not null,
+  monto             numeric,
+  numero_pedido     text,
+  -- Reclamo o queja
+  detalle           text not null,
+  pedido_consumidor text not null,
+  -- Seguimiento
+  estado            text not null default 'pendiente' check (estado in ('pendiente','en_proceso','atendido')),
+  fecha_limite      date not null,
+  respuesta         text,
+  respondido_at     timestamptz,
+  respuesta_enviada boolean not null default false,  -- ¿se envió la respuesta al correo del consumidor?
+  copia_enviada     boolean not null default false,  -- ¿se envió la hoja de reclamación al consumidor?
+  nota_interna      text,
+  ip_hash           text,
+  created_at        timestamptz not null default now(),
+  updated_at        timestamptz not null default now()
+);
+create index if not exists reclamos_created_idx on reclamos (created_at desc);
+create index if not exists reclamos_pendientes_idx on reclamos (fecha_limite) where estado <> 'atendido';
+create index if not exists reclamos_ip_idx on reclamos (ip_hash, created_at desc);

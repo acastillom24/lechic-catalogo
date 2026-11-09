@@ -24,6 +24,14 @@ export default async function Footer() {
           )}
           <Link href="/info">Cómo comprar</Link>
         </div>
+        <Link href="/libro-de-reclamaciones" className="pie-libro" title="Registra un reclamo o una queja">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2V5z" />
+            <path d="M4 19a2 2 0 0 1 2-2h13" />
+            <path d="M9 8h6M9 11h4" />
+          </svg>
+          Libro de Reclamaciones
+        </Link>
         <p className="pie-nota">
           Precios en soles. Sujeto a disponibilidad de stock.
         </p>
@@ -58,6 +66,24 @@ export default async function Footer() {
           color: var(--rosa);
           text-decoration: underline;
           text-underline-offset: 3px;
+        }
+        .pie .pie-libro {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          margin: 4px 0 14px;
+          padding: 8px 16px;
+          border: 1px solid var(--rosa);
+          border-radius: var(--radio);
+          color: var(--rosa);
+          font-size: 0.82rem;
+          letter-spacing: 0.04em;
+          text-decoration: none;
+          transition: background 0.15s, color 0.15s;
+        }
+        .pie .pie-libro:hover {
+          background: var(--rosa);
+          color: #fff;
         }
         .pie-nota {
           font-size: 0.72rem;

@@ -24,11 +24,9 @@ import {
   parsearMonto,
   validarVenta,
   ESTADOS,
-  CATEGORIAS,
-  DESTINOS,
-  TIPOS_CLIENTE,
   TELEFONO_SIN_DATO,
 } from "../../../lib/ventas-core";
+import { getOpcionesVentas } from "../../../lib/ventas-opciones";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 
@@ -83,6 +81,7 @@ export async function registrarVenta(prevState, formData) {
 async function guardarVenta(formData) {
   const usuario = await requerirUsuarioVentas();
   const id = Number(formData.get("id")) || null;
+  const op = await getOpcionesVentas();
 
   const tel = normalizarTelefono(texto(formData, "telefono") || TELEFONO_SIN_DATO);
   if (tel.rechazado) {
@@ -114,12 +113,14 @@ async function guardarVenta(formData) {
     metodo_pago: texto(formData, "metodo_pago").toUpperCase() || null,
     comprobante: texto(formData, "comprobante", 40) || null,
     notas: texto(formData, "notas", 500) || null,
+    distrito: texto(formData, "distrito", 80) || null,
+    cliente_nombre: texto(formData, "cliente_nombre", 120) || null,
   };
 
-  if (!CATEGORIAS.includes(venta.categoria)) return { error: "Elige una categoría." };
-  if (venta.destino && !DESTINOS.includes(venta.destino)) return { error: "Destino inválido." };
-  if (venta.tipo_cliente && !TIPOS_CLIENTE.includes(venta.tipo_cliente)) return { error: "Tipo de cliente inválido." };
-  const error = validarVenta(venta);
+  if (!op.categorias.includes(venta.categoria)) return { error: "Elige una categoría." };
+  if (venta.destino && !op.destinos.includes(venta.destino)) return { error: "Destino inválido." };
+  if (venta.tipo_cliente && !op.tiposCliente.includes(venta.tipo_cliente)) return { error: "Tipo de cliente inválido." };
+  const error = validarVenta(venta, op);
   if (error) return { error };
 
   try {

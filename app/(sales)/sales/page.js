@@ -11,6 +11,7 @@ import {
   getVentaEditable,
 } from "../../../lib/ventas";
 import { fechaISO } from "../../../lib/ventas-core";
+import { getOpcionesVentas } from "../../../lib/ventas-opciones";
 
 export const metadata = { title: "Ventas · Le Chic" };
 export const dynamic = "force-dynamic";
@@ -29,7 +30,8 @@ export default async function SalesPage({ searchParams }) {
   const nueva = params?.nueva === "1";
   const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Lima" }); // YYYY-MM-DD
 
-  const [defaults, ventas, pendientes, aEditar] = await Promise.all([
+  const [opciones, defaults, ventas, pendientes, aEditar] = await Promise.all([
+    getOpcionesVentas(),
     getDefaultsVenta(),
     getVentasSales({ usuarioId: usuario.id, filtro: vista, q: q || undefined }),
     contarPendientes(),
@@ -85,6 +87,7 @@ export default async function SalesPage({ searchParams }) {
             <VentaForm
               hoy={hoy}
               defaults={defaults}
+              opciones={opciones}
               venta={ventaEdicion || undefined}
               volverHref={volverHref}
             />
@@ -103,6 +106,7 @@ export default async function SalesPage({ searchParams }) {
                 <tr>
                   <th>Fecha</th>
                   <th>ID</th>
+                  <th>Cliente</th>
                   <th>Categoría</th>
                   <th>Entrega</th>
                   <th>Monto</th>
@@ -120,6 +124,15 @@ export default async function SalesPage({ searchParams }) {
                       <td>{fechaCorta(v.fecha)}</td>
                       <td className="celda-producto" title={v.cliente_ref || undefined}>
                         {v.telefono}
+                      </td>
+                      <td>
+                        {v.cliente_nombre || "—"}
+                        {v.distrito && (
+                          <>
+                            <br />
+                            <small style={{ color: "var(--gris)" }}>{v.distrito}</small>
+                          </>
+                        )}
                       </td>
                       <td>{v.categoria}</td>
                       <td>{[v.destino, v.courier].filter(Boolean).join(" · ") || "—"}</td>
@@ -157,7 +170,7 @@ export default async function SalesPage({ searchParams }) {
                 })}
                 {ventas.length === 0 && (
                   <tr>
-                    <td colSpan={9} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
+                    <td colSpan={10} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
                       {vista === "pendientes" ? "No hay ventas pendientes." : "No hay ventas que mostrar."}
                     </td>
                   </tr>

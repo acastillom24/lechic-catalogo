@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { eliminarProductos } from "../../app/(admin)/admin/actions";
+import { eliminarProductos, actualizarEstadoSaga } from "../../app/(admin)/admin/actions";
 import ImportarCsvForm from "./ImportarCsvForm";
 import MovimientoForm from "./MovimientoForm";
 import {
@@ -60,6 +60,9 @@ export default function TablaProductos({
   const [seleccion, setSeleccion] = useState(() => new Set());
   const [importando, setImportando] = useState(false);
   const [moviendo, setMoviendo] = useState(null);
+  const [actualizando, iniciarActualizar] = useTransition();
+  const hayErrores = filas.some((f) => (f.sync || []).some((x) => x.estado === "error"));
+  const hayPendientes =filas.some((f) => (f.sync || []).some((x) => x.estado === "pendiente" || x.estado === "error"));
   const menuRef = useRef(null);
   const cabeceraRef = useRef(null);
 
@@ -179,6 +182,22 @@ export default function TablaProductos({
             </details>
           </form>
 
+          {hayPendientes && (
+            <button
+              type="button"
+              className="btn-ico-texto"
+              disabled={actualizando}
+              onClick={() => iniciarActualizar(() => actualizarEstadoSaga())}
+              title="Consulta a SAGA si los productos pendientes ya fueron publicados"
+            >
+              {actualizando ? "Consultando…" : "Actualizar estado SAGA"}
+            </button>
+          )}
+          {hayErrores && (
+            <Link href="/admin/integraciones/saga" className="btn-ico-texto" title="Ver y reintentar los errores de sincronización">
+              Ver errores de SAGA
+            </Link>
+          )}
           <button
             type="button"
             className={importando ? "btn-ico-texto activo" : "btn-ico-texto"}
@@ -222,6 +241,7 @@ export default function TablaProductos({
               <th>Variante</th>
               <th>SKU</th>
               <th>Marca</th>
+              <th>Sistemas</th>
               <th>Stock</th>
               <th>Mín.</th>
               <th>Precio</th>
@@ -248,7 +268,7 @@ export default function TablaProductos({
             })}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={10} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
+                <td colSpan={11} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
                   No hay productos que coincidan.
                 </td>
               </tr>
@@ -287,6 +307,28 @@ function FilaProducto({ v, controlada, bajo, marcada, abierta, onAlternar, onMov
         </td>
         <td>{v.sku || vacio}</td>
         <td>{v.marca}</td>
+        <td>
+          {(v.sync || []).length === 0
+            ? vacio
+            : v.sync.map((x) => (
+                <span
+                  key={x.cuenta}
+                  title={x.error || `SAGA (${x.cuenta}): ${x.estado}${x.origen === "vinculado" ? ` · vinculado (${x.accion || "vincular"})` : ""}`}
+                  style={{
+                    display: "inline-block",
+                    padding: "1px 8px",
+                    marginRight: 4,
+                    borderRadius: 10,
+                    fontSize: ".75rem",
+                    color: "#fff",
+                    background:
+                      x.estado === "publicado" ? "#2e7d32" : x.estado === "error" ? "#c62828" : "#ef8f00",
+                  }}
+                >
+                  SAGA{v.sync.length > 1 || x.cuenta !== "principal" ? ` · ${x.cuenta}` : ""}{x.origen === "vinculado" ? " · vinculado" : ""}
+                </span>
+              ))}
+        </td>
         <td>
           {controlada ? (
             <strong>
@@ -333,7 +375,7 @@ function FilaProducto({ v, controlada, bajo, marcada, abierta, onAlternar, onMov
       </tr>
       {abierta && (
         <tr className={marcada ? "fila-marcada" : undefined}>
-          <td colSpan={10}>
+          <td colSpan={11}>
             <MovimientoForm varianteId={v.id} />
           </td>
         </tr>
