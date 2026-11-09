@@ -28,7 +28,7 @@ function convertir(respuesta) {
   return atributos
     .filter((a) => GRUPOS[a.GroupName] && !CUBIERTOS.has(a.FeedName))
     .map((a) => {
-      const opciones = lista(a.Options?.Option).map((o) => o.Name).filter(Boolean);
+      const opciones = lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && n !== "…"); // SAGA mete una opción "…" de relleno al final de listas largas
       const max = Number(a.MaxLength);
       return {
         id: a.FeedName,

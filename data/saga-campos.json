@@ -599,8 +599,7 @@
     "Chocolate anaranjado",
     "Chocolate oscuro",
     "Chocolate",
-    "Burdeo",
-    "…"
+    "Burdeo"
    ]
   }
  ],
@@ -1062,8 +1061,7 @@
     "8.5 GR",
     "9 GR",
     "9.5 GR",
-    "10 GR",
-    "…"
+    "10 GR"
    ]
   },
   {
@@ -1349,8 +1347,7 @@
     "Chocolate medio",
     "Vino tinto",
     "Chocolate",
-    "Chocolate intenso",
-    "…"
+    "Chocolate intenso"
    ]
   }
  ],
@@ -2151,6 +2148,271 @@
    "max": 127
   }
  ],
+ "2763": [
+  {
+   "id": "InstruccionesDeUso",
+   "etiqueta": "Instrucciones de uso",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "SellerWarrantyInMonths",
+   "etiqueta": "Garantía del proveedor en meses",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "1",
+    "2",
+    "3",
+    "6",
+    "9",
+    "12",
+    "15",
+    "18",
+    "24",
+    "34",
+    "48",
+    "60",
+    "72",
+    "84",
+    "96",
+    "108",
+    "120"
+   ]
+  },
+  {
+   "id": "CantidadContenidaEnElEmpaque",
+   "etiqueta": "Cantidad contenida en el empaque",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "Caracteristicas",
+   "etiqueta": "Características",
+   "tipo": "multi",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Alivio del dolor",
+    "Antiinflamatorio",
+    "Antioxidante",
+    "Antiséptico",
+    "Blanqueador dental",
+    "Brillo",
+    "Cicatrizante",
+    "Con color",
+    "Con fragancia",
+    "Crecimiento",
+    "Cuidado del cuero cabelludo",
+    "Degradado suave",
+    "Dermatológicamente probado",
+    "Despigmentante",
+    "Detox",
+    "Duradero",
+    "Exfoliantes",
+    "Fijación",
+    "Fortalecedor",
+    "Hipoalergénico",
+    "Humectante",
+    "Larga duración",
+    "Libre de parabenos",
+    "Ligero",
+    "Luminosidad",
+    "Matificante",
+    "Natural",
+    "No comedogénico",
+    "No probado en animales",
+    "Orgánico",
+    "Perfumado",
+    "Protección del calor",
+    "Protección del color",
+    "Protección UV",
+    "Relajante muscular",
+    "Refrescante",
+    "Resistencia al agua",
+    "Sin alcohol",
+    "Sin azúcar",
+    "Sin colorantes",
+    "Sin enjuague",
+    "Sin flúor",
+    "Sin fragancia",
+    "Sin gluten",
+    "Sin lactosa",
+    "Sin siliconas",
+    "Sin sulfatos",
+    "Suavidad",
+    "Temporizador",
+    "Terapeútico",
+    "reafirmante",
+    "Ultrasónico",
+    "Vegano",
+    "Volumen"
+   ]
+  },
+  {
+   "id": "FormaFarmaceutica",
+   "etiqueta": "Forma farmacéutica",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Aceite",
+    "Ampolla",
+    "Barra",
+    "Bruma",
+    "Cápsula",
+    "Colirio",
+    "Comprimido",
+    "Crema",
+    "Efervescente",
+    "Emulsión",
+    "Enjuague Bucal",
+    "Espuma",
+    "Gel",
+    "Gotas",
+    "Granulado",
+    "Inhalador",
+    "Inyectable",
+    "Jalea",
+    "Jarabe",
+    "Líquido",
+    "Loción",
+    "Óvulos",
+    "Parche",
+    "Pastilla",
+    "Polvo",
+    "Pomada",
+    "Supositorio",
+    "Roll-on",
+    "Sérum",
+    "Solución",
+    "Solución oral",
+    "Spray",
+    "Suspensión",
+    "Toallita",
+    "Ungüento"
+   ]
+  },
+  {
+   "id": "FormatoBelleza",
+   "etiqueta": "Formato belleza",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Aerosol",
+    "Ampolla",
+    "Blister",
+    "Botella",
+    "Caja",
+    "Cartucho",
+    "Crayon",
+    "Doypack",
+    "Estuche",
+    "Frasco",
+    "Gotero",
+    "Lápiz",
+    "Lata",
+    "Paquete",
+    "Roll-on",
+    "Sachet",
+    "Set",
+    "Stick",
+    "Sobre",
+    "Spray",
+    "Tableta",
+    "Tarro",
+    "Tubo"
+   ]
+  },
+  {
+   "id": "PesoDelProducto",
+   "etiqueta": "Peso del producto",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "TipoDeJabon",
+   "etiqueta": "Tipo de jabón",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": true,
+   "opciones": [
+    "Gel de ducha",
+    "Jabón antibacterial",
+    "Jabón antiseptico",
+    "Jabón artesanal",
+    "Jabón de afrecho",
+    "Jabón en barra",
+    "Jabón de glicerina",
+    "Jabón en espuma",
+    "Jabón exfoliante",
+    "Jabón intimo",
+    "Jabón líquido",
+    "Jabón neutro",
+    "Jabón potasico"
+   ]
+  },
+  {
+   "id": "TipoDePiel",
+   "etiqueta": "Tipo de piel",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Grasa",
+    "Mixta",
+    "Normal",
+    "Seca",
+    "Sensible",
+    "Todo tipo de piel"
+   ]
+  },
+  {
+   "id": "UsoTratamientosDePiel",
+   "etiqueta": "Zona de aplicación",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Brazos",
+    "Caderas",
+    "Contorno de ojos",
+    "Cuello",
+    "Cuero cabelludo",
+    "Corporal",
+    "Espalda",
+    "Facial y Corporal",
+    "Gluteos",
+    "Hombros",
+    "Labios",
+    "Manos",
+    "Pecho",
+    "Pestañas",
+    "Piernas",
+    "Pies",
+    "Rodillas",
+    "facial",
+    "Uñas",
+    "Zona íntima"
+   ]
+  },
+  {
+   "id": "Variation",
+   "etiqueta": "Variante",
+   "tipo": "texto",
+   "nivel": "variante",
+   "obligatorio": true,
+   "max": 127
+  }
+ ],
  "2945": [
   {
    "id": "InstruccionesDeUso",
@@ -2524,8 +2786,7 @@
     "Chocolate",
     "Negro profundo",
     "Azul",
-    "Negro",
-    "…"
+    "Negro"
    ]
   }
  ],
