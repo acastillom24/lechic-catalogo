@@ -1,4 +1,6 @@
+import { after } from "next/server";
 import { getInventario, getMovimientos, getAlertasStock } from "../../../lib/inventario";
+import { reintentarStockPendiente } from "../../../lib/saga-sync";
 import Link from "next/link";
 import TablaProductos from "../../../components/admin/TablaProductos";
 import Paginacion from "../../../components/admin/Paginacion";
@@ -14,6 +16,8 @@ const FILTROS = [
 
 export default async function AdminProductosPage({ searchParams }) {
   const params = await searchParams;
+  // Al abrir el panel se reintentan, sin demorar la página, los avisos de stock a SAGA que fallaron.
+  after(() => reintentarStockPendiente());
   const q = typeof params?.q === "string" ? params.q.trim() : "";
   const filtro = FILTROS.some(([k]) => k === params?.filtro) ? params.filtro : "todas";
   const guardado = params?.guardado === "1";
@@ -54,6 +58,11 @@ export default async function AdminProductosPage({ searchParams }) {
   return (
     <div className="form-grid">
       {guardado && <div className="mensaje-ok">Producto guardado correctamente.</div>}
+      {typeof params?.saga === "string" && params.saga && (
+        <div className={params.saga.startsWith("Guardado y enviado") ? "mensaje-ok" : "mensaje-error"}>
+          {params.saga}
+        </div>
+      )}
       {eliminado && <div className="mensaje-ok">Producto eliminado.</div>}
       {eliminados > 0 && (
         <div className="mensaje-ok">

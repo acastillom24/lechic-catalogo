@@ -22,6 +22,15 @@ const config = {
   whatsapp: "51985219626",
   moneda: "S/",
 
+  // --- Datos legales del proveedor (hoja del Libro de Reclamaciones) ---
+  // Complétalos en /admin/configuracion → General. Sin ellos la hoja se muestra incompleta.
+  empresa: {
+    razonSocial: "",
+    ruc: "",
+    direccion: "",
+    email: "",
+  },
+
   // --- SEO (título y descripción que ven Google y las redes) ---
   seo: {
     titulo: "Le Chic · Catálogo de fragancias y belleza",

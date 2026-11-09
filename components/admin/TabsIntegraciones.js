@@ -1,0 +1,26 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+// Una pestaña por integración. Para sumar otra: agregar aquí su ruta y crear su página en
+// app/(admin)/admin/integraciones/<nombre>/page.js.
+const INTEGRACIONES = [["/admin/integraciones/saga", "SAGA"]];
+
+/** Pestañas de la sección Integraciones (SAGA y las que se agreguen). */
+export default function TabsIntegraciones() {
+  const pathname = usePathname();
+  return (
+    <nav className="admin-tabs" aria-label="Integraciones">
+      {INTEGRACIONES.map(([href, texto]) => (
+        <Link
+          key={href}
+          href={href}
+          className={pathname === href || pathname.startsWith(href + "/") ? "admin-tab activo" : "admin-tab"}
+        >
+          {texto}
+        </Link>
+      ))}
+    </nav>
+  );
+}

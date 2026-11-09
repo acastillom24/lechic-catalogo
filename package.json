@@ -10,6 +10,9 @@
     "lint": "next lint",
     "neon:schema": "node --env-file=.env.local scripts/neon-schema.js",
     "neon:schema:dev": "node --env-file=.env.dev scripts/neon-schema.js",
+    "saga:probar": "node --env-file=.env.dev scripts/saga-probar.js",
+    "saga:campos": "node --env-file=.env.dev scripts/saga-campos.js",
+    "saga:sku": "node --env-file=.env.dev scripts/saga-sku.js",
     "neon:importar": "node --env-file=.env.local scripts/importar-csv-neon.js",
     "fotos:analizar": "node --env-file=.env.local scripts/migrar-fotos.js",
     "fotos:subir": "node --env-file=.env.local scripts/migrar-fotos.js --subir",
@@ -27,7 +30,8 @@
     "pg": "^8.23.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "write-excel-file": "^4.1.1"
   },
   "devDependencies": {
     "eslint": "8.57.0",

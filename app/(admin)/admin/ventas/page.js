@@ -1,8 +1,12 @@
-import { getVentas } from "../../../../lib/ventas";
+import { getVentas, contarPendientes } from "../../../../lib/ventas";
 import { leerFiltrosVentas } from "../../../../lib/filtros-ventas";
+import { getOpcionesVentas } from "../../../../lib/ventas-opciones";
+import { ATAJOS, PERIODOS, hoyLima } from "../../../../lib/periodos";
 import { fechaISO } from "../../../../lib/ventas-core";
 import VentasBarra from "../../../../components/admin/VentasBarra";
 import Paginacion from "../../../../components/admin/Paginacion";
+import TabsVentas from "../../../../components/admin/TabsVentas";
+import EliminarVentaBoton from "../../../../components/admin/EliminarVentaBoton";
 
 export const metadata = { title: "Ventas · Panel Le Chic" };
 export const dynamic = "force-dynamic";
@@ -12,30 +16,58 @@ const fechaCorta = (f) => fechaISO(f).split("-").reverse().join("/");
 
 export default async function VentasPage({ searchParams }) {
   const params = await searchParams;
-  const filtros = leerFiltrosVentas(params);
+  const opciones = await getOpcionesVentas();
+  const filtros = leerFiltrosVentas(params, opciones);
   const paginaPedida = Math.max(1, parseInt(params?.pagina, 10) || 1);
-  const { filas, total, monto, adelanto, porPagina } = await getVentas(filtros, paginaPedida);
+  const [{ filas, total, monto, adelanto, porPagina }, pendientes] = await Promise.all([
+    getVentas(filtros, paginaPedida),
+    contarPendientes(),
+  ]);
   const paginas = Math.max(1, Math.ceil(total / porPagina));
   const pagina = Math.min(paginaPedida, paginas);
 
-  // Enlaces que conservan los filtros activos.
+  // Enlaces que conservan los filtros activos. El rango de fechas se pide por periodo, por día o por
+  // desde/hasta (en ese orden de prioridad); aquí se deja solo el que corresponde.
   const qs = (extra = {}) => {
+    const base = { ...filtros, ...extra };
+    if (base.periodo) {
+      delete base.desde; delete base.hasta; delete base.fecha;
+    } else if (base.fecha) {
+      delete base.desde; delete base.hasta;
+    }
     const u = new URLSearchParams();
-    for (const [k, v] of Object.entries({ ...filtros, ...extra })) if (v) u.set(k, String(v));
+    for (const [k, v] of Object.entries(base)) if (v) u.set(k, String(v));
     return u.toString();
   };
   const href = (extra = {}) => {
     const s = qs(extra);
     return s ? `/admin/ventas?${s}` : "/admin/ventas";
   };
+  const sinFechas = { periodo: "", fecha: "", desde: "", hasta: "" };
+  const hrefExportar = (formato) => {
+    const u = new URLSearchParams(qs());
+    if (formato) u.set("formato", formato);
+    return `/admin/ventas/exportar?${u.toString()}`;
+  };
+  const etiquetaDia = (f) => f.split("-").reverse().join("/");
+
+  const presets = ATAJOS.map((clave) => ({
+    clave,
+    texto: PERIODOS[clave],
+    href: href({ ...sinFechas, periodo: clave }),
+    activo: filtros.periodo === clave,
+  }));
 
   const chips = [
-    filtros.desde && { texto: `Desde ${filtros.desde}`, href: href({ desde: "" }) },
-    filtros.hasta && { texto: `Hasta ${filtros.hasta}`, href: href({ hasta: "" }) },
+    filtros.periodo && { texto: PERIODOS[filtros.periodo], href: href(sinFechas) },
+    filtros.fecha && { texto: `Día ${etiquetaDia(filtros.fecha)}`, href: href(sinFechas) },
+    !filtros.periodo && !filtros.fecha && filtros.desde && { texto: `Desde ${etiquetaDia(filtros.desde)}`, href: href({ desde: "" }) },
+    !filtros.periodo && !filtros.fecha && filtros.hasta && { texto: `Hasta ${etiquetaDia(filtros.hasta)}`, href: href({ hasta: "" }) },
     filtros.categoria && { texto: filtros.categoria, href: href({ categoria: "" }) },
     filtros.destino && { texto: `Entrega: ${filtros.destino}`, href: href({ destino: "" }) },
     filtros.estado && { texto: filtros.estado === "pendiente" ? "Pendientes" : "Cerradas", href: href({ estado: "" }) },
     filtros.tipo && { texto: filtros.tipo, href: href({ tipo: "" }) },
+    filtros.distrito && { texto: `Distrito: ${filtros.distrito}`, href: href({ distrito: "" }) },
     filtros.q && { texto: `"${filtros.q}"`, href: href({ q: "" }) },
   ].filter(Boolean);
 
@@ -44,8 +76,17 @@ export default async function VentasPage({ searchParams }) {
       <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
         <h1 className="admin-titulo">Ventas ({total.toLocaleString("es-PE")})</h1>
       </div>
+      <TabsVentas activo="ventas" pendientes={pendientes} />
 
-      <VentasBarra filtros={filtros} chips={chips} hrefExportar={`/admin/ventas/exportar?${qs()}`} />
+      <VentasBarra
+        filtros={filtros}
+        chips={chips}
+        opciones={opciones}
+        presets={presets}
+        hrefCsv={hrefExportar()}
+        hrefExcel={hrefExportar("xlsx")}
+        hoy={hoyLima()}
+      />
 
       <div className="kpi-grid">
         <div className="admin-card kpi">
@@ -72,13 +113,16 @@ export default async function VentasPage({ searchParams }) {
             <tr>
               <th>Fecha</th>
               <th>ID</th>
+              <th>Nombre</th>
+              <th>Distrito</th>
               <th>Categoría</th>
               <th>Entrega</th>
-              <th>Cliente</th>
+              <th>Tipo</th>
               <th>Monto</th>
               <th>Adelanto</th>
               <th>Estado</th>
               <th>Registró</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -88,6 +132,8 @@ export default async function VentasPage({ searchParams }) {
                 <td className="celda-producto" title={v.cliente_ref || undefined}>
                   {v.telefono}
                 </td>
+                <td>{v.cliente_nombre || "—"}</td>
+                <td>{v.distrito || "—"}</td>
                 <td>{v.categoria}</td>
                 <td>{[v.destino, v.courier].filter(Boolean).join(" · ") || "—"}</td>
                 <td>{v.tipo_cliente || "—"}</td>
@@ -99,11 +145,18 @@ export default async function VentasPage({ searchParams }) {
                   </span>
                 </td>
                 <td>{v.registrado_por_nombre || (v.origen === "csv" ? "Excel" : "—")}</td>
+                <td>
+                  {v.estado === "cerrada" && (
+                    <div className="acciones-fila">
+                      <EliminarVentaBoton id={v.id} resumen={`${fechaCorta(v.fecha)} · ${v.telefono} · ${soles(v.monto)}`} />
+                    </div>
+                  )}
+                </td>
               </tr>
             ))}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={9} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
+                <td colSpan={12} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
                   No hay ventas con esos filtros.
                 </td>
               </tr>

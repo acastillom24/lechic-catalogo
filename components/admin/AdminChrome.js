@@ -8,9 +8,10 @@ const ENLACES = [
   ["/admin/dashboard", "Dashboard", false],
   ["/admin", "Productos", true],
   ["/admin/ventas", "Ventas", false],
-  ["/admin/ventas/pendientes", "Pendientes", true],
   ["/admin/asistencias", "Asistencias", false],
   ["/admin/resenas", "Reseñas", false],
+  ["/admin/reclamos", "Reclamos", false],
+  ["/admin/integraciones", "Integraciones", false],
   ["/admin/configuracion", "Configuración", false],
 ];
 
@@ -20,7 +21,7 @@ const ENLACES = [
  * muestra: esa página tiene su propia pantalla completa y, además,
  * en ese punto todavía no hay sesión que cerrar.
  */
-export default function AdminChrome({ children }) {
+export default function AdminChrome({ children, reclamos = { abiertos: 0, vencidos: 0 } }) {
   const pathname = usePathname();
   const esLogin = pathname === "/admin/login";
 
@@ -42,6 +43,15 @@ export default function AdminChrome({ children }) {
             {ENLACES.map(([href, texto, exacto]) => (
               <Link key={href} href={href} className={activo(href, exacto) ? "activo" : undefined}>
                 {texto}
+                {href === "/admin/reclamos" && reclamos.abiertos > 0 && (
+                  <span
+                    className={reclamos.vencidos ? "chip-saga aviso" : "chip-saga ok"}
+                    style={{ marginLeft: 6 }}
+                    title={reclamos.vencidos ? `${reclamos.vencidos} con plazo vencido` : "Reclamos abiertos"}
+                  >
+                    {reclamos.abiertos}
+                  </span>
+                )}
               </Link>
             ))}
             <Link href="/" target="_blank">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   guardarConfiguracion,
   restablecerConfiguracion,
@@ -39,11 +39,44 @@ function aEnvio(c) {
   };
 }
 
+// Pestañas: cada sección del formulario del sitio pertenece a una; "equipo" y "saga"
+// llegan ya armadas desde la página (`extras`) porque son formularios aparte.
+const PESTANAS = [
+  ["general", "General"],
+  ["tienda", "Tienda"],
+  ["portada", "Portada y SEO"],
+  ["equipo", "Equipo"],
+  ["saga", "SAGA"],
+  ["ventas", "Ventas"],
+];
+const GRUPO_SECCION = {
+  "Identidad y contacto": "general",
+  "Horario de atención": "general",
+  "Formas de entrega": "tienda",
+  "Cómo comprar": "tienda",
+  Envíos: "tienda",
+  "Políticas de compra": "tienda",
+  "Bienvenida (portada)": "portada",
+  "SEO (Google y redes)": "portada",
+};
+
 const sepSeccion = { borderTop: "1px solid var(--linea)", paddingTop: 12 };
 
-export default function ConfiguracionForm({ inicial }) {
+export default function ConfiguracionForm({ inicial, extras = {} }) {
   const [estado, accion, enviando] = useActionState(guardarConfiguracion, {});
   const [c, setC] = useState(() => prepararInicial(inicial));
+  const [pestana, setPestana] = useState("general");
+
+  // La pestaña activa se recuerda en la URL (#saga) para poder recargar o compartir el enlace.
+  useEffect(() => {
+    const h = window.location.hash.replace("#", "");
+    if (PESTANAS.some(([id]) => id === h)) setPestana(h);
+  }, []);
+  const elegir = (id) => {
+    setPestana(id);
+    window.history.replaceState(null, "", `#${id}`);
+  };
+  const esSitio = !["equipo", "saga", "ventas"].includes(pestana);
 
   const upd = (fn) =>
     setC((prev) => {
@@ -65,13 +98,29 @@ export default function ConfiguracionForm({ inicial }) {
   );
 
   return (
-    <form action={accion} className="form-grid">
+    <div className="form-grid">
+    <nav className="pestanas" role="tablist" aria-label="Secciones de configuración">
+      {PESTANAS.map(([id, nombre]) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          aria-selected={pestana === id}
+          className={`pestana${pestana === id ? " activa" : ""}`}
+          onClick={() => elegir(id)}
+        >
+          {nombre}
+        </button>
+      ))}
+    </nav>
+
+    <form action={accion} className="form-grid" hidden={!esSitio}>
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
 
       <input type="hidden" name="configJson" value={JSON.stringify(aEnvio(c))} />
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "general"}>
         <h2>Identidad y contacto</h2>
         {campo("Nombre de la marca", c.marca, (v) => upd((n) => (n.marca = v)))}
         {campo("Instagram (usuario)", c.instagram, (v) => upd((n) => (n.instagram = v)), {
@@ -95,13 +144,27 @@ export default function ConfiguracionForm({ inicial }) {
         {campo("Moneda", c.moneda, (v) => upd((n) => (n.moneda = v)))}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "general"}>
+        <h2>Datos legales y Libro de Reclamaciones</h2>
+        <small style={{ color: "var(--gris)" }}>
+          Aparecen en la hoja de reclamación que ve y recibe el cliente. El correo recibe el aviso de cada reclamo nuevo.
+        </small>
+        {campo("Razón social", c.empresa?.razonSocial, (v) => upd((n) => ((n.empresa ||= {}).razonSocial = v)))}
+        {campo("RUC", c.empresa?.ruc, (v) => upd((n) => ((n.empresa ||= {}).ruc = v)), { ayuda: "11 dígitos." })}
+        {campo("Domicilio del proveedor", c.empresa?.direccion, (v) => upd((n) => ((n.empresa ||= {}).direccion = v)))}
+        {campo("Correo para recibir reclamos", c.empresa?.email, (v) => upd((n) => ((n.empresa ||= {}).email = v)), {
+          tipo: "email",
+          ayuda: "Si lo dejas vacío, se usa la variable RECLAMOS_EMAIL_TO.",
+        })}
+      </section>
+
+      <section className="admin-card form-grid" hidden={pestana !== "general"}>
         <h2>Horario de atención</h2>
         {campo("Horario", c.horario.texto, (v) => upd((n) => (n.horario.texto = v)))}
         {campo("Nota", c.horario.nota, (v) => upd((n) => (n.horario.nota = v)), { area: true })}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "tienda"}>
         <h2>Formas de entrega</h2>
         {c.entregas.map((e, i) => (
           <div key={e.id + i} className="form-grid" style={sepSeccion}>
@@ -135,7 +198,7 @@ export default function ConfiguracionForm({ inicial }) {
         )}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "tienda"}>
         <h2>Cómo comprar</h2>
         {campo("Pasos de la dinámica de compra", c.dinamicaCompra, (v) => upd((n) => (n.dinamicaCompra = v)), {
           area: true,
@@ -183,7 +246,7 @@ export default function ConfiguracionForm({ inicial }) {
         )}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "tienda"}>
         <h2>Envíos</h2>
         {campo("Lima", c.envios.lima, (v) => upd((n) => (n.envios.lima = v)), {
           area: true,
@@ -195,7 +258,7 @@ export default function ConfiguracionForm({ inicial }) {
         })}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "tienda"}>
         <h2>Políticas de compra</h2>
         {c.politicas.map((p, i) => (
           <div key={i} className="form-grid" style={sepSeccion}>
@@ -224,7 +287,7 @@ export default function ConfiguracionForm({ inicial }) {
         )}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "portada"}>
         <h2>Bienvenida (portada)</h2>
         {campo("Título", c.bienvenida.titulo, (v) => upd((n) => (n.bienvenida.titulo = v)), {
           area: true,
@@ -262,7 +325,7 @@ export default function ConfiguracionForm({ inicial }) {
         })}
       </section>
 
-      <section className="admin-card form-grid">
+      <section className="admin-card form-grid" hidden={pestana !== "portada"}>
         <h2>SEO (Google y redes)</h2>
         {campo("Título del sitio", c.seo.titulo, (v) => upd((n) => (n.seo.titulo = v)))}
         {campo("Descripción", c.seo.descripcion, (v) => upd((n) => (n.seo.descripcion = v)), {
@@ -288,5 +351,10 @@ export default function ConfiguracionForm({ inicial }) {
         </button>
       </div>
     </form>
+
+    <div className="form-grid" hidden={pestana !== "equipo"}>{extras.equipo}</div>
+    <div className="form-grid" hidden={pestana !== "saga"}>{extras.saga}</div>
+    <div className="form-grid" hidden={pestana !== "ventas"}>{extras.ventas}</div>
+    </div>
   );
 }

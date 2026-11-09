@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { IconoFiltro, IconoCerrar, IconoExportar, IconoCalendario } from "./Iconos";
-import { CATEGORIAS, DESTINOS } from "../../lib/ventas-core";
 
 /**
  * Filtros del dashboard (mismo estilo que la barra de Productos):
@@ -18,6 +17,7 @@ export default function DashboardFiltros({
   hoy,
   categoria,
   destino,
+  opciones,
   atajos,
   chips,
   hrefExportar,
@@ -59,7 +59,7 @@ export default function DashboardFiltros({
             <IconoFiltro size={16} />
             <select name="categoria" defaultValue={categoria || ""} aria-label="Categoría" onChange={enviar}>
               <option value="">Categoría: todas</option>
-              {CATEGORIAS.map((c) => (
+              {opciones.categorias.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
@@ -69,7 +69,7 @@ export default function DashboardFiltros({
             <IconoFiltro size={16} />
             <select name="destino" defaultValue={destino || ""} aria-label="Entrega" onChange={enviar}>
               <option value="">Entrega: todas</option>
-              {DESTINOS.map((d) => (
+              {opciones.destinos.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>

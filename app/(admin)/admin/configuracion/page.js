@@ -1,27 +1,51 @@
 import { getConfigSitio } from "../../../../lib/config";
+import { getOpcionesSaga } from "../../../../lib/saga-opciones";
+import { getCuentas } from "../../../../lib/saga-sync";
+import { getOpcionesVentas } from "../../../../lib/ventas-opciones";
+import VentasConfig from "../../../../components/admin/VentasConfig";
 import { listarUsuariosVentas } from "../../../../lib/ventas";
 import { listarColaboradores } from "../../../../lib/asistencias";
 import Colaboradores from "../../../../components/admin/Colaboradores";
 import ConfiguracionForm from "../../../../components/admin/ConfiguracionForm";
+import CuentasSaga from "../../../../components/admin/CuentasSaga";
+import SagaConfig from "../../../../components/admin/SagaConfig";
 import UsuariosVentas from "../../../../components/admin/UsuariosVentas";
 
 export const metadata = { title: "Configuración · Panel Le Chic" };
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
-  const [config, usuarios, colaboradores] = await Promise.all([
+  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas] = await Promise.all([
     getConfigSitio(),
     listarUsuariosVentas(),
     listarColaboradores(),
+    getOpcionesSaga(),
+    getCuentas(),
+    getOpcionesVentas(),
   ]);
   return (
     <div className="form-grid">
       <div className="admin-titulo-fila">
-        <h1 className="admin-titulo">Configuración del sitio</h1>
+        <h1 className="admin-titulo">Configuración</h1>
       </div>
-      <UsuariosVentas usuarios={usuarios} />
-      <Colaboradores colaboradores={colaboradores} />
-      <ConfiguracionForm inicial={config} />
+      <ConfiguracionForm
+        inicial={config}
+        extras={{
+          equipo: (
+            <>
+              <UsuariosVentas usuarios={usuarios} />
+              <Colaboradores colaboradores={colaboradores} />
+            </>
+          ),
+          ventas: <VentasConfig opciones={opcionesVentas} />,
+          saga: (
+            <>
+              <CuentasSaga cuentas={cuentasSaga} opciones={{ urlsBase: opcionesSaga.urlsBase, operadores: opcionesSaga.operadores }} />
+              <SagaConfig opciones={opcionesSaga} />
+            </>
+          ),
+        }}
+      />
     </div>
   );
 }

@@ -1,0 +1,72 @@
+"use client";
+
+/**
+ * Campos extra de la categoría SAGA elegida (ver lib/saga-campos.js). `campos` ya viene filtrado por nivel;
+ * `valores` = { FeedName: valor } (multi = lista). Cada cambio llama a onChange con los valores nuevos.
+ */
+export default function CamposExtra({ campos, valores, onChange, prefijo = "extra" }) {
+  const poner = (id, valor) => onChange({ ...valores, [id]: valor });
+
+  return (
+    <div className="form-grid">
+      {campos.map((c) => {
+        const valor = valores?.[c.id];
+        const idCampo = `${prefijo}-${c.id}`;
+        const etiqueta = (
+          <>
+            {c.etiqueta} {c.obligatorio && <em>obligatorio</em>}
+          </>
+        );
+
+        if (c.tipo === "multi") {
+          const marcados = Array.isArray(valor) ? valor : valor ? [valor] : [];
+          return (
+            <div className="campo" key={c.id}>
+              <label>{etiqueta}</label>
+              <div className="chips-grid">
+                {(c.opciones || []).map((o) => (
+                  <label className="campo-check" key={o}>
+                    <input
+                      type="checkbox"
+                      checked={marcados.includes(o)}
+                      onChange={(e) => poner(c.id, e.target.checked ? [...marcados, o] : marcados.filter((x) => x !== o))}
+                    />
+                    {o}
+                  </label>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        if (c.tipo === "lista") {
+          const fuera = valor && !(c.opciones || []).includes(valor);
+          return (
+            <div className="campo" key={c.id}>
+              <label htmlFor={idCampo}>{etiqueta}</label>
+              <select id={idCampo} value={valor || ""} onChange={(e) => poner(c.id, e.target.value)}>
+                <option value="">— Elegir —</option>
+                {fuera && <option value={valor}>{valor} (no está en la lista de SAGA)</option>}
+                {(c.opciones || []).map((o) => <option key={o} value={o}>{o}</option>)}
+              </select>
+            </div>
+          );
+        }
+
+        return (
+          <div className="campo" key={c.id}>
+            <label htmlFor={idCampo}>{etiqueta}</label>
+            <input
+              id={idCampo}
+              type={c.tipo === "numero" ? "number" : "text"}
+              step={c.tipo === "numero" ? "any" : undefined}
+              maxLength={c.max || undefined}
+              value={valor ?? ""}
+              onChange={(e) => poner(c.id, e.target.value)}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}

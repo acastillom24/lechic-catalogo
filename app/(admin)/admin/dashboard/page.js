@@ -3,6 +3,7 @@ import { getDashboardVentas, getVentasAnuales } from "../../../../lib/ventas";
 import { getResumenCatalogo } from "../../../../lib/dashboard";
 import { resolverPeriodo, hoyLima, ATAJOS, PERIODOS } from "../../../../lib/periodos";
 import { leerFiltrosVentas } from "../../../../lib/filtros-ventas";
+import { getOpcionesVentas } from "../../../../lib/ventas-opciones";
 import { TELEFONO_SIN_DATO } from "../../../../lib/ventas-core";
 import ComparativoAnual from "../../../../components/admin/dashboard/ComparativoAnual";
 import Tendencia from "../../../../components/admin/dashboard/Tendencia";
@@ -31,7 +32,8 @@ export default async function DashboardPage({ searchParams }) {
   const params = await searchParams;
   const tab = TABS.some(([k]) => k === params?.tab) ? params.tab : "ventas";
   const periodo = resolverPeriodo(params);
-  const { categoria, destino } = leerFiltrosVentas(params);
+  const opciones = await getOpcionesVentas();
+  const { categoria, destino } = leerFiltrosVentas(params, opciones);
 
   // Enlaces que conservan pestaña, periodo y filtros.
   const href = (extra = {}) => {
@@ -100,6 +102,7 @@ export default async function DashboardPage({ searchParams }) {
           hoy={hoyLima()}
           categoria={categoria}
           destino={destino}
+          opciones={opciones}
           atajos={atajos}
           chips={chips}
           hrefExportar={tab === "ventas" ? `/admin/ventas/exportar?${exportar}` : null}

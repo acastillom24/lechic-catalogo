@@ -797,3 +797,68 @@
 
 .delta-pos { color: #2e7d32; }
 .delta-neg { color: #c0392b; }
+
+
+/* ---------- Pestañas de configuración ---------- */
+.admin-card[hidden],
+.form-grid[hidden] {
+  display: none !important;
+}
+.pestanas {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--linea);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--papel);
+}
+.pestana {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  padding: 10px 16px;
+  font: inherit;
+  color: var(--gris);
+  cursor: pointer;
+}
+.pestana:hover {
+  color: var(--tinta);
+}
+.pestana.activa {
+  color: var(--tinta);
+  font-weight: 600;
+  border-bottom-color: var(--rosa);
+}
+
+/* ---------- Integración SAGA en el formulario de producto ---------- */
+.saga-panel { gap: 12px; }
+.saga-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.saga-cabecera h3 { font-size: 1rem; color: var(--tinta); margin: 0; }
+/* Panel de Integraciones plegable: el resumen es la cabecera y el cuerpo conserva el espaciado del panel. */
+.saga-principal > summary { cursor: pointer; list-style: none; justify-content: flex-start; gap: 10px; }
+.saga-principal > summary::-webkit-details-marker { display: none; }
+.saga-principal > summary::before { content: "▸"; color: var(--gris, #888); transition: transform .15s; }
+.saga-principal[open] > summary::before { transform: rotate(90deg); }
+.saga-principal[open] > summary { margin-bottom: 12px; }
+.saga-principal-cuerpo { gap: 12px; }
+.saga-seccion { border: 1px solid var(--borde, #e5e0dc); border-radius: 10px; background: var(--blanco, #fff); }
+.saga-seccion > summary {
+  cursor: pointer; list-style: none; padding: 10px 14px; font-weight: 600; color: var(--tinta);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.saga-seccion > summary::-webkit-details-marker { display: none; }
+.saga-seccion > summary::before { content: "▸"; color: var(--gris, #888); transition: transform .15s; }
+.saga-seccion[open] > summary::before { transform: rotate(90deg); }
+.saga-seccion > summary em { font-weight: 400; font-style: normal; font-size: .8rem; color: var(--gris, #888); }
+.saga-cuerpo { padding: 4px 14px 14px; }
+.campo label em { font-style: normal; font-size: .72rem; color: #b3261e; margin-left: 4px; }
+.saga-seccion > summary em { color: var(--gris, #888); }
+.chip-saga { font-size: .75rem; font-weight: 600; padding: 2px 10px; border-radius: 999px; }
+.chip-saga.ok { background: #e6f4ea; color: #1e6b35; }
+.chip-saga.aviso { background: #fdf0d5; color: #8a5a00; }
+.saga-faltantes { margin: 0; padding: 8px 12px 8px 28px; background: #fdf7e8; border-radius: 8px; font-size: .85rem; color: #6b4a00; }
+.chips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 14px; }
+.chips-grid .campo-check { font-size: .88rem; }
