@@ -306,7 +306,10 @@ function FilaProducto({ v, controlada, bajo, marcada, abierta, onAlternar, onMov
           )}
         </td>
         <td>{v.sku || vacio}</td>
-        <td>{v.marca}</td>
+        <td>
+          {v.marca}
+          {v.pestana && v.pestana !== v.marca ? <small style={{ color: "var(--gris)" }}> → {v.pestana}</small> : null}
+        </td>
         <td>
           {(v.sync || []).length === 0
             ? vacio

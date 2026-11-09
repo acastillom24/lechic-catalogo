@@ -33,15 +33,10 @@ public/images/productos/
 
 ## Variantes (1, 2, 3 o más tipos por perfume)
 
-Cada variante tiene su propia imagen. En `data/productos.js`, dentro del
-array `variantes`, cada objeto apunta a su archivo:
-
-```js
-variantes: [
-  { nombre: "Original", precio: 27, imagen: "/images/productos/importaciones/expression-original.png" },
-  { nombre: "Magic",    precio: 35, imagen: "/images/productos/importaciones/expression-magic.png" },
-]
-```
+Cada variante tiene su propia imagen. Los productos y sus variantes se
+administran desde el panel (`/admin`): al crear o editar un producto, cada
+variante lleva su propia foto. Para subir muchas fotos de una vez, usa
+«Subir imágenes en lote» (`/admin/imagenes`).
 
 - En la **tarjeta del catálogo** se muestra la primera variante + un aviso
   de cuántas presentaciones hay + el precio "desde".

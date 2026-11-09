@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getMarcas, getProducto } from "../../../../../lib/data";
+import { getMarcas, getPestanas, getProducto } from "../../../../../lib/data";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
 import SalesCabecera from "../../../../../components/sales/SalesCabecera";
 import { requerirUsuarioVentas, editarProductoVentas } from "../../actions";
@@ -23,7 +23,8 @@ export default async function EditarProductoVentasPage({ params }) {
           </div>
           <ProductoForm
             modo="editar"
-            marcas={getMarcas()}
+            marcas={await getMarcas()}
+            pestanas={await getPestanas()}
             producto={producto}
             accionGuardar={editarProductoVentas}
             restringido

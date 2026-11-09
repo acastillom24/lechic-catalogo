@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getMarcas, getProducto, getVariantesParaPack } from "../../../../../lib/data";
+import { getMarcas, getPestanas, getProducto, getVariantesParaPack } from "../../../../../lib/data";
 import { getCuentasActivas, getSincronizacionesProducto, getPreciosCanalProducto } from "../../../../../lib/saga-sync";
 import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
@@ -12,7 +12,7 @@ export default async function EditarProductoPage({ params }) {
   const producto = await getProducto(id, { incluirInactivas: true });
   if (!producto) notFound();
 
-  const marcas = getMarcas();
+  const [marcas, pestanas] = await Promise.all([getMarcas(), getPestanas()]);
   const opcionesSaga = await getOpcionesSaga();
   const cuentasSaga = (await getCuentasActivas()).map((c) => ({ alias: c.alias, nombre: c.nombre }));
   const sync = await getSincronizacionesProducto(producto.id);
@@ -38,7 +38,7 @@ export default async function EditarProductoPage({ params }) {
         <h1 className="admin-titulo">Editar producto</h1>
         <EliminarProductoBoton id={producto.id} nombre={producto.nombre} />
       </div>
-      <ProductoForm modo="editar" marcas={marcas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
+      <ProductoForm modo="editar" marcas={marcas} pestanas={pestanas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
     </div>
   );
 }

@@ -94,9 +94,11 @@ Entra a `tusitio.com/admin` con la contraseña que definiste en
   [`scripts/subir-imagenes-masivo.js`](scripts/subir-imagenes-masivo.js)
   (`npm run subir-imagenes -- ./carpeta`).
 
-Las **marcas y categorías** (`data/marcas.js`) y los **textos generales
-del sitio** (`data/config.js`: teléfono, Instagram, envíos, políticas)
-siguen editándose en el código, porque cambian muy poco — ver más abajo.
+Las **marcas**, las **pestañas de la web** y las **categorías** se
+configuran desde `/admin/configuracion` (pestañas «Marcas» y «Pestañas de
+la web») — ver más abajo. Los **textos generales del sitio**
+(`data/config.js`: teléfono, Instagram, envíos, políticas) también se
+editan desde Configuración; el archivo solo aporta los valores iniciales.
 
 ### Un límite a tener en cuenta: tamaño de las fotos
 
@@ -110,11 +112,46 @@ están optimizadas para web (unos cientos de KB cada una). Si notas un
 error al guardar un producto con muchas fotos grandes, guarda las
 variantes en dos tandas o comprime las imágenes antes de subirlas.
 
-### Marcas y categorías nuevas
+### Marcas, pestañas y categorías
 
-Si necesitas agregar una marca o categoría nueva, edita `data/marcas.js`,
-haz `git push`, y ya aparece disponible como opción en el formulario de
-`/admin`.
+Son tres conceptos independientes:
+
+- **Marca**: la del producto, la que se envía a SAGA. Cada marca tiene su
+  *nombre exacto en SAGA* y una *pestaña por defecto*.
+- **Pestaña**: dónde se muestra el producto en la web (menú y catálogo
+  `/marca/[slug]`). Cada pestaña tiene nombre, color, descripción y las
+  categorías que muestra.
+- **Categoría**: catálogo general; cada pestaña activa las que quiera.
+
+Todo se administra desde `/admin/configuracion`, sin tocar el código:
+
+- **Marcas**: agregar, ordenar, quitar y fijar el nombre en SAGA y la pestaña
+  por defecto.
+- **Pestañas de la web**: agregar/quitar pestañas, cambiar color y
+  descripción, activar con un click las categorías que se muestran y crear
+  categorías nuevas.
+
+En el formulario de producto se eligen Marca, Pestaña y Categoría. Al elegir
+la marca se autoselecciona su pestaña por defecto, pero se puede cambiar
+(por ejemplo, un producto de marca «Otras» puede ir en la pestaña «Ofertas»).
+No se puede quitar una marca, pestaña o categoría que tenga productos.
+
+`data/marcas.js` solo contiene los valores iniciales (se usan mientras no
+haya nada guardado). Los slugs `feminine`, `masculine` y `couples` determinan
+el formulario de perfumes y el género en SAGA: no los elimines.
+
+**Migración inicial** (una sola vez, antes de desplegar este cambio): agrega
+la columna `pestana`, copia la marca actual a la pestaña y pasa las marcas
+`ofertas`, `importaciones` y `hogar` a la marca `otras`.
+
+```bash
+npm run neon:migrar-pestanas:dev -- --dry-run   # solo muestra, no guarda (desarrollo)
+npm run neon:migrar-pestanas:dev                # aplica en desarrollo
+npm run neon:migrar-pestanas                    # aplica en producción
+```
+
+**CSV**: ahora incluye la columna `pestana` (después de `marca`). Si falta,
+se usa la pestaña por defecto de la marca.
 
 ### Inventario
 

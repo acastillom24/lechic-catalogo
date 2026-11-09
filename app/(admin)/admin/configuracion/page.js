@@ -2,6 +2,9 @@ import { getConfigSitio } from "../../../../lib/config";
 import { getOpcionesSaga } from "../../../../lib/saga-opciones";
 import { getCuentas } from "../../../../lib/saga-sync";
 import { getOpcionesVentas } from "../../../../lib/ventas-opciones";
+import { getConfigMarcas } from "../../../../lib/marcas-config";
+import MarcasConfig from "../../../../components/admin/MarcasConfig";
+import PestanasConfig from "../../../../components/admin/PestanasConfig";
 import VentasConfig from "../../../../components/admin/VentasConfig";
 import { listarUsuariosVentas } from "../../../../lib/ventas";
 import { listarColaboradores } from "../../../../lib/asistencias";
@@ -15,13 +18,14 @@ export const metadata = { title: "Configuración · Panel Le Chic" };
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
-  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas] = await Promise.all([
+  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas, cfgMarcas] = await Promise.all([
     getConfigSitio(),
     listarUsuariosVentas(),
     listarColaboradores(),
     getOpcionesSaga(),
     getCuentas(),
     getOpcionesVentas(),
+    getConfigMarcas(),
   ]);
   return (
     <div className="form-grid">
@@ -31,6 +35,8 @@ export default async function ConfiguracionPage() {
       <ConfiguracionForm
         inicial={config}
         extras={{
+          marcas: <MarcasConfig marcas={cfgMarcas.marcas} pestanas={cfgMarcas.pestanas.map(({ slug, nombre }) => ({ slug, nombre }))} />,
+          pestanasweb: <PestanasConfig pestanas={cfgMarcas.pestanasCrudas} categorias={cfgMarcas.categorias} />,
           equipo: (
             <>
               <UsuariosVentas usuarios={usuarios} />

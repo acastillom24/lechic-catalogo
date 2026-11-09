@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProducto, getMarca, getCategoria } from "../../../../lib/data";
+import { getProducto, getPestana, getCategoria } from "../../../../lib/data";
 import ProductDetail from "../../../../components/ProductDetail";
 import Resenas from "../../../../components/Resenas";
 import { getResumen, getResenas } from "../../../../lib/resenas";
@@ -30,8 +30,9 @@ export default async function ProductoPage({ params }) {
   const producto = await getProducto(id);
   if (!producto) notFound();
 
-  const marca = getMarca(producto.marca);
-  const categoria = getCategoria(producto.marca, producto.categoria);
+  // `marca` aquí es la pestaña donde se ubica el producto (breadcrumb, color).
+  const marca = await getPestana(producto.pestana);
+  const categoria = await getCategoria(producto.pestana, producto.categoria);
 
   const [resumen, iniciales] = await Promise.all([
     getResumen(producto.id),

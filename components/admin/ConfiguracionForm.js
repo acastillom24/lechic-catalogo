@@ -45,6 +45,8 @@ const PESTANAS = [
   ["general", "General"],
   ["tienda", "Tienda"],
   ["portada", "Portada y SEO"],
+  ["marcas", "Marcas"],
+  ["pestanasweb", "Pestañas de la web"],
   ["equipo", "Equipo"],
   ["saga", "SAGA"],
   ["ventas", "Ventas"],
@@ -76,7 +78,7 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
     setPestana(id);
     window.history.replaceState(null, "", `#${id}`);
   };
-  const esSitio = !["equipo", "saga", "ventas"].includes(pestana);
+  const esSitio = !["marcas", "pestanasweb", "equipo", "saga", "ventas"].includes(pestana);
 
   const upd = (fn) =>
     setC((prev) => {
@@ -352,6 +354,8 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
       </div>
     </form>
 
+    <div className="form-grid" hidden={pestana !== "marcas"}>{extras.marcas}</div>
+    <div className="form-grid" hidden={pestana !== "pestanasweb"}>{extras.pestanasweb}</div>
     <div className="form-grid" hidden={pestana !== "equipo"}>{extras.equipo}</div>
     <div className="form-grid" hidden={pestana !== "saga"}>{extras.saga}</div>
     <div className="form-grid" hidden={pestana !== "ventas"}>{extras.ventas}</div>

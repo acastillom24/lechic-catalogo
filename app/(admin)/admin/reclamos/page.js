@@ -64,7 +64,7 @@ export default async function AdminReclamosPage({ searchParams }) {
 
       {falloTabla && (
         <div className="mensaje-error">
-          No se pudo leer la tabla de reclamos. Aplica el esquema de la base de datos (<code>npm run neon:schema</code>).
+          No se pudo leer la tabla de reclamos. Puede que falte una actualización de la base de datos; contacta a soporte técnico.
         </div>
       )}
 

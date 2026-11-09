@@ -5,6 +5,7 @@ import { SeleccionProvider } from "../../lib/SelectionContext";
 import SelectionPanel from "../../components/SelectionPanel";
 import { ConfigProvider } from "../../lib/ConfigContext";
 import { getConfigSitio } from "../../lib/config";
+import { getPestanas } from "../../lib/marcas-config";
 import { Analytics } from "@vercel/analytics/next";
 
 export async function generateMetadata() {
@@ -13,7 +14,7 @@ export async function generateMetadata() {
 }
 
 export default async function RootLayout({ children }) {
-  const config = await getConfigSitio();
+  const [config, pestanas] = await Promise.all([getConfigSitio(), getPestanas()]);
   return (
     <html lang="es">
       <head>
@@ -31,7 +32,7 @@ export default async function RootLayout({ children }) {
       <body>
         <ConfigProvider valor={config}>
           <SeleccionProvider>
-            <Navbar />
+            <Navbar pestanas={pestanas.map(({ slug, nombre }) => ({ slug, nombre }))} />
             <main>{children}</main>
             <Footer />
             <SelectionPanel />

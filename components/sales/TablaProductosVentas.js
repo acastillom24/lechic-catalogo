@@ -50,7 +50,10 @@ export default function TablaProductosVentas({ filas }) {
                     )}
                   </td>
                   <td>{v.sku || vacio}</td>
-                  <td>{v.marca}</td>
+                  <td>
+                    {v.marca}
+                    {v.pestana && v.pestana !== v.marca ? <small style={{ color: "var(--gris)" }}> → {v.pestana}</small> : null}
+                  </td>
                   <td>
                     {controlada ? (
                       <strong>

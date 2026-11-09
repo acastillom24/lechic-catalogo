@@ -1,5 +1,5 @@
 import SalesCabecera from "../../../../../components/sales/SalesCabecera";
-import { getMarcas } from "../../../../../lib/data";
+import { getMarcas, getPestanas } from "../../../../../lib/data";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
 import { requerirUsuarioVentas, crearProductoVentas } from "../../actions";
 
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NuevoProductoVentasPage() {
   const usuario = await requerirUsuarioVentas();
-  const marcas = getMarcas();
+  const [marcas, pestanas] = await Promise.all([getMarcas(), getPestanas()]);
 
   return (
     <>
@@ -19,7 +19,7 @@ export default async function NuevoProductoVentasPage() {
           <div className="admin-titulo-fila">
             <h1 className="admin-titulo">Nuevo producto</h1>
           </div>
-          <ProductoForm modo="crear" marcas={marcas} accionGuardar={crearProductoVentas} />
+          <ProductoForm modo="crear" marcas={marcas} pestanas={pestanas} accionGuardar={crearProductoVentas} />
         </div>
       </main>
     </>

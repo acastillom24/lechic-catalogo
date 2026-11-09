@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import marcasEstaticas from "../data/marcas";
 import { useConfig } from "../lib/ConfigContext";
 import SelectionButton from "./SelectionButton";
 
-export default function Navbar() {
-  const marcas = marcasEstaticas;
+// `pestanas`: las pestañas de la web (Configuración → Pestañas), que llegan por props desde el layout.
+export default function Navbar({ pestanas = [] }) {
+  const marcas = pestanas;
   const config = useConfig();
   const [abierto, setAbierto] = useState(false);
   const palabrasMarca = config.marca.split(" ");
