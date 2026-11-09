@@ -4,7 +4,7 @@ import { useActionState } from "react";
 import { importarCsv } from "../../app/(admin)/admin/actions";
 
 const ENCABEZADOS =
-  "id_producto,marca,categoria,nombre_producto,descripcion,aromas_producto,destacado,nombre_variante,precio,precio_oferta,stock,imagen,aromas_variante";
+  "id_producto,marca,pestana,categoria,nombre_producto,descripcion,aromas_producto,destacado,nombre_variante,precio,precio_oferta,stock,imagen,aromas_variante";
 
 export default function ImportarCsvForm() {
   const [estado, accion, enviando] = useActionState(importarCsv, {});

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getMarcas, getProductosPorMarca } from "../../lib/data";
+import { getPestanas, getProductosPorPestana } from "../../lib/data";
 import { getConfigSitio } from "../../lib/config";
 import OfertasCarousel from "../../components/OfertasCarousel";
 
@@ -22,11 +22,12 @@ function elegirOfertasAleatorias(productos, cantidad) {
 }
 
 export default async function Home() {
-  const marcas = getMarcas();
+  const marcas = await getPestanas();
   const config = await getConfigSitio();
   const b = config.bienvenida;
 
-  const productosOferta = await getProductosPorMarca("ofertas");
+  // El carrusel destacado usa la pestaña con slug "ofertas".
+  const productosOferta = await getProductosPorPestana("ofertas");
   const ofertasDestacadas = elegirOfertasAleatorias(productosOferta, 6);
 
   return (

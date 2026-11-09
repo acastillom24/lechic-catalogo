@@ -20,6 +20,12 @@ create table if not exists productos (
 create index if not exists productos_marca_categoria_idx
   on productos (marca, categoria);
 
+-- Pestaña de la web donde se ubica el producto (independiente de la marca, que es la de SAGA).
+-- Backfill: scripts/migrar-marcas-pestanas.js (pestana = marca anterior).
+alter table productos add column if not exists pestana text;
+create index if not exists productos_pestana_categoria_idx
+  on productos (pestana, categoria);
+
 create table if not exists variantes (
   id            bigint generated always as identity primary key,
   producto_id   text not null references productos(id) on delete cascade,

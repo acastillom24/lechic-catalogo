@@ -60,15 +60,25 @@ function nuevaVariante() {
   };
 }
 
-export default function ProductoForm({ modo, marcas, producto, accionGuardar, restringido = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
+export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
   const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
   const [idTocadoManualmente, setIdTocadoManualmente] = useState(modo === "editar");
   const [marca, setMarca] = useState(producto?.marca || marcas[0]?.slug || "");
-  const marcaObj = marcas.find((m) => m.slug === marca);
-  const categorias = marcaObj?.categorias || [];
+  // Pestaña (ubicación en la web): independiente de la marca (la de SAGA). Al elegir marca se
+  // autoselecciona su pestaña por defecto, pero se puede cambiar.
+  const [pestana, setPestana] = useState(
+    producto?.pestana || marcas.find((m) => m.slug === (producto?.marca || marcas[0]?.slug))?.pestanaDefault || pestanas[0]?.slug || ""
+  );
+  const pestanaObj = pestanas.find((p) => p.slug === pestana);
+  const categorias = pestanaObj?.categorias || [];
   const [categoria, setCategoria] = useState(producto?.categoria || categorias[0]?.slug || "");
+  // Si el producto guardado usa una marca/pestaña/categoría que ya no está configurada, se muestra tal cual
+  // para no cambiarla en silencio al guardar.
+  const marcasOpc = marcas.some((m) => m.slug === marca) || !marca ? marcas : [...marcas, { slug: marca, nombre: `${marca} (no configurada)` }];
+  const pestanasOpc = pestanas.some((p) => p.slug === pestana) || !pestana ? pestanas : [...pestanas, { slug: pestana, nombre: `${pestana} (no configurada)` }];
+  const categoriasOpc = categorias.some((c) => c.slug === categoria) || !categoria ? categorias : [...categorias, { slug: categoria, nombre: `${categoria} (no activa en esta pestaña)` }];
   const [nombre, setNombre] = useState(producto?.nombre || "");
   const [descripcion, setDescripcion] = useState(producto?.descripcion || "");
   const [destacado, setDestacado] = useState(!!producto?.destacado);
@@ -248,10 +258,24 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar, re
     }
   }
 
+  // Cambiar la categoría solo si deja de existir en la nueva pestaña.
+  function ajustarCategoria(slugPestana) {
+    const cats = pestanas.find((p) => p.slug === slugPestana)?.categorias || [];
+    if (!cats.some((c) => c.slug === categoria)) setCategoria(cats[0]?.slug || "");
+  }
+
   function alCambiarMarca(nuevaMarca) {
     setMarca(nuevaMarca);
-    const primeraCategoria = marcas.find((m) => m.slug === nuevaMarca)?.categorias?.[0]?.slug || "";
-    setCategoria(primeraCategoria);
+    const sugerida = marcas.find((m) => m.slug === nuevaMarca)?.pestanaDefault;
+    if (sugerida && pestanas.some((p) => p.slug === sugerida)) {
+      setPestana(sugerida);
+      ajustarCategoria(sugerida);
+    }
+  }
+
+  function alCambiarPestana(nuevaPestana) {
+    setPestana(nuevaPestana);
+    ajustarCategoria(nuevaPestana);
   }
 
   // Largo del nombre que recibe SAGA (producto + variante, salvo "Único"): se toma el peor caso.
@@ -387,9 +411,19 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar, re
         <div className="campo">
           <label htmlFor="marca">Marca</label>
           <select id="marca" name="marca" value={marca} onChange={(e) => alCambiarMarca(e.target.value)}>
-            {marcas.map((m) => (
+            {marcasOpc.map((m) => (
               <option key={m.slug} value={m.slug}>
                 {m.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="campo">
+          <label htmlFor="pestana">Pestaña (dónde se muestra en la web)</label>
+          <select id="pestana" name="pestana" value={pestana} onChange={(e) => alCambiarPestana(e.target.value)}>
+            {pestanasOpc.map((p) => (
+              <option key={p.slug} value={p.slug}>
+                {p.nombre}
               </option>
             ))}
           </select>
@@ -402,7 +436,7 @@ export default function ProductoForm({ modo, marcas, producto, accionGuardar, re
             value={categoria}
             onChange={(e) => setCategoria(e.target.value)}
           >
-            {categorias.map((c) => (
+            {categoriasOpc.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.nombre}
               </option>

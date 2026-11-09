@@ -13,7 +13,7 @@ import {
 } from "../../../lib/auth";
 import { query, transaction } from "../../../lib/db";
 import { slugify } from "../../../lib/slug";
-import { getMarca, getCategoria } from "../../../lib/data";
+import { getMarcas, getPestanas } from "../../../lib/data";
 import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
 import { fijarStock } from "../../../lib/inventario";
 import { refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock } from "../../../lib/saga-sync";
@@ -105,11 +105,11 @@ async function agotarEnSaga(productoIds) {
 
 export async function eliminarProducto(id) {
   await agotarEnSaga([id]);
-  const [producto] = await query("select marca from productos where id = $1", [id]);
+  const [producto] = await query("select coalesce(pestana, marca) as pestana from productos where id = $1", [id]);
   await query("delete from productos where id = $1", [id]);
 
   revalidatePath("/", "layout");
-  if (producto?.marca) revalidatePath(`/marca/${producto.marca}`);
+  if (producto?.pestana) revalidatePath(`/marca/${producto.pestana}`);
   revalidatePath("/admin");
   redirect("/admin?eliminado=1");
 }
@@ -120,11 +120,11 @@ export async function eliminarProductos(ids) {
   if (!lista.length || lista.length > 500) redirect("/admin");
 
   await agotarEnSaga(lista);
-  const marcas = await query("select distinct marca from productos where id = any($1::text[])", [lista]);
+  const pestanas = await query("select distinct coalesce(pestana, marca) as pestana from productos where id = any($1::text[])", [lista]);
   const borrados = await query("delete from productos where id = any($1::text[]) returning id", [lista]);
 
   revalidatePath("/", "layout");
-  for (const { marca } of marcas) revalidatePath(`/marca/${marca}`);
+  for (const { pestana } of pestanas) revalidatePath(`/marca/${pestana}`);
   revalidatePath("/admin");
   redirect(`/admin?eliminados=${borrados.length}`);
 }
@@ -183,6 +183,8 @@ export async function importarCsv(prevState, formData) {
   const filas = resultado.data;
   if (!filas.length) return { error: "El archivo no tiene filas." };
 
+  const [marcasCfg, pestanasCfg] = await Promise.all([getMarcas(), getPestanas()]);
+
   // Agrupa filas por producto, preservando el orden de aparición.
   const productosPorId = new Map();
   const omitidas = [];
@@ -194,14 +196,28 @@ export async function importarCsv(prevState, formData) {
       omitidas.push(`Fila ${numeroFila}: falta "nombre_producto".`);
       return;
     }
-    const marca = (fila.marca || "").toString().trim();
+    let marca = (fila.marca || "").toString().trim();
+    let pestana = (fila.pestana || "").toString().trim();
     const categoria = (fila.categoria || "").toString().trim();
-    if (!marca || !getMarca(marca)) {
+    // CSV antiguo (sin columna "pestana"): si la "marca" es en realidad una pestaña (ofertas,
+    // importaciones, hogar…), la marca pasa a "otras" y esa pestaña se conserva.
+    if (marca && !marcasCfg.some((m) => m.slug === marca) && !pestana && pestanasCfg.some((p) => p.slug === marca) && marcasCfg.some((m) => m.slug === "otras")) {
+      pestana = marca;
+      marca = "otras";
+    }
+    const marcaCfg = marcasCfg.find((m) => m.slug === marca);
+    if (!marca || !marcaCfg) {
       omitidas.push(`Fila ${numeroFila}: la marca "${marca}" no existe.`);
       return;
     }
-    if (!categoria || !getCategoria(marca, categoria)) {
-      omitidas.push(`Fila ${numeroFila}: la categoría "${categoria}" no existe en "${marca}".`);
+    if (!pestana) pestana = marcaCfg.pestanaDefault;
+    const pestanaCfg = pestanasCfg.find((p) => p.slug === pestana);
+    if (!pestanaCfg) {
+      omitidas.push(`Fila ${numeroFila}: la pestaña "${pestana}" no existe.`);
+      return;
+    }
+    if (!categoria || !pestanaCfg.categorias.some((c) => c.slug === categoria)) {
+      omitidas.push(`Fila ${numeroFila}: la categoría "${categoria}" no está activa en la pestaña "${pestana}".`);
       return;
     }
 
@@ -216,6 +232,7 @@ export async function importarCsv(prevState, formData) {
       productosPorId.set(id, {
         id,
         marca,
+        pestana,
         categoria,
         nombre: nombreProducto,
         descripcion: (fila.descripcion || "").toString().trim(),
@@ -276,12 +293,12 @@ export async function importarCsv(prevState, formData) {
       for (const x of quitadas) await sincronizarStockVariante(Number(x.id), { cero: true }); // antes de que se borren
       await transaction((t) => [
         t.query(
-          `insert into productos (id, marca, categoria, nombre, descripcion, aromas, destacado, orden)
-           values ($1,$2,$3,$4,$5,$6,$7,$8)
-           on conflict (id) do update set marca=excluded.marca, categoria=excluded.categoria,
+          `insert into productos (id, marca, pestana, categoria, nombre, descripcion, aromas, destacado, orden)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+           on conflict (id) do update set marca=excluded.marca, pestana=excluded.pestana, categoria=excluded.categoria,
              nombre=excluded.nombre, descripcion=excluded.descripcion, aromas=excluded.aromas,
              destacado=excluded.destacado, orden=excluded.orden`,
-          [p.id, p.marca, p.categoria, p.nombre, p.descripcion, p.aromas, p.destacado, Date.now()]
+          [p.id, p.marca, p.pestana, p.categoria, p.nombre, p.descripcion, p.aromas, p.destacado, Date.now()]
         ),
         // Variantes: se actualizan (por SKU o, sin SKU, por nombre) en vez de
         // borrar y reinsertar, para conservar stock e historial.
@@ -357,7 +374,7 @@ export async function importarCsv(prevState, formData) {
         }
       }
       ok++;
-      marcasTocadas.add(p.marca);
+      marcasTocadas.add(p.pestana);
     } catch (err) {
       errores.push(`${p.id}: ${err.message}`);
     }
@@ -706,18 +723,6 @@ function listaOpciones(formData, campo, etiqueta, { max = 500 } = {}) {
 export async function guardarOpcionesSaga(prevState, formData) {
   let valor;
   try {
-    const marcas = {};
-    for (const linea of (formData.get("marcas") || "").toString().split("\n")) {
-      const l = linea.trim();
-      if (!l) continue;
-      const i = l.indexOf("=");
-      const slug = i > 0 ? l.slice(0, i).trim() : "";
-      const nombre = i > 0 ? l.slice(i + 1).trim() : "";
-      if (!/^[a-z0-9-]+$/.test(slug) || !nombre || nombre.length > 100) {
-        throw new Error(`Marca inválida: "${l}". Usa el formato  slug = Nombre exacto en SAGA.`);
-      }
-      marcas[slug] = nombre;
-    }
     let acciones;
     try {
       acciones = JSON.parse((formData.get("accionesJson") || "[]").toString());
@@ -770,7 +775,6 @@ export async function guardarOpcionesSaga(prevState, formData) {
       formatosBelleza: listaOpciones(formData, "formatosBelleza", "Formatos de belleza", { max: 100 }),
       paises: listaOpciones(formData, "paises", "Países", { max: 400 }),
       caracteristicas: listaOpciones(formData, "caracteristicas", "Características", { max: 300 }),
-      marcas,
       categorias,
       acciones,
       urlsBase: listaOpciones(formData, "urlsBase", "URLs base de Seller Center", { max: 20 }),
@@ -800,6 +804,149 @@ export async function restablecerOpcionesSaga() {
   await query("delete from configuracion where clave = 'saga_opciones'");
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/productos", "layout");
+}
+
+// ============================================================
+//  MARCAS, PESTAÑAS Y CATEGORÍAS
+// ============================================================
+//  Se guardan en `configuracion` (claves "marcas", "pestanas", "categorias").
+//  Lo no guardado cae a data/marcas.js. Ver lib/marcas-config.js.
+
+const SLUG_CONFIG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function listaJson(formData, campo, etiqueta) {
+  let lista;
+  try {
+    lista = JSON.parse((formData.get(campo) || "[]").toString());
+  } catch {
+    throw new Error(`No se pudo leer ${etiqueta}. Recarga la página e inténtalo de nuevo.`);
+  }
+  if (!Array.isArray(lista) || lista.length > 200) throw new Error(`${etiqueta}: lista inválida.`);
+  return lista;
+}
+
+function slugConfig(valor, etiqueta) {
+  const slug = String(valor || "").trim();
+  if (!SLUG_CONFIG.test(slug) || slug.length > 60) {
+    throw new Error(`${etiqueta}: el identificador "${slug}" solo admite minúsculas, números y guiones (ej. mi-marca).`);
+  }
+  return slug;
+}
+
+function textoConfig(valor, etiqueta, max, { requerido = false } = {}) {
+  const t = String(valor ?? "").trim();
+  if (requerido && !t) throw new Error(`${etiqueta}: falta el nombre.`);
+  if (t.length > max) throw new Error(`${etiqueta}: máximo ${max} caracteres.`);
+  return t;
+}
+
+async function guardarClaveConfiguracion(clave, valor) {
+  await query(
+    `insert into configuracion (clave, valor) values ($1, $2::jsonb)
+     on conflict (clave) do update set valor = excluded.valor, updated_at = now()`,
+    [clave, JSON.stringify(valor)]
+  );
+}
+
+function revalidarMarcasPestanas() {
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/productos", "layout");
+  revalidatePath("/sales/productos", "layout");
+}
+
+/** Marcas (las que se envían a SAGA): slug, nombre, nombre exacto en SAGA y pestaña por defecto. */
+export async function guardarMarcasConfig(prevState, formData) {
+  try {
+    const lista = listaJson(formData, "marcasJson", "las marcas");
+    const pestanas = await getPestanas();
+    const slugsPestana = new Set(pestanas.map((p) => p.slug));
+    const vistos = new Set();
+    const marcas = lista.map((m, i) => {
+      const slug = slugConfig(m?.slug, `Marca ${i + 1}`);
+      if (vistos.has(slug)) throw new Error(`Marca repetida: "${slug}".`);
+      vistos.add(slug);
+      const nombre = textoConfig(m.nombre, `Marca "${slug}"`, 60, { requerido: true });
+      const nombreSaga = textoConfig(m.nombreSaga, `Marca "${slug}" (nombre en SAGA)`, 100);
+      const pestanaDefault = String(m.pestanaDefault || "");
+      if (!slugsPestana.has(pestanaDefault)) throw new Error(`Marca "${nombre}": elige una pestaña por defecto válida.`);
+      return { slug, nombre, nombreSaga, pestanaDefault };
+    });
+    if (!marcas.length) throw new Error("Agrega al menos una marca.");
+
+    const usadas = await query("select marca, count(*)::int as n from productos group by marca");
+    const enUso = usadas.find((u) => !vistos.has(u.marca));
+    if (enUso) {
+      throw new Error(
+        `No puedes quitar la marca "${enUso.marca}": ${enUso.n} producto(s) la usan. Cámbialos de marca primero.`
+      );
+    }
+    await guardarClaveConfiguracion("marcas", marcas);
+  } catch (err) {
+    return { error: err.message || "No se pudo guardar." };
+  }
+  revalidarMarcasPestanas();
+  return { ok: "Marcas guardadas.", n: Date.now() };
+}
+
+/** Catálogo de categorías + pestañas (con las categorías activas de cada una). */
+export async function guardarPestanasConfig(prevState, formData) {
+  try {
+    const categoriasEntrada = listaJson(formData, "categoriasJson", "las categorías");
+    const slugsCat = new Set();
+    const categorias = categoriasEntrada.map((c, i) => {
+      const slug = slugConfig(c?.slug, `Categoría ${i + 1}`);
+      if (slugsCat.has(slug)) throw new Error(`Categoría repetida: "${slug}".`);
+      slugsCat.add(slug);
+      return { slug, nombre: textoConfig(c.nombre, `Categoría "${slug}"`, 60, { requerido: true }) };
+    });
+    if (!categorias.length) throw new Error("Agrega al menos una categoría.");
+
+    const slugsPest = new Set();
+    const pestanas = listaJson(formData, "pestanasJson", "las pestañas").map((p, i) => {
+      const slug = slugConfig(p?.slug, `Pestaña ${i + 1}`);
+      if (slugsPest.has(slug)) throw new Error(`Pestaña repetida: "${slug}".`);
+      slugsPest.add(slug);
+      const nombre = textoConfig(p.nombre, `Pestaña "${slug}"`, 60, { requerido: true });
+      const color = String(p.color || "");
+      if (!/^#[0-9a-fA-F]{6}$/.test(color)) throw new Error(`Pestaña "${nombre}": color inválido (formato #RRGGBB).`);
+      const activas = [...new Set((Array.isArray(p.categorias) ? p.categorias : []).map(String))];
+      const mala = activas.find((s) => !slugsCat.has(s));
+      if (mala) throw new Error(`Pestaña "${nombre}": la categoría "${mala}" no existe.`);
+      return { slug, nombre, descripcion: textoConfig(p.descripcion, `Pestaña "${nombre}" (descripción)`, 300), color, categorias: activas };
+    });
+    if (!pestanas.length) throw new Error("Agrega al menos una pestaña.");
+
+    // Las marcas guardadas deben apuntar a una pestaña que siga existiendo.
+    const marcasActuales = await getMarcas();
+    const huerfana = marcasActuales.find((m) => !slugsPest.has(m.pestanaDefault));
+    if (huerfana) throw new Error(`La marca "${huerfana.nombre}" usa la pestaña "${huerfana.pestanaDefault}" por defecto. Cámbiala en Marcas antes de quitar esa pestaña.`);
+
+    // No se puede dejar un producto en una pestaña/categoría que ya no existe o no está activa.
+    const usos = await query("select coalesce(pestana, marca) as pestana, categoria, count(*)::int as n from productos group by 1, 2");
+    const activasPorPestana = new Map(pestanas.map((p) => [p.slug, new Set(p.categorias)]));
+    for (const u of usos) {
+      if (!activasPorPestana.has(u.pestana)) {
+        throw new Error(`No puedes quitar la pestaña "${u.pestana}": ${u.n} producto(s) están en ella.`);
+      }
+      if (!activasPorPestana.get(u.pestana).has(u.categoria)) {
+        throw new Error(`No puedes desactivar la categoría "${u.categoria}" en la pestaña "${u.pestana}": ${u.n} producto(s) la usan.`);
+      }
+    }
+
+    await guardarClaveConfiguracion("categorias", categorias);
+    await guardarClaveConfiguracion("pestanas", pestanas);
+  } catch (err) {
+    return { error: err.message || "No se pudo guardar." };
+  }
+  revalidarMarcasPestanas();
+  return { ok: "Pestañas y categorías guardadas.", n: Date.now() };
+}
+
+/** Vuelve a los valores de data/marcas.js. */
+export async function restablecerMarcasPestanas() {
+  await query("delete from configuracion where clave = any($1)", [["marcas", "pestanas", "categorias"]]);
+  revalidarMarcasPestanas();
 }
 
 /** Consulta a SAGA el estado de los envíos y reintenta ahora los avisos de stock que fallaron. */

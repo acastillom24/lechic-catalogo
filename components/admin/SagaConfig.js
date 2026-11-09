@@ -21,9 +21,6 @@ function Lista({ nombre, etiqueta, ayuda, valores, filas = 6 }) {
 export default function SagaConfig({ opciones }) {
   const [estado, accion, enviando] = useActionState(guardarOpcionesSaga, {});
   const categoriasTexto = (opciones.categorias || []).map((c) => `${c.id} = ${c.nombre}`).join("\n");
-  const marcasTexto = Object.entries(opciones.marcas || {})
-    .map(([slug, nombre]) => `${slug} = ${nombre}`)
-    .join("\n");
 
   return (
     <form action={accion} className="form-grid" key={estado?.n || 0}>
@@ -47,7 +44,7 @@ export default function SagaConfig({ opciones }) {
           <textarea id="saga-categorias" name="categorias" rows={5} defaultValue={categoriasTexto} />
           <small style={{ color: "var(--gris)" }}>
             Una por línea: <code>id = Descripción</code> (ej. <code>1735 = Fragancias|perfumes</code>). Usa el id de una
-            categoría hoja (★). Para buscarlas: <code>npm run saga:probar -- --arbol texto</code>.
+            categoría final de SAGA (la más específica, sin subcategorías).
           </small>
         </div>
       </section>
@@ -56,8 +53,8 @@ export default function SagaConfig({ opciones }) {
         <h2>Campos extra por categoría</h2>
         <small style={{ color: "var(--gris)" }}>
           Marca qué campos de SAGA aparecen en el formulario de producto al elegir cada categoría. Los obligatorios de SAGA
-          siempre se muestran. Los campos salen del catálogo de SAGA (<code>npm run saga:campos -- idCategoria</code> agrega o
-          actualiza una categoría). Perfumes (1735) usa su propio formulario.
+          siempre se muestran. Los campos disponibles provienen del catálogo de SAGA. Perfumes (1735) usa su propio
+          formulario.
         </small>
         {(opciones.categorias || []).filter((c) => c.id !== PERFUME).map((c) => {
           const campos = camposDe(c.id);
@@ -70,7 +67,7 @@ export default function SagaConfig({ opciones }) {
               </summary>
               <div className="saga-cuerpo form-grid">
                 {!campos.length ? (
-                  <small>No hay campos guardados para esta categoría. Ejecuta <code>npm run saga:campos -- {c.id}</code>.</small>
+                  <small>Aún no hay campos disponibles para esta categoría. Solicita que se carguen los campos de SAGA para la categoría {c.id}.</small>
                 ) : (
                   <>
                     <input type="hidden" name={`extrasMarca_${c.id}`} value="1" />
@@ -108,15 +105,10 @@ export default function SagaConfig({ opciones }) {
 
       <section className="admin-card form-grid">
         <h2>Marcas</h2>
-        <div className="campo">
-          <label htmlFor="saga-marcas">Marca de la web → nombre exacto en SAGA</label>
-          <textarea id="saga-marcas" name="marcas" rows={10} defaultValue={marcasTexto} />
-          <small style={{ color: "var(--gris)" }}>
-            Una por línea: <code>slug = Nombre en SAGA</code> (ej. <code>esika = Esika</code>). Una marca sin
-            línea aquí no se envía a SAGA. Para buscar el nombre exacto:{" "}
-            <code>npm run saga:probar -- --marcas texto</code>.
-          </small>
-        </div>
+        <small style={{ color: "var(--gris)" }}>
+          Las marcas y su nombre exacto en SAGA se configuran en la pestaña <strong>Marcas</strong> de esta misma
+          página de Configuración.
+        </small>
       </section>
 
       <section className="admin-card form-grid">
