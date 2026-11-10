@@ -279,6 +279,8 @@ alter table variantes add column if not exists registro_sanitario text;
 alter table variantes add column if not exists descripcion        text;    -- si está vacía se usa la del producto
 alter table variantes add column if not exists cantidad_empaque   text;    -- CantidadContenidaEnElEmpaque, ej. "100ML"
 alter table variantes add column if not exists aromas_saga        text[] not null default '{}';  -- FraganciaPerfume (lista de SAGA)
+alter table variantes add column if not exists notas_saga         text;    -- NotasAromaticas en SAGA; vacío = se usan los atributos web (aromas)
+alter table variantes add column if not exists saga_combinar_nombre boolean not null default true;  -- true: SAGA recibe «producto + variante»; false: solo el nombre del producto
 
 -- Migraciones desde versiones anteriores de este esquema (idempotentes).
 do $$

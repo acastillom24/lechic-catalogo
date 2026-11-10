@@ -862,3 +862,88 @@
 .saga-faltantes { margin: 0; padding: 8px 12px 8px 28px; background: #fdf7e8; border-radius: 8px; font-size: .85rem; color: #6b4a00; }
 .chips-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 6px 14px; }
 .chips-grid .campo-check { font-size: .88rem; }
+
+/* ============================================================
+   Formulario de producto (crear / editar): secciones Web → Variantes → Plataformas → Resumen
+   ============================================================ */
+.pf { display: grid; gap: 20px; }
+
+/* Barra pegajosa: nombre y estado, navegación por secciones y Guardar siempre visible. */
+.pf-barra {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 10px 16px; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio);
+  box-shadow: 0 2px 10px rgba(122, 45, 87, 0.08);
+}
+.pf-barra-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; flex: 1 1 260px; }
+.pf-barra-info strong { color: var(--tinta); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px; }
+.pf-nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.pf-nav a { padding: 6px 12px; border-radius: 999px; font-size: 0.82rem; color: var(--gris); }
+.pf-nav a:hover { background: var(--rosa-tenue); color: var(--rosa-hover); }
+html { scroll-behavior: smooth; }
+.pf-seccion, .pf-variante { scroll-margin-top: 84px; }
+
+.pf-seccion { display: grid; gap: 16px; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio); padding: 22px; }
+.pf-seccion-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pf-seccion-cab h3 { margin: 0; font-size: 1.05rem; color: var(--tinta); display: flex; align-items: center; gap: 8px; }
+.pf-seccion-cab small { display: block; color: var(--gris); font-size: 0.8rem; margin-top: 2px; }
+.pf-seccion-saga { border-left: 4px solid var(--rosa); }
+.pf-sello { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; padding: 2px 8px; border-radius: 4px; background: var(--rosa-tenue); color: var(--rosa-hover); }
+
+.pf-grid-2, .pf-grid-3, .pf-grid-4 { display: grid; gap: 16px; }
+.pf-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pf-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pf-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.pf-cuentas { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+
+/* Variante plegable: el resumen muestra lo esencial aunque esté cerrada. */
+.pf-variante { border: 1px solid var(--linea); border-radius: var(--radio); background: var(--papel); }
+.pf-var-resumen {
+  display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 12px 16px; cursor: pointer; list-style: none;
+}
+.pf-var-resumen::-webkit-details-marker { display: none; }
+.pf-var-resumen::before { content: "▸"; color: var(--gris); transition: transform 0.15s; }
+.pf-variante[open] > .pf-var-resumen::before { transform: rotate(90deg); }
+.pf-var-n { width: 24px; height: 24px; border-radius: 50%; background: var(--rosa); color: #fff; font-size: 0.75rem; font-weight: 600; display: grid; place-items: center; }
+.pf-var-nombre { color: var(--tinta); }
+.pf-var-dato { font-size: 0.82rem; color: var(--gris); }
+.pf-var-cuerpo { display: grid; gap: 14px; padding: 4px 16px 16px; }
+.pf-var-opciones { display: flex; align-items: center; gap: 8px 22px; flex-wrap: wrap; }
+.pf-var-quitar { margin-left: auto; }
+.pf-bloque { display: grid; gap: 12px; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio); padding: 14px 16px; }
+.pf-bloque h5 { margin: 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--rosa); font-weight: 600; }
+.pf-bloque-saga { border-left: 4px solid var(--rosa); padding: 0; }
+.pf-traer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+.pf-imagen-fila { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 16px; align-items: start; }
+.pf-imagen .imagen-actual { max-width: 120px; display: block; margin-bottom: 8px; border-radius: var(--radio); }
+.pf-precios-plataforma { border-top: 1px dashed var(--linea); padding-top: 10px; }
+
+/* Sugerencias de la lista que corresponde (aromas de SAGA, etc.) */
+.pf-sugerencias { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.pf-sugerencias small { margin: 0; }
+.pf-chip { font: inherit; font-size: 0.78rem; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--linea); background: #fff; color: var(--gris); cursor: pointer; }
+.pf-chip:hover { border-color: var(--rosa); color: var(--rosa-hover); }
+.pf-chip.activo { background: var(--rosa-tenue); border-color: var(--rosa); color: var(--rosa-hover); font-weight: 600; }
+
+/* Resumen por plataforma */
+.pf-resumen-cuenta { display: grid; gap: 10px; }
+.pf-resumen-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pf-resumen .admin-tabla { width: 100%; }
+.pf-faltas { margin: 6px 0 0; padding-left: 18px; font-size: 0.82rem; color: #6b4a00; }
+.pf-vacio { margin: 0; color: var(--gris); }
+.pf-pie { display: flex; justify-content: flex-end; }
+
+@media (max-width: 900px) {
+  .pf-grid-3, .pf-grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pf-imagen-fila { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .pf-grid-2, .pf-grid-3, .pf-grid-4 { grid-template-columns: 1fr; }
+  .pf-seccion { padding: 16px; }
+  .pf-barra { padding: 8px 12px; gap: 8px; }
+  .pf-barra-info { flex-basis: 100%; }
+  .pf-nav { order: 3; flex-basis: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .pf-var-quitar { margin-left: 0; }
+}
+
+.admin-tabla-wrap { overflow-x: auto; }
