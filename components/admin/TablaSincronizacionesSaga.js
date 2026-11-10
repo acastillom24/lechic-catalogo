@@ -15,7 +15,7 @@ const fechaHora = (x) =>
  * consultar a SAGA si ya terminó de procesar los envíos. El panel /operaciones pasa en `acciones`
  * sus propias versiones, limitadas a las filas del usuario.
  */
-export default function TablaSincronizacionesSaga({ filas, estado, rutaProducto = "/admin/productos", acciones = {} }) {
+export default function TablaSincronizacionesSaga({ filas, estado, rutaProducto = "/admin/productos", acciones = {}, mostrarUsuario = false }) {
   const reintentarTodo = acciones.reintentarTodo || reintentarTodoStockSaga;
   const reintentar = acciones.reintentar || reintentarStockSaga;
   const actualizar = acciones.actualizar || actualizarEstadoSaga;
@@ -80,6 +80,7 @@ export default function TablaSincronizacionesSaga({ filas, estado, rutaProducto 
                 <th>Producto</th>
                 <th>SKU</th>
                 <th>Cuenta</th>
+                {mostrarUsuario && <th>Usuario</th>}
                 <th>Detalle</th>
                 <th>Stock web → SAGA</th>
                 {esError && <th>Intentos</th>}
@@ -99,6 +100,7 @@ export default function TablaSincronizacionesSaga({ filas, estado, rutaProducto 
                     </td>
                     <td>{f.sku || "—"}</td>
                     <td>{f.cuenta}</td>
+                    {mostrarUsuario && <td>{f.usuario_panel || "Admin / automático"}</td>}
                     <td style={{ maxWidth: 360 }}>
                       {esError && (
                         <span className={f.stock_pendiente ? "chip-saga aviso" : "chip-saga"}>

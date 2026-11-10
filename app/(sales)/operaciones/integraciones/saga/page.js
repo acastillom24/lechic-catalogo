@@ -1,15 +1,14 @@
-import SalesCabecera from "../../../../components/sales/SalesCabecera";
-import TabsSaga from "../../../../components/admin/TabsSaga";
-import TablaSincronizacionesSaga from "../../../../components/admin/TablaSincronizacionesSaga";
-import Paginacion from "../../../../components/admin/Paginacion";
-import { requerirUsuarioVentas, reintentarStockSagaVentas, reintentarTodoStockSagaVentas, actualizarEstadoSagaVentas } from "../actions";
-import { getSincronizacionesSaga, contarSincronizacionesSaga, refrescarPendientes } from "../../../../lib/saga-sync";
-import { stockParaSaga } from "../../../../lib/saga-mapeo";
+import TabsSaga from "../../../../../components/admin/TabsSaga";
+import TablaSincronizacionesSaga from "../../../../../components/admin/TablaSincronizacionesSaga";
+import Paginacion from "../../../../../components/admin/Paginacion";
+import { requerirUsuarioVentas, reintentarStockSagaVentas, reintentarTodoStockSagaVentas, actualizarEstadoSagaVentas } from "../../actions";
+import { getSincronizacionesSaga, contarSincronizacionesSaga, refrescarPendientes } from "../../../../../lib/saga-sync";
+import { stockParaSaga } from "../../../../../lib/saga-mapeo";
 
 export const metadata = { title: "SAGA · Le Chic · Operaciones" };
 export const dynamic = "force-dynamic";
 
-const BASE = "/operaciones/saga";
+const BASE = "/operaciones/integraciones/saga";
 
 /** Misma vista que /admin/integraciones/saga, limitada a las sincronizaciones que originó el usuario. */
 export default async function SagaOperacionesPage({ searchParams }) {
@@ -44,21 +43,13 @@ export default async function SagaOperacionesPage({ searchParams }) {
   };
 
   return (
-    <>
-      <SalesCabecera usuario={usuario} activa="saga" />
-      <main className="admin-main">
-        <div className="form-grid">
-          <div className="admin-titulo-fila">
-            <h1 className="admin-titulo">Mis sincronizaciones con SAGA</h1>
-          </div>
+    <div className="form-grid">
           <TabsSaga activo={estado} conteo={conteo} base={BASE} />
           <TablaSincronizacionesSaga filas={datos} estado={estado}
             rutaProducto="/operaciones/productos"
             acciones={{ reintentar: reintentarStockSagaVentas, reintentarTodo: reintentarTodoStockSagaVentas, actualizar: actualizarEstadoSagaVentas }}
           />
           <Paginacion pagina={pagina} totalPaginas={totalPaginas} hrefAnterior={href(pagina - 1)} hrefSiguiente={href(pagina + 1)} />
-        </div>
-      </main>
-    </>
+    </div>
   );
 }

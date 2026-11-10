@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cerrarSesionVentas } from "../../app/(sales)/operaciones/actions";
 
-/** Cabecera compartida de /operaciones con las pestañas: Ventas, Productos y SAGA. */
+/** Cabecera compartida de /operaciones con las pestañas: Ventas, Productos e Integraciones. */
 export default function SalesCabecera({ usuario, activa, pendientes = 0 }) {
   return (
     <header className="admin-topbar">
@@ -14,8 +14,8 @@ export default function SalesCabecera({ usuario, activa, pendientes = 0 }) {
           <Link href="/operaciones/productos" className={activa === "productos" ? "activo" : undefined}>
             Productos
           </Link>
-          <Link href="/operaciones/saga" className={activa === "saga" ? "activo" : undefined}>
-            SAGA
+          <Link href="/operaciones/integraciones" className={activa === "integraciones" ? "activo" : undefined}>
+            Integraciones
           </Link>
           <span style={{ opacity: 0.7 }}>{usuario.usuario}</span>
         </nav>

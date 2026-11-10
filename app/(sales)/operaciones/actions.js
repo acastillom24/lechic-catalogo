@@ -197,14 +197,14 @@ export async function reintentarStockSagaVentas(varianteId, alias) {
     [Number(varianteId), String(alias || ""), usuario.usuario]
   );
   if (fila) await sincronizarStockVariante(Number(varianteId), { alias: String(alias), usuario: usuario.usuario });
-  revalidatePath("/operaciones/saga");
+  revalidatePath("/operaciones/integraciones/saga");
 }
 
 /** Reintenta ahora todos los avisos de stock pendientes del usuario. */
 export async function reintentarTodoStockSagaVentas() {
   const usuario = await requerirUsuarioVentas();
   await reintentarStockPendiente({ forzar: true, limite: 50, usuario: usuario.usuario });
-  revalidatePath("/operaciones/saga");
+  revalidatePath("/operaciones/integraciones/saga");
 }
 
 /** Consulta a SAGA el estado de los envíos del usuario y reintenta sus avisos de stock fallidos. */
@@ -212,5 +212,5 @@ export async function actualizarEstadoSagaVentas() {
   const usuario = await requerirUsuarioVentas();
   await reintentarStockPendiente({ forzar: true, usuario: usuario.usuario });
   await refrescarPendientes(null, { usuario: usuario.usuario });
-  revalidatePath("/operaciones/saga");
+  revalidatePath("/operaciones/integraciones/saga");
 }
