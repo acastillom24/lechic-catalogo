@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { guardarProducto, traerDatosSaga } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
-import { LIMITES, GENERO_POR_CATEGORIA, validarProducto } from "../../lib/saga-mapeo";
+import { LIMITES, CALIDAD, GENERO_POR_CATEGORIA, validarProducto, advertenciasSaga } from "../../lib/saga-mapeo";
 import { camposActivos, esCategoriaGeneral } from "../../lib/saga-campos";
 import SelectBuscador from "./SelectBuscador";
 import CamposExtra from "./CamposExtra";
@@ -288,6 +288,14 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   // Largo del nombre que recibe SAGA (producto + variante, salvo "Único"): se toma el peor caso.
   const nombreSagaDe = (v) => (v.sagaCombinarNombre !== false && v.nombre && v.nombre !== "Único" ? `${nombre} ${v.nombre}` : nombre);
   const largoNombreSaga = Math.max(0, ...variantes.map((v) => nombreSagaDe(v).length));
+  const fueraDeRangoNombre = (n) => n < CALIDAD.tituloMin || n > CALIDAD.tituloMax;
+
+  // Avisos de calidad de SAGA (título 20–100, descripción ≥ 50): advierten, no impiden guardar.
+  const avisosCalidad = (v) =>
+    conSaga
+      ? advertenciasSaga({ nombre, descripcion }, { nombre: v.nombre, descripcion: v.descripcion, saga_combinar_nombre: v.sagaCombinarNombre })
+      : [];
+  const avisosPorVariante = variantes.map(avisosCalidad);
 
   // Acción de la variante en una cuenta: la elegida o, por defecto, crear (variantes nuevas o ya enviadas).
   const accionDe = (v, alias) =>
@@ -867,10 +875,12 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                       {(() => {
                         const enSaga = nombreSagaDe(v);
                         const excede = enSaga.length > LIMITES.texto;
+                        const aviso = !excede && fueraDeRangoNombre(enSaga.trim().length);
                         return (
-                          <small style={{ color: excede ? "#b3261e" : "var(--gris)" }}>
-                            En SAGA se verá: <strong>{enSaga || "—"}</strong> ({enSaga.length} de {LIMITES.texto} caracteres).
+                          <small style={{ color: excede ? "#b3261e" : aviso ? "#9a6700" : "var(--gris)" }}>
+                            En SAGA se verá: <strong>{enSaga || "—"}</strong> ({enSaga.trim().length} caracteres; SAGA pide de {CALIDAD.tituloMin} a {CALIDAD.tituloMax}).
                             {excede ? " Es demasiado largo para SAGA: acórtalo." : ""}
+                            {aviso ? " ⚠ Fuera de ese rango SAGA baja la calificación del producto." : ""}
                             {!v.sagaCombinarNombre && " Solo se envía el nombre del producto."}
                           </small>
                         );
@@ -885,6 +895,11 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                         onChange={(e) => actualizarVariante(i, { descripcion: e.target.value })}
                         placeholder="Vacía = se usa la descripción del producto. Con «Traer datos de SAGA» se llena con la de SAGA."
                       />
+                      {avisosPorVariante[i].some((a) => a.startsWith("Descripción")) && (
+                        <small style={{ color: "#9a6700" }}>
+                          ⚠ {avisosPorVariante[i].find((a) => a.startsWith("Descripción"))}
+                        </small>
+                      )}
                     </div>
                     {!sagaGeneral && (
                       <div className="pf-grid-2">
@@ -1033,10 +1048,11 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
             ))}
           </div>
           {largoNombreSaga > 0 && (
-            <small style={{ color: largoNombreSaga > LIMITES.texto ? "#b3261e" : "var(--gris)" }}>
+            <small style={{ color: largoNombreSaga > LIMITES.texto ? "#b3261e" : avisosPorVariante.some((a) => a.some((x) => x.startsWith("Título"))) ? "#9a6700" : "var(--gris)" }}>
               {largoNombreSaga > LIMITES.texto
                 ? `El nombre es muy largo para SAGA: máximo ${LIMITES.texto} caracteres y el peor caso queda en ${largoNombreSaga}. Acórtalo o desmarca «Combinar nombre» en la variante.`
-                : `Nombre en SAGA: ${largoNombreSaga} de ${LIMITES.texto} caracteres (variante más larga).`}
+                : `Nombre en SAGA: la variante más larga tiene ${largoNombreSaga} caracteres; SAGA pide de ${CALIDAD.tituloMin} a ${CALIDAD.tituloMax}.`}
+              {avisosPorVariante.some((a) => a.some((x) => x.startsWith("Título"))) && " ⚠ Hay variantes fuera de ese rango (ver el resumen)."}
             </small>
           )}
 
@@ -1207,6 +1223,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
             acciones: Object.fromEntries(cuentasMarcadas.map((a) => [a, etiquetaAccion(accionDe(v, a))])),
             envia: Object.fromEntries(cuentasMarcadas.map((a) => [a, accionDe(v, a) === "crear"])),
             faltantes: faltantesPorVariante[i],
+            avisos: avisosPorVariante[i],
           }))}
         />
       )}

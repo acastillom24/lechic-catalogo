@@ -71,6 +71,13 @@ export default function ResumenPlataformas({ cuentas, filas }) {
                             ) : (
                               <span className="chip-saga ok">Completa</span>
                             )}
+                            {f.envia[c.alias] && f.avisos?.length > 0 && (
+                              <ul className="pf-faltas">
+                                {f.avisos.map((x) => (
+                                  <li key={x} style={{ color: "#9a6700" }}>⚠ {x}</li>
+                                ))}
+                              </ul>
+                            )}
                           </td>
                         </tr>
                       );
