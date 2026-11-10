@@ -8,7 +8,12 @@ const nextConfig = {
   },
   async redirects() {
     // Dupree pasó a llamarse Azzorti: conserva los enlaces antiguos.
-    return [{ source: "/marca/dupree", destination: "/marca/azzorti", permanent: true }];
+    return [
+      { source: "/marca/dupree", destination: "/marca/azzorti", permanent: true },
+      // El panel /sales pasó a llamarse /operaciones.
+      { source: "/sales", destination: "/operaciones", permanent: true },
+      { source: "/sales/:path*", destination: "/operaciones/:path*", permanent: true },
+    ];
   },
   experimental: {
     serverActions: {

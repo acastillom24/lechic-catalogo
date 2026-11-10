@@ -4,11 +4,11 @@ import { Fragment, useState } from "react";
 import Link from "next/link";
 import MovimientoForm from "../admin/MovimientoForm";
 import { IconoEditar, IconoStock } from "../admin/Iconos";
-import { registrarMovimientoVentas } from "../../app/(sales)/sales/actions";
+import { registrarMovimientoVentas } from "../../app/(sales)/operaciones/actions";
 
 const vacio = <span style={{ color: "var(--gris)" }}>—</span>;
 
-/** Tabla de productos de /sales: edición y movimientos de stock (sin eliminar ni costos). */
+/** Tabla de productos de /operaciones: edición y movimientos de stock (sin eliminar ni costos). */
 export default function TablaProductosVentas({ filas }) {
   const [abierta, setAbierta] = useState(null);
 
@@ -85,7 +85,7 @@ export default function TablaProductosVentas({ filas }) {
                         <IconoStock />
                       </button>
                       <Link
-                        href={`/sales/productos/${encodeURIComponent(v.producto_id)}`}
+                        href={`/operaciones/productos/${encodeURIComponent(v.producto_id)}`}
                         className="btn-ico"
                         title="Editar producto"
                         aria-label="Editar producto"

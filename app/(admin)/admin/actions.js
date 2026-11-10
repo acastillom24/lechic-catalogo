@@ -584,7 +584,7 @@ export async function restablecerConfiguracion() {
 }
 
 // ============================================================
-//  VENTAS: usuarios del panel /sales y cierre de pendientes
+//  VENTAS: usuarios del panel /operaciones y cierre de pendientes
 // ============================================================
 
 export async function crearUsuarioVentasAccion(prevState, formData) {
@@ -853,7 +853,7 @@ function revalidarMarcasPestanas() {
   revalidatePath("/", "layout");
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/productos", "layout");
-  revalidatePath("/sales/productos", "layout");
+  revalidatePath("/operaciones/productos", "layout");
 }
 
 /** Marcas (las que se envían a SAGA): slug, nombre, nombre exacto en SAGA y pestaña por defecto. */
@@ -1096,7 +1096,7 @@ export async function reintentarTodoStockSaga() {
 // ============================================================
 //  LISTAS DE VENTAS (categoría, entrega, tipo de cliente, método de pago, courier)
 // ============================================================
-//  Se guardan en `configuracion` (clave "ventas_opciones"); alimentan el formulario de /sales,
+//  Se guardan en `configuracion` (clave "ventas_opciones"); alimentan el formulario de /operaciones,
 //  los filtros del reporte y el dashboard. Cambiar una lista no modifica ventas ya registradas.
 
 export async function guardarOpcionesVentas(prevState, formData) {
@@ -1130,7 +1130,7 @@ export async function guardarOpcionesVentas(prevState, formData) {
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/ventas");
   revalidatePath("/admin/dashboard");
-  revalidatePath("/sales");
+  revalidatePath("/operaciones");
   return { ok: "Listas de ventas guardadas.", n: Date.now() };
 }
 
@@ -1139,7 +1139,7 @@ export async function restablecerOpcionesVentas() {
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/ventas");
   revalidatePath("/admin/dashboard");
-  revalidatePath("/sales");
+  revalidatePath("/operaciones");
 }
 
 // ============================================================

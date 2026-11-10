@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import { getMarcas, getPestanas, getProducto } from "../../../../../lib/data";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
 import SalesCabecera from "../../../../../components/sales/SalesCabecera";
+import { getPropsSagaProducto } from "../../../../../lib/saga-props-producto";
 import { requerirUsuarioVentas, editarProductoVentas } from "../../actions";
 
-export const metadata = { title: "Editar producto · Ventas Le Chic" };
+export const metadata = { title: "Editar producto · Le Chic · Operaciones" };
 export const dynamic = "force-dynamic";
 
 export default async function EditarProductoVentasPage({ params }) {
@@ -12,6 +13,7 @@ export default async function EditarProductoVentasPage({ params }) {
   const { id } = await params;
   const producto = await getProducto(id, { incluirInactivas: true });
   if (!producto) notFound();
+  const saga = await getPropsSagaProducto(producto);
 
   return (
     <>
@@ -28,6 +30,8 @@ export default async function EditarProductoVentasPage({ params }) {
             producto={producto}
             accionGuardar={editarProductoVentas}
             restringido
+            permitirSaga
+            {...saga}
           />
         </div>
       </main>

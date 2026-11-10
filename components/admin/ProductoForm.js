@@ -60,7 +60,7 @@ function nuevaVariante() {
   };
 }
 
-export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
+export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, permitirSaga = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
   const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
@@ -105,7 +105,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   });
   const [cuentasMarcadas, setCuentasMarcadas] = useState(sincronizadas);
   const esPerfume = ["feminine", "masculine", "couples"].includes(categoria);
-  const conSaga = !restringido && cuentasSaga.length > 0;
+  const conSaga = (!restringido || permitirSaga) && cuentasSaga.length > 0;
   // Con categoría SAGA elegida manda ella (perfumes = 1735, cualquier otra usa campos extra); sin elegir, la categoría web.
   const sagaGeneral = saga.sagaCategoria ? esCategoriaGeneral(saga.sagaCategoria) : !esPerfume;
   const camposCategoria = camposActivos(saga.sagaCategoria, opcionesSaga.categorias);

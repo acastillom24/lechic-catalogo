@@ -16,7 +16,7 @@ function Lista({ nombre, etiqueta, ayuda, valores, filas = 5 }) {
 }
 
 /**
- * Listas de los campos desplegables de ventas (formulario de /sales, filtros del reporte y dashboard).
+ * Listas de los campos desplegables de ventas (formulario de /operaciones, filtros del reporte y dashboard).
  * Una opción por línea; se guardan en mayúsculas. Quitar una opción no cambia las ventas ya registradas.
  */
 export default function VentasConfig({ opciones }) {
@@ -30,7 +30,7 @@ export default function VentasConfig({ opciones }) {
       <section className="admin-card form-grid">
         <h2>Listas de ventas</h2>
         <small style={{ color: "var(--gris)" }}>
-          Una opción por línea (se guardan en MAYÚSCULAS). Estas listas llenan los desplegables de <strong>/sales</strong> y los
+          Una opción por línea (se guardan en MAYÚSCULAS). Estas listas llenan los desplegables de <strong>/operaciones</strong> y los
           filtros del reporte de ventas y del dashboard. Quitar una opción no modifica las ventas ya registradas.
         </small>
         <Lista nombre="categorias" etiqueta="Categoría" valores={opciones.categorias} />

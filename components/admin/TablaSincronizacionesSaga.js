@@ -12,9 +12,10 @@ const fechaHora = (x) =>
 /**
  * Lista de variantes × cuenta con su estado de sincronización en SAGA.
  * En "error" permite reintentar el aviso de stock (una fila o todas); en "pendiente",
- * consultar a SAGA si ya terminó de procesar los envíos.
+ * consultar a SAGA si ya terminó de procesar los envíos. Con `soloLectura` (panel /operaciones) se
+ * ocultan esos botones y solo se consulta el estado.
  */
-export default function TablaSincronizacionesSaga({ filas, estado }) {
+export default function TablaSincronizacionesSaga({ filas, estado, soloLectura = false, rutaProducto = "/admin/productos" }) {
   const [ocupado, setOcupado] = useState(null); // clave de la fila (o "todas") que se está procesando
   const [, iniciar] = useTransition();
 
@@ -36,11 +37,11 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
       <div className="admin-barra">
         <small style={{ color: "var(--gris)" }}>
           {esError
-            ? "Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30). Aquí puedes forzarlos ahora."
+            ? `Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30).${soloLectura ? "" : " Aquí puedes forzarlos ahora."}`
             : "Envíos aceptados por SAGA que aún no confirmaron si se procesaron bien."}
         </small>
         <div className="admin-barra-der">
-          {esError ? (
+          {soloLectura ? null : esError ? (
             <button
               type="button"
               className="btn-ico-texto primario"
@@ -109,7 +110,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
                     {esError && <td>{f.stock_pendiente ? f.intentos : "—"}</td>}
                     <td>{fechaHora(esError ? (f.stock_pendiente ? f.proximo_intento : null) : f.ultimo_sync)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      {esError && (
+                      {esError && !soloLectura && (
                         <button
                           type="button"
                           className="btn-ico-texto"
@@ -119,7 +120,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
                           {ocupado === clave ? "Reintentando…" : "Reintentar stock"}
                         </button>
                       )}{" "}
-                      <Link href={`/admin/productos/${f.producto_id}`} className="btn-ico-texto">
+                      <Link href={`${rutaProducto}/${f.producto_id}`} className="btn-ico-texto">
                         Editar producto
                       </Link>
                     </td>

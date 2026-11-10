@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { iniciarSesionVentas } from "../../app/(sales)/sales/actions";
+import { iniciarSesionVentas } from "../../app/(sales)/operaciones/actions";
 import PasswordInput from "../PasswordInput";
 
 export default function SalesLoginForm() {
@@ -10,7 +10,7 @@ export default function SalesLoginForm() {
   return (
     <div className="login-envoltorio">
       <div className="login-tarjeta">
-        <h1 className="serif">Ventas Le Chic</h1>
+        <h1 className="serif">Le Chic · Operaciones</h1>
         {estado?.error && <div className="mensaje-error">{estado.error}</div>}
         <form action={accion} className="form-grid">
           <div className="campo">

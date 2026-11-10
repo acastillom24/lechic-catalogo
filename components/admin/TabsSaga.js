@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 /** Pestañas de la sección SAGA (Errores / Pendientes) con el conteo de cada una. */
-export default function TabsSaga({ activo, conteo }) {
+export default function TabsSaga({ activo, conteo, base = "/admin/integraciones/saga" }) {
   const pestanas = [
     ["error", "Errores", conteo.error],
     ["pendiente", "Pendientes", conteo.pendiente],
@@ -11,7 +11,7 @@ export default function TabsSaga({ activo, conteo }) {
       {pestanas.map(([clave, texto, n]) => (
         <Link
           key={clave}
-          href={clave === "error" ? "/admin/integraciones/saga" : `/admin/integraciones/saga?estado=${clave}`}
+          href={clave === "error" ? base : `${base}?estado=${clave}`}
           className={activo === clave ? "admin-tab activo" : "admin-tab"}
         >
           {texto} <span className={`chip-saga ${clave === "error" && n ? "aviso" : ""}`}>{n}</span>

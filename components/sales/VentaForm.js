@@ -3,7 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { registrarVenta } from "../../app/(sales)/sales/actions";
+import { registrarVenta } from "../../app/(sales)/operaciones/actions";
 import { IconoCerrar } from "../admin/Iconos";
 
 /**

@@ -35,7 +35,7 @@ export async function requerirUsuarioVentas() {
   const store = await cookies();
   const uid = await leerSesionVentas(store.get(NOMBRE_COOKIE_VENTAS)?.value);
   const usuario = uid ? await getUsuarioVentasActivo(uid) : null;
-  if (!usuario) redirect("/sales/login");
+  if (!usuario) redirect("/operaciones/login");
   return usuario;
 }
 
@@ -59,13 +59,13 @@ export async function iniciarSesionVentas(prevState, formData) {
     path: "/",
     maxAge: Math.floor(DURACION_VENTAS_MS / 1000),
   });
-  redirect("/sales");
+  redirect("/operaciones");
 }
 
 export async function cerrarSesionVentas() {
   const store = await cookies();
   store.delete(NOMBRE_COOKIE_VENTAS);
-  redirect("/sales/login");
+  redirect("/operaciones/login");
 }
 
 const texto = (fd, k, max = 200) => (fd.get(k) || "").toString().trim().slice(0, max);
@@ -132,7 +132,7 @@ async function guardarVenta(formData) {
     if (id) {
       const ok = await actualizarVenta(id, venta, usuario.id);
       if (!ok) return { error: "No puedes editar esta venta (ya está cerrada o no es tuya)." };
-      revalidatePath("/sales");
+      revalidatePath("/operaciones");
       return { ok: "Venta actualizada.", n: Date.now(), editada: true };
     }
 
@@ -147,7 +147,7 @@ async function guardarVenta(formData) {
     return { error: `No se pudo guardar: ${err.message}` };
   }
 
-  revalidatePath("/sales");
+  revalidatePath("/operaciones");
   return {
     ok: `Venta registrada (S/ ${monto.toFixed(2)})${estado === "pendiente" ? " como pendiente." : "."}`,
     n: Date.now(),
@@ -157,29 +157,29 @@ async function guardarVenta(formData) {
 export async function eliminarVentaDelDia(id) {
   const usuario = await requerirUsuarioVentas();
   await eliminarVentaPropia(Number(id), usuario.id);
-  revalidatePath("/sales");
+  revalidatePath("/operaciones");
 }
 
-/** Alta de producto desde /sales. Solo crea: nunca modifica productos existentes. */
+/** Alta de producto desde /operaciones. Solo crea: nunca modifica productos existentes. */
 export async function crearProductoVentas(prevState, formData) {
   await requerirUsuarioVentas();
   const r = await guardarProductoDesdeForm(formData, { soloCrear: true });
   if (r.error) return r;
-  redirect("/sales/productos?creado=1");
+  redirect("/operaciones/productos?creado=1");
 }
 
 /**
- * Edición de producto desde /sales. Modo restringido: nunca elimina productos
+ * Edición de producto desde /operaciones. Modo restringido: nunca elimina productos
  * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
  */
 export async function editarProductoVentas(prevState, formData) {
   await requerirUsuarioVentas();
   const r = await guardarProductoDesdeForm(formData, { restringido: true });
   if (r.error) return r;
-  redirect("/sales/productos?guardado=1");
+  redirect("/operaciones/productos?guardado=1");
 }
 
-/** Movimiento de stock desde /sales (entrada, salida o conteo); queda el usuario en el historial. */
+/** Movimiento de stock desde /operaciones (entrada, salida o conteo); queda el usuario en el historial. */
 export async function registrarMovimientoVentas(prevState, formData) {
   const usuario = await requerirUsuarioVentas();
   return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
