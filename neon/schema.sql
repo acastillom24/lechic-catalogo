@@ -354,6 +354,10 @@ alter table sincronizaciones add column if not exists revision_motivos jsonb;
 alter table sincronizaciones add column if not exists revision_puntaje integer;
 alter table sincronizaciones add column if not exists revision_fecha timestamptz;
 
+-- Cola de envíos: SAGA permite 1 feed cada 2 minutos por cuenta; lo que no cabe espera aquí (acción a repetir y hora).
+alter table sincronizaciones add column if not exists cola_modo text;
+alter table sincronizaciones add column if not exists proximo_envio timestamptz;
+
 -- Cola de reintentos del stock: si avisar a SAGA falla, la fila queda marcada y se reintenta sola.
 alter table sincronizaciones add column if not exists stock_pendiente boolean     not null default false;
 alter table sincronizaciones add column if not exists intentos        int         not null default 0;

@@ -5,6 +5,8 @@ import { getPropsSagaProducto } from "../../../../../lib/saga-props-producto";
 import { requerirUsuarioVentas, crearProductoVentas } from "../../actions";
 
 export const metadata = { title: "Nuevo producto · Le Chic · Operaciones" };
+// Las imágenes se envían a SAGA tras guardar (~2 minutos): necesita más tiempo que una página normal.
+export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export default async function NuevoProductoVentasPage() {

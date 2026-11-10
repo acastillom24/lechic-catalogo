@@ -1,5 +1,6 @@
 import { listarUsuariosVentas } from "../../../../../lib/ventas";
-import { getCuentas, getSincronizacionesSaga, contarSincronizacionesSaga, contarRevisionSaga } from "../../../../../lib/saga-sync";
+import { after } from "next/server";
+import { procesarCola, getCuentas, getSincronizacionesSaga, contarSincronizacionesSaga, contarRevisionSaga } from "../../../../../lib/saga-sync";
 import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import { CATEGORIAS_REVISION } from "../../../../../lib/saga-revision";
 import { stockParaSaga } from "../../../../../lib/saga-mapeo";
@@ -11,12 +12,15 @@ import Paginacion from "../../../../../components/admin/Paginacion";
 
 export const metadata = { title: "SAGA · Panel Le Chic" };
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 const BASE = "/admin/integraciones/saga";
 const texto = (v) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 60) : "");
 
 export default async function SagaPage({ searchParams }) {
   const params = await searchParams;
+  // Sin demorar la página: envía lo que SAGA dejó en espera por su límite de 1 feed cada 2 minutos por cuenta.
+  after(() => procesarCola());
   const estado = ["pendiente", "publicado"].includes(params?.estado) ? params.estado : "error";
   const pagina = Math.max(1, parseInt(params?.pagina, 10) || 1);
   // Filtros: usuario del panel /operaciones (vacío = todos, "__admin" = admin o automático), cuenta y búsqueda.

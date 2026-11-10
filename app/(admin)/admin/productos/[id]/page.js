@@ -6,6 +6,8 @@ import ProductoForm from "../../../../../components/admin/ProductoForm";
 import EliminarProductoBoton from "../../../../../components/admin/EliminarProductoBoton";
 
 export const metadata = { title: "Editar producto · Panel Le Chic" };
+// Las imágenes se envían a SAGA tras guardar (~2 minutos): necesita más tiempo que una página normal.
+export const maxDuration = 300;
 
 export default async function EditarProductoPage({ params }) {
   const { id } = await params;

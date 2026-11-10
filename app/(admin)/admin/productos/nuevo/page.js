@@ -5,6 +5,8 @@ import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
 
 export const metadata = { title: "Nuevo producto · Panel Le Chic" };
+// Las imágenes se envían a SAGA tras guardar (~2 minutos): necesita más tiempo que una página normal.
+export const maxDuration = 300;
 
 export default async function NuevoProductoPage() {
   await connection();
