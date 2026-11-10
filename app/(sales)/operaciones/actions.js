@@ -29,6 +29,8 @@ import {
 import { getOpcionesVentas } from "../../../lib/ventas-opciones";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
+import { query } from "../../../lib/db";
+import { sincronizarStockVariante, reintentarStockPendiente, refrescarPendientes } from "../../../lib/saga-sync";
 
 /** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
 export async function requerirUsuarioVentas() {
@@ -162,8 +164,8 @@ export async function eliminarVentaDelDia(id) {
 
 /** Alta de producto desde /operaciones. Solo crea: nunca modifica productos existentes. */
 export async function crearProductoVentas(prevState, formData) {
-  await requerirUsuarioVentas();
-  const r = await guardarProductoDesdeForm(formData, { soloCrear: true });
+  const usuario = await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { soloCrear: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
   redirect("/operaciones/productos?creado=1");
 }
@@ -173,8 +175,8 @@ export async function crearProductoVentas(prevState, formData) {
  * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
  */
 export async function editarProductoVentas(prevState, formData) {
-  await requerirUsuarioVentas();
-  const r = await guardarProductoDesdeForm(formData, { restringido: true });
+  const usuario = await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { restringido: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
   redirect("/operaciones/productos?guardado=1");
 }
@@ -183,4 +185,32 @@ export async function editarProductoVentas(prevState, formData) {
 export async function registrarMovimientoVentas(prevState, formData) {
   const usuario = await requerirUsuarioVentas();
   return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
+}
+
+// ---- Integración SAGA del panel: cada usuario gestiona solo las sincronizaciones que originó ----
+
+/** Reintenta el aviso de stock de una variante/cuenta, solo si la fila es del usuario. */
+export async function reintentarStockSagaVentas(varianteId, alias) {
+  const usuario = await requerirUsuarioVentas();
+  const [fila] = await query(
+    "select 1 from sincronizaciones where variante_id = $1 and sistema = 'saga' and cuenta_alias = $2 and usuario_panel = $3",
+    [Number(varianteId), String(alias || ""), usuario.usuario]
+  );
+  if (fila) await sincronizarStockVariante(Number(varianteId), { alias: String(alias), usuario: usuario.usuario });
+  revalidatePath("/operaciones/saga");
+}
+
+/** Reintenta ahora todos los avisos de stock pendientes del usuario. */
+export async function reintentarTodoStockSagaVentas() {
+  const usuario = await requerirUsuarioVentas();
+  await reintentarStockPendiente({ forzar: true, limite: 50, usuario: usuario.usuario });
+  revalidatePath("/operaciones/saga");
+}
+
+/** Consulta a SAGA el estado de los envíos del usuario y reintenta sus avisos de stock fallidos. */
+export async function actualizarEstadoSagaVentas() {
+  const usuario = await requerirUsuarioVentas();
+  await reintentarStockPendiente({ forzar: true, usuario: usuario.usuario });
+  await refrescarPendientes(null, { usuario: usuario.usuario });
+  revalidatePath("/operaciones/saga");
 }

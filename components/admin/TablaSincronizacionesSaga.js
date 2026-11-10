@@ -12,10 +12,13 @@ const fechaHora = (x) =>
 /**
  * Lista de variantes × cuenta con su estado de sincronización en SAGA.
  * En "error" permite reintentar el aviso de stock (una fila o todas); en "pendiente",
- * consultar a SAGA si ya terminó de procesar los envíos. Con `soloLectura` (panel /operaciones) se
- * ocultan esos botones y solo se consulta el estado.
+ * consultar a SAGA si ya terminó de procesar los envíos. El panel /operaciones pasa en `acciones`
+ * sus propias versiones, limitadas a las filas del usuario.
  */
-export default function TablaSincronizacionesSaga({ filas, estado, soloLectura = false, rutaProducto = "/admin/productos" }) {
+export default function TablaSincronizacionesSaga({ filas, estado, rutaProducto = "/admin/productos", acciones = {} }) {
+  const reintentarTodo = acciones.reintentarTodo || reintentarTodoStockSaga;
+  const reintentar = acciones.reintentar || reintentarStockSaga;
+  const actualizar = acciones.actualizar || actualizarEstadoSaga;
   const [ocupado, setOcupado] = useState(null); // clave de la fila (o "todas") que se está procesando
   const [, iniciar] = useTransition();
 
@@ -37,16 +40,16 @@ export default function TablaSincronizacionesSaga({ filas, estado, soloLectura =
       <div className="admin-barra">
         <small style={{ color: "var(--gris)" }}>
           {esError
-            ? `Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30).${soloLectura ? "" : " Aquí puedes forzarlos ahora."}`
+            ? `Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30). Aquí puedes forzarlos ahora.`
             : "Envíos aceptados por SAGA que aún no confirmaron si se procesaron bien."}
         </small>
         <div className="admin-barra-der">
-          {soloLectura ? null : esError ? (
+          {esError ? (
             <button
               type="button"
               className="btn-ico-texto primario"
               disabled={ocupado !== null || filas.length === 0}
-              onClick={() => ejecutar("todas", () => reintentarTodoStockSaga())}
+              onClick={() => ejecutar("todas", () => reintentarTodo())}
             >
               {ocupado === "todas" ? "Reintentando…" : "Reintentar todos"}
             </button>
@@ -55,7 +58,7 @@ export default function TablaSincronizacionesSaga({ filas, estado, soloLectura =
               type="button"
               className="btn-ico-texto primario"
               disabled={ocupado !== null || filas.length === 0}
-              onClick={() => ejecutar("todas", () => actualizarEstadoSaga())}
+              onClick={() => ejecutar("todas", () => actualizar())}
             >
               {ocupado === "todas" ? "Consultando…" : "Actualizar estado SAGA"}
             </button>
@@ -110,12 +113,12 @@ export default function TablaSincronizacionesSaga({ filas, estado, soloLectura =
                     {esError && <td>{f.stock_pendiente ? f.intentos : "—"}</td>}
                     <td>{fechaHora(esError ? (f.stock_pendiente ? f.proximo_intento : null) : f.ultimo_sync)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      {esError && !soloLectura && (
+                      {esError && (
                         <button
                           type="button"
                           className="btn-ico-texto"
                           disabled={ocupado !== null}
-                          onClick={() => ejecutar(clave, () => reintentarStockSaga(f.variante_id, f.cuenta_alias))}
+                          onClick={() => ejecutar(clave, () => reintentar(f.variante_id, f.cuenta_alias))}
                         >
                           {ocupado === clave ? "Reintentando…" : "Reintentar stock"}
                         </button>

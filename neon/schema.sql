@@ -342,6 +342,9 @@ create table if not exists sincronizaciones (
   primary key (variante_id, sistema, cuenta_alias)
 );
 
+-- Usuario del panel /operaciones que originó (o tocó por última vez) la fila; null = admin o automático.
+alter table sincronizaciones add column if not exists usuario_panel text;
+
 -- Cola de reintentos del stock: si avisar a SAGA falla, la fila queda marcada y se reintenta sola.
 alter table sincronizaciones add column if not exists stock_pendiente boolean     not null default false;
 alter table sincronizaciones add column if not exists intentos        int         not null default 0;
