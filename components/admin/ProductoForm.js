@@ -613,7 +613,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 </div>
               </details>
 
-              {sagaGeneral && saga.sagaCategoria && camposProducto.length > 0 && (
+              {saga.sagaCategoria && camposProducto.length > 0 && (
                 <details className="saga-seccion">
                   <summary>Campos extra de la categoría <em>por producto · se eligen en Configuración → SAGA</em></summary>
                   <div className="saga-cuerpo">
@@ -972,7 +972,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                       <input type="text" value={v.codigoBarras} onChange={(e) => actualizarVariante(i, { codigoBarras: e.target.value })} />
                     </div>
                   </div>
-                  {sagaGeneral && saga.sagaCategoria && camposVariante.length > 0 && (
+                  {saga.sagaCategoria && camposVariante.length > 0 && (
                     <div className="campo">
                       <label>Campos extra de la categoría <em>por variante</em></label>
                       <CamposExtra

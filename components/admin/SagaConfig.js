@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { guardarOpcionesSaga, restablecerOpcionesSaga } from "../../app/(admin)/admin/actions";
 import AccionesSaga from "./AccionesSaga";
-import { PERFUME, camposDe, camposActivos } from "../../lib/saga-campos";
+import { camposDe, camposActivos } from "../../lib/saga-campos";
 
 const aTexto = (arr) => (arr || []).join("\n");
 
@@ -53,10 +53,11 @@ export default function SagaConfig({ opciones }) {
         <h2>Campos extra por categoría</h2>
         <small style={{ color: "var(--gris)" }}>
           Marca qué campos de SAGA aparecen en el formulario de producto al elegir cada categoría. Los obligatorios de SAGA
-          siempre se muestran. Los campos disponibles provienen del catálogo de SAGA. Perfumes (1735) usa su propio
-          formulario.
+          siempre se muestran. Los campos disponibles provienen del catálogo de SAGA. Perfumes (1735) tiene su propio
+          formulario para los campos base (tipo, género, formato, fragancia, notas y características); aquí solo se
+          eligen los demás campos de SAGA para esa categoría.
         </small>
-        {(opciones.categorias || []).filter((c) => c.id !== PERFUME).map((c) => {
+        {(opciones.categorias || []).map((c) => {
           const campos = camposDe(c.id);
           const activos = new Set(camposActivos(c.id, opciones.categorias).map((x) => x.id));
           return (
