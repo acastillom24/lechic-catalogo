@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { guardarOpcionesSaga, restablecerOpcionesSaga } from "../../app/(admin)/admin/actions";
 import AccionesSaga from "./AccionesSaga";
-import { camposDe, camposActivos } from "../../lib/saga-campos";
+import { camposDe, camposActivos, esPropioPerfume } from "../../lib/saga-campos";
 
 const aTexto = (arr) => (arr || []).join("\n");
 
@@ -53,18 +53,21 @@ export default function SagaConfig({ opciones }) {
         <h2>Campos extra por categoría</h2>
         <small style={{ color: "var(--gris)" }}>
           Marca qué campos de SAGA aparecen en el formulario de producto al elegir cada categoría. Los obligatorios de SAGA
-          siempre se muestran. Los campos disponibles provienen del catálogo de SAGA. Perfumes (1735) tiene su propio
-          formulario para los campos base (tipo, género, formato, fragancia, notas y características); aquí solo se
-          eligen los demás campos de SAGA para esa categoría.
+          siempre se muestran. Los campos disponibles provienen del catálogo de SAGA. En Perfumes (1735) los campos
+          base (tipo, género, formato, fragancia, notas, características y cantidades) se llenan en su formulario propio y
+          aparecen siempre marcados; los demás se eligen aquí.
         </small>
         {(opciones.categorias || []).map((c) => {
           const campos = camposDe(c.id);
           const activos = new Set(camposActivos(c.id, opciones.categorias).map((x) => x.id));
+          // Fijos: obligatorios de SAGA y, en perfumes, los que ya cubre su formulario propio.
+          const fijo = (x) => x.obligatorio || esPropioPerfume(c.id, x.id);
+          const visibles = campos.filter((x) => fijo(x) || activos.has(x.id)).length;
           return (
             <details className="saga-seccion" key={c.id}>
               <summary>
                 {c.id} — {c.nombre}
-                <em>{campos.length ? `${activos.size} de ${campos.length} campos visibles` : "sin catálogo"}</em>
+                <em>{campos.length ? `${visibles} de ${campos.length} campos visibles` : "sin catálogo"}</em>
               </summary>
               <div className="saga-cuerpo form-grid">
                 {!campos.length ? (
@@ -85,11 +88,12 @@ export default function SagaConfig({ opciones }) {
                                   type="checkbox"
                                   name={`extras_${c.id}`}
                                   value={x.id}
-                                  defaultChecked={activos.has(x.id)}
-                                  disabled={x.obligatorio}
+                                  defaultChecked={fijo(x) || activos.has(x.id)}
+                                  disabled={fijo(x)}
                                 />
                                 {x.etiqueta}
                                 {x.obligatorio && <em> (obligatorio en SAGA)</em>}
+                                {esPropioPerfume(c.id, x.id) && <em>{x.obligatorio ? " · " : " "}(formulario de perfumes)</em>}
                               </label>
                             ))}
                           </div>
