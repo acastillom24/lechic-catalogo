@@ -485,6 +485,21 @@
   color: var(--gris);
 }
 
+/* Con muchos filtros (p. ej. Sincronizados) la caja crece a todo el ancho y los selectores pasan a otra línea si hace falta. */
+.admin-barra-buscar.ancha {
+  flex: 1 1 100%;
+  max-width: none;
+  height: auto;
+  min-height: 40px;
+  flex-wrap: wrap;
+  row-gap: 4px;
+  padding: 5px 8px 5px 14px;
+}
+.admin-barra-buscar.ancha input[type="search"] {
+  flex: 1 1 200px;
+  min-height: 28px;
+}
+
 .admin-barra-buscar:focus-within {
   border-color: var(--rosa);
 }

@@ -31,7 +31,7 @@ export default function FiltrosSincronizaciones({ action, estado, filtros, cuent
     <div className="form-grid" style={{ gap: 10 }}>
       <form ref={formRef} method="get" action={action} className="admin-barra">
         {estado !== "error" && <input type="hidden" name="estado" value={estado} />}
-        <div className="admin-barra-buscar">
+        <div className={acciones ? "admin-barra-buscar ancha" : "admin-barra-buscar"}>
           <IconoBuscar size={18} />
           <input type="search" name="q" defaultValue={filtros.q || ""} placeholder="Buscar por producto o SKU..." />
           <span className="admin-barra-sep" aria-hidden="true" />
