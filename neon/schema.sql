@@ -347,6 +347,13 @@ create table if not exists sincronizaciones (
 -- Usuario del panel /operaciones que originó (o tocó por última vez) la fila; null = admin o automático.
 alter table sincronizaciones add column if not exists usuario_panel text;
 
+-- Revisión de contenido de SAGA (QC): motivos por los que un producto creado no se publica, su categoría
+-- (contenido, precio, multimedia, compliance, configuración, otros) y el puntaje de contenido.
+alter table sincronizaciones add column if not exists revision_categoria text;
+alter table sincronizaciones add column if not exists revision_motivos jsonb;
+alter table sincronizaciones add column if not exists revision_puntaje integer;
+alter table sincronizaciones add column if not exists revision_fecha timestamptz;
+
 -- Cola de reintentos del stock: si avisar a SAGA falla, la fila queda marcada y se reintenta sola.
 alter table sincronizaciones add column if not exists stock_pendiente boolean     not null default false;
 alter table sincronizaciones add column if not exists intentos        int         not null default 0;

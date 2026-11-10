@@ -30,7 +30,10 @@ import { getOpcionesVentas } from "../../../lib/ventas-opciones";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 import { query } from "../../../lib/db";
-import { sincronizarStockVariante, reintentarStockPendiente, refrescarPendientes } from "../../../lib/saga-sync";
+import {
+  sincronizarStockVariante, reintentarStockPendiente,
+  consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
+} from "../../../lib/saga-sync";
 
 /** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
 export async function requerirUsuarioVentas() {
@@ -207,10 +210,33 @@ export async function reintentarTodoStockSagaVentas() {
   revalidatePath("/operaciones/integraciones/saga");
 }
 
-/** Consulta a SAGA el estado de los envíos del usuario y reintenta sus avisos de stock fallidos. */
-export async function actualizarEstadoSagaVentas() {
+// Acciones sobre filas elegidas: el servidor las limita siempre a las del usuario de la sesión.
+
+/** Consulta a SAGA el estado de las filas elegidas ("varianteId|alias") del usuario. */
+export async function consultarEstadoSagaVentas(claves) {
   const usuario = await requerirUsuarioVentas();
-  await reintentarStockPendiente({ forzar: true, usuario: usuario.usuario });
-  await refrescarPendientes(null, { usuario: usuario.usuario });
+  const n = await consultarSeleccion(claves, { usuario: usuario.usuario });
   revalidatePath("/operaciones/integraciones/saga");
+  return { mensaje: `Se consultó el estado de ${n} envío(s) en SAGA.` };
+}
+
+/** Aplica una acción de vinculación a las filas elegidas del usuario. */
+export async function aplicarAccionSagaVentas(claves, modo) {
+  const usuario = await requerirUsuarioVentas();
+  const resultados = await aplicarAccionSeleccion(claves, String(modo || ""), { usuario: usuario.usuario });
+  revalidatePath("/operaciones/integraciones/saga");
+  return { mensaje: resultados.length ? resumirResultados(resultados) : "No hay filas para aplicar." };
+}
+
+/** Cambia el tipo de vinculación de las filas elegidas del usuario; con `enviarAhora` también las envía. */
+export async function cambiarAccionSagaVentas(claves, accion, enviarAhora = false) {
+  const usuario = await requerirUsuarioVentas();
+  try {
+    const n = await cambiarAccionSeleccion(claves, String(accion || ""), { usuario: usuario.usuario });
+    const resultados = enviarAhora && n ? await aplicarAccionSeleccion(claves, String(accion), { usuario: usuario.usuario }) : [];
+    revalidatePath("/operaciones/integraciones/saga");
+    return { mensaje: `Tipo de vinculación cambiado en ${n} fila(s).${resultados.length ? ` Envío: ${resumirResultados(resultados)}` : ""}` };
+  } catch (e) {
+    return { mensaje: e.message };
+  }
 }

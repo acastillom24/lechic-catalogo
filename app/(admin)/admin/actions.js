@@ -17,7 +17,10 @@ import { getMarcas, getPestanas } from "../../../lib/data";
 import { getConfigMarcas } from "../../../lib/marcas-config";
 import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
 import { fijarStock } from "../../../lib/inventario";
-import { refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock } from "../../../lib/saga-sync";
+import {
+  refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock,
+  consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
+} from "../../../lib/saga-sync";
 import { getOpcionesSaga, IDS_BASE } from "../../../lib/saga-opciones";
 import { CLAVE as CLAVE_VENTAS } from "../../../lib/ventas-opciones";
 import { IDS as IDS_ATRIBUTOS } from "../../../lib/saga-atributos";
@@ -993,12 +996,40 @@ export async function restablecerMarcasPestanas() {
   revalidarMarcasPestanas();
 }
 
-/** Consulta a SAGA el estado de los envíos y reintenta ahora los avisos de stock que fallaron. */
+/** Consulta a SAGA el estado de todos los envíos pendientes y reintenta ahora los avisos de stock que fallaron (botón de Productos). */
 export async function actualizarEstadoSaga() {
   await reintentarStockPendiente({ forzar: true });
   await refrescarPendientes();
   revalidatePath("/admin");
   revalidatePath("/admin/integraciones/saga");
+}
+
+/** Consulta a SAGA el estado de las filas elegidas ("varianteId|alias") y guarda los motivos de su revisión. */
+export async function consultarEstadoSagaSeleccion(claves) {
+  const n = await consultarSeleccion(claves);
+  revalidatePath("/admin");
+  revalidatePath("/admin/integraciones/saga");
+  return { mensaje: `Se consultó el estado de ${n} envío(s) en SAGA.` };
+}
+
+/** Aplica una acción de vinculación (vincular, vincular todo…) a las filas elegidas. */
+export async function aplicarAccionSagaSeleccion(claves, modo) {
+  const resultados = await aplicarAccionSeleccion(claves, String(modo || ""));
+  revalidatePath("/admin");
+  revalidatePath("/admin/integraciones/saga");
+  return { mensaje: resultados.length ? resumirResultados(resultados) : "No hay filas para aplicar." };
+}
+
+/** Cambia el tipo de vinculación de las filas elegidas; con `enviarAhora` además envía esos datos a SAGA. */
+export async function cambiarAccionSagaSeleccion(claves, accion, enviarAhora = false) {
+  try {
+    const n = await cambiarAccionSeleccion(claves, String(accion || ""));
+    const resultados = enviarAhora && n ? await aplicarAccionSeleccion(claves, String(accion)) : [];
+    revalidatePath("/admin/integraciones/saga");
+    return { mensaje: `Tipo de vinculación cambiado en ${n} fila(s).${resultados.length ? ` Envío: ${resumirResultados(resultados)}` : ""}` };
+  } catch (e) {
+    return { mensaje: e.message };
+  }
 }
 
 /**

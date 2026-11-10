@@ -543,6 +543,10 @@
   font-size: 0.78rem;
   font-weight: 600;
 }
+.chip-filtro.activo {
+  background: var(--rosa-hover);
+  color: #fff;
+}
 
 .btn-campana {
   position: relative;

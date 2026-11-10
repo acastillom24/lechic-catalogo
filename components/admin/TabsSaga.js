@@ -5,6 +5,7 @@ export default function TabsSaga({ activo, conteo, base = "/admin/integraciones/
   const pestanas = [
     ["error", "Errores", conteo.error],
     ["pendiente", "Pendientes", conteo.pendiente],
+    ["publicado", "Sincronizados", conteo.publicado ?? 0],
   ];
   // `extra` = parámetros a conservar (p. ej. "usuario=ana").
   const hrefDe = (clave) => {
