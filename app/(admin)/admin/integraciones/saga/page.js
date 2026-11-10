@@ -20,7 +20,12 @@ export default async function SagaPage({ searchParams }) {
   const estado = ["pendiente", "publicado"].includes(params?.estado) ? params.estado : "error";
   const pagina = Math.max(1, parseInt(params?.pagina, 10) || 1);
   // Filtros: usuario del panel /operaciones (vacío = todos, "__admin" = admin o automático), cuenta y búsqueda.
-  const filtros = { usuario: texto(params?.usuario), cuenta: texto(params?.cuenta), q: texto(params?.q) };
+  const sincronizados = estado === "publicado";
+  const filtros = {
+    usuario: texto(params?.usuario), cuenta: texto(params?.cuenta), q: texto(params?.q),
+    // Vinculación y origen solo se filtran en «Sincronizados».
+    accion: sincronizados ? texto(params?.accion) : "", origen: sincronizados && ["creado", "vinculado"].includes(params?.origen) ? params.origen : "",
+  };
   const categoria = CATEGORIAS_REVISION.some(([k]) => k === params?.categoria) && estado === "pendiente" ? params.categoria : "";
   const [usuarios, cuentas, op] = await Promise.all([listarUsuariosVentas(), getCuentas(), getOpcionesSaga()]);
 
@@ -47,30 +52,33 @@ export default async function SagaPage({ searchParams }) {
     const v = { ...filtros, ...cambios };
     const q = new URLSearchParams();
     if (estado !== "error") q.set("estado", estado);
-    for (const k of ["q", "cuenta", "usuario"]) if (v[k]) q.set(k, v[k]);
+    for (const k of ["q", "cuenta", "usuario", "accion", "origen"]) if (v[k]) q.set(k, v[k]);
     const cat = "categoria" in cambios ? cambios.categoria : categoria;
     if (cat) q.set("categoria", cat);
     if (cambios.pagina > 1) q.set("pagina", String(cambios.pagina));
     const s = q.toString();
     return `${BASE}${s ? `?${s}` : ""}`;
   };
-  const extraTabs = new URLSearchParams(Object.entries(filtros).filter(([, v]) => v)).toString();
+  const extraTabs = new URLSearchParams(Object.entries(filtros).filter(([k, v]) => v && ["usuario", "cuenta", "q"].includes(k))).toString();
 
+  const opcionesAccion = op.acciones.map((a) => ({ id: a.id, nombre: a.nombre }));
+  const nombreAccion = (id) => opcionesAccion.find((a) => a.id === id)?.nombre || id;
   const nombreCuenta = cuentas.find((c) => c.alias === filtros.cuenta)?.nombre || filtros.cuenta;
   const chips = [
     filtros.usuario && { texto: `Usuario: ${filtros.usuario === "__admin" ? "Admin / automático" : filtros.usuario}`, href: href({ usuario: "" }) },
+    filtros.accion && { texto: `Vinculación: ${nombreAccion(filtros.accion)}`, href: href({ accion: "" }) },
+    filtros.origen && { texto: `Origen: ${filtros.origen === "creado" ? "Creado desde la web" : "Vinculado a SAGA"}`, href: href({ origen: "" }) },
     filtros.cuenta && { texto: `Cuenta: ${nombreCuenta}`, href: href({ cuenta: "" }) },
     filtros.q && { texto: `"${filtros.q}"`, href: href({ q: "" }) },
   ].filter(Boolean);
 
-  const opcionesAccion = op.acciones.map((a) => ({ id: a.id, nombre: a.nombre }));
 
   return (
     <div className="form-grid">
-      <FiltrosSincronizaciones action={BASE} estado={estado} filtros={filtros} cuentas={cuentas} usuarios={usuarios} chips={chips} />
+      <FiltrosSincronizaciones action={BASE} estado={estado} filtros={filtros} cuentas={cuentas} usuarios={usuarios} acciones={sincronizados ? opcionesAccion.map((a) => [a.id, a.nombre]) : null} chips={chips} />
       <TabsSaga activo={estado} conteo={conteo} extra={extraTabs} />
       {estado === "pendiente" && <CategoriasRevision activa={categoria} conteo={porCategoria} href={(c) => href({ categoria: c })} />}
-      <TablaSincronizacionesSaga filas={datos} estado={estado} mostrarUsuario opcionesAccion={opcionesAccion} />
+      <TablaSincronizacionesSaga key={estado} filas={datos} estado={estado} mostrarUsuario opcionesAccion={opcionesAccion} />
       <Paginacion
         pagina={pagina}
         totalPaginas={totalPaginas}
