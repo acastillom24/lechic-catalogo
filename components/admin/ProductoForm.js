@@ -60,7 +60,7 @@ function nuevaVariante() {
   };
 }
 
-export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
+export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, permitirSaga = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
   const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
@@ -105,7 +105,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   });
   const [cuentasMarcadas, setCuentasMarcadas] = useState(sincronizadas);
   const esPerfume = ["feminine", "masculine", "couples"].includes(categoria);
-  const conSaga = !restringido && cuentasSaga.length > 0;
+  const conSaga = (!restringido || permitirSaga) && cuentasSaga.length > 0;
   // Con categoría SAGA elegida manda ella (perfumes = 1735, cualquier otra usa campos extra); sin elegir, la categoría web.
   const sagaGeneral = saga.sagaCategoria ? esCategoriaGeneral(saga.sagaCategoria) : !esPerfume;
   const camposCategoria = camposActivos(saga.sagaCategoria, opcionesSaga.categorias);
@@ -613,7 +613,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 </div>
               </details>
 
-              {sagaGeneral && saga.sagaCategoria && camposProducto.length > 0 && (
+              {saga.sagaCategoria && camposProducto.length > 0 && (
                 <details className="saga-seccion">
                   <summary>Campos extra de la categoría <em>por producto · se eligen en Configuración → SAGA</em></summary>
                   <div className="saga-cuerpo">
@@ -972,7 +972,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                       <input type="text" value={v.codigoBarras} onChange={(e) => actualizarVariante(i, { codigoBarras: e.target.value })} />
                     </div>
                   </div>
-                  {sagaGeneral && saga.sagaCategoria && camposVariante.length > 0 && (
+                  {saga.sagaCategoria && camposVariante.length > 0 && (
                     <div className="campo">
                       <label>Campos extra de la categoría <em>por variante</em></label>
                       <CamposExtra

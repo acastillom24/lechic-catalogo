@@ -10,14 +10,14 @@ export const ETIQUETAS_VISTA = {
 };
 
 /**
- * Barra de búsqueda y filtro de /sales (mismo estilo que la de Productos en
+ * Barra de búsqueda y filtro de /operaciones (mismo estilo que la de Productos en
  * /admin): buscador con filtro, chip del filtro activo, campana de
  * pendientes y botón principal para registrar.
  */
 export default function SalesBarra({ q, vista, pendientes, hrefNueva, hrefHoy, hrefPendientes }) {
   return (
     <div className="admin-barra">
-      <form method="get" action="/sales" className="admin-barra-buscar">
+      <form method="get" action="/operaciones" className="admin-barra-buscar">
         <IconoBuscar size={18} />
         <input type="search" name="q" defaultValue={q} placeholder="Buscar por teléfono o referencia..." />
         <span className="admin-barra-sep" aria-hidden="true" />

@@ -39,13 +39,13 @@ function CambiarPassword({ id }) {
   );
 }
 
-/** Alta, cambio de contraseña y baja de usuarios que pueden ingresar a /sales. */
+/** Alta, cambio de contraseña y baja de usuarios que pueden ingresar a /operaciones. */
 export default function UsuariosVentas({ usuarios }) {
   const [estado, accion, enviando] = useActionState(crearUsuarioVentasAccion, {});
 
   return (
     <section className="admin-card form-grid">
-      <h2>Usuarios del panel de ventas (/sales)</h2>
+      <h2>Usuarios del panel de operaciones (/operaciones)</h2>
 
       <form action={accion} key={estado?.n || "nuevo"} className="form-grid">
         {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}

@@ -29,13 +29,15 @@ import {
 import { getOpcionesVentas } from "../../../lib/ventas-opciones";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
+import { query } from "../../../lib/db";
+import { sincronizarStockVariante, reintentarStockPendiente, refrescarPendientes } from "../../../lib/saga-sync";
 
 /** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
 export async function requerirUsuarioVentas() {
   const store = await cookies();
   const uid = await leerSesionVentas(store.get(NOMBRE_COOKIE_VENTAS)?.value);
   const usuario = uid ? await getUsuarioVentasActivo(uid) : null;
-  if (!usuario) redirect("/sales/login");
+  if (!usuario) redirect("/operaciones/login");
   return usuario;
 }
 
@@ -59,13 +61,13 @@ export async function iniciarSesionVentas(prevState, formData) {
     path: "/",
     maxAge: Math.floor(DURACION_VENTAS_MS / 1000),
   });
-  redirect("/sales");
+  redirect("/operaciones");
 }
 
 export async function cerrarSesionVentas() {
   const store = await cookies();
   store.delete(NOMBRE_COOKIE_VENTAS);
-  redirect("/sales/login");
+  redirect("/operaciones/login");
 }
 
 const texto = (fd, k, max = 200) => (fd.get(k) || "").toString().trim().slice(0, max);
@@ -132,7 +134,7 @@ async function guardarVenta(formData) {
     if (id) {
       const ok = await actualizarVenta(id, venta, usuario.id);
       if (!ok) return { error: "No puedes editar esta venta (ya está cerrada o no es tuya)." };
-      revalidatePath("/sales");
+      revalidatePath("/operaciones");
       return { ok: "Venta actualizada.", n: Date.now(), editada: true };
     }
 
@@ -147,7 +149,7 @@ async function guardarVenta(formData) {
     return { error: `No se pudo guardar: ${err.message}` };
   }
 
-  revalidatePath("/sales");
+  revalidatePath("/operaciones");
   return {
     ok: `Venta registrada (S/ ${monto.toFixed(2)})${estado === "pendiente" ? " como pendiente." : "."}`,
     n: Date.now(),
@@ -157,30 +159,58 @@ async function guardarVenta(formData) {
 export async function eliminarVentaDelDia(id) {
   const usuario = await requerirUsuarioVentas();
   await eliminarVentaPropia(Number(id), usuario.id);
-  revalidatePath("/sales");
+  revalidatePath("/operaciones");
 }
 
-/** Alta de producto desde /sales. Solo crea: nunca modifica productos existentes. */
+/** Alta de producto desde /operaciones. Solo crea: nunca modifica productos existentes. */
 export async function crearProductoVentas(prevState, formData) {
-  await requerirUsuarioVentas();
-  const r = await guardarProductoDesdeForm(formData, { soloCrear: true });
+  const usuario = await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { soloCrear: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
-  redirect("/sales/productos?creado=1");
+  redirect("/operaciones/productos?creado=1");
 }
 
 /**
- * Edición de producto desde /sales. Modo restringido: nunca elimina productos
+ * Edición de producto desde /operaciones. Modo restringido: nunca elimina productos
  * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
  */
 export async function editarProductoVentas(prevState, formData) {
-  await requerirUsuarioVentas();
-  const r = await guardarProductoDesdeForm(formData, { restringido: true });
+  const usuario = await requerirUsuarioVentas();
+  const r = await guardarProductoDesdeForm(formData, { restringido: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
-  redirect("/sales/productos?guardado=1");
+  redirect("/operaciones/productos?guardado=1");
 }
 
-/** Movimiento de stock desde /sales (entrada, salida o conteo); queda el usuario en el historial. */
+/** Movimiento de stock desde /operaciones (entrada, salida o conteo); queda el usuario en el historial. */
 export async function registrarMovimientoVentas(prevState, formData) {
   const usuario = await requerirUsuarioVentas();
   return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
+}
+
+// ---- Integración SAGA del panel: cada usuario gestiona solo las sincronizaciones que originó ----
+
+/** Reintenta el aviso de stock de una variante/cuenta, solo si la fila es del usuario. */
+export async function reintentarStockSagaVentas(varianteId, alias) {
+  const usuario = await requerirUsuarioVentas();
+  const [fila] = await query(
+    "select 1 from sincronizaciones where variante_id = $1 and sistema = 'saga' and cuenta_alias = $2 and usuario_panel = $3",
+    [Number(varianteId), String(alias || ""), usuario.usuario]
+  );
+  if (fila) await sincronizarStockVariante(Number(varianteId), { alias: String(alias), usuario: usuario.usuario });
+  revalidatePath("/operaciones/integraciones/saga");
+}
+
+/** Reintenta ahora todos los avisos de stock pendientes del usuario. */
+export async function reintentarTodoStockSagaVentas() {
+  const usuario = await requerirUsuarioVentas();
+  await reintentarStockPendiente({ forzar: true, limite: 50, usuario: usuario.usuario });
+  revalidatePath("/operaciones/integraciones/saga");
+}
+
+/** Consulta a SAGA el estado de los envíos del usuario y reintenta sus avisos de stock fallidos. */
+export async function actualizarEstadoSagaVentas() {
+  const usuario = await requerirUsuarioVentas();
+  await reintentarStockPendiente({ forzar: true, usuario: usuario.usuario });
+  await refrescarPendientes(null, { usuario: usuario.usuario });
+  revalidatePath("/operaciones/integraciones/saga");
 }

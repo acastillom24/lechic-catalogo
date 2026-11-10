@@ -13,7 +13,7 @@ import {
 import { fechaISO } from "../../../lib/ventas-core";
 import { getOpcionesVentas } from "../../../lib/ventas-opciones";
 
-export const metadata = { title: "Ventas · Le Chic" };
+export const metadata = { title: "Operaciones · Le Chic" };
 export const dynamic = "force-dynamic";
 
 const VISTAS = ["hoy", "pendientes", "todas"];
@@ -44,7 +44,7 @@ export default async function SalesPage({ searchParams }) {
     const base = { q, vista: vista === "hoy" ? "" : vista, ...extra };
     for (const [k, val] of Object.entries(base)) if (val) u.set(k, String(val));
     const s = u.toString();
-    return s ? `/sales?${s}` : "/sales";
+    return s ? `/operaciones?${s}` : "/operaciones";
   };
   const hrefVista = (v) => href({ vista: v === "hoy" ? "" : v });
   const volverHref = href();

@@ -12,9 +12,13 @@ const fechaHora = (x) =>
 /**
  * Lista de variantes × cuenta con su estado de sincronización en SAGA.
  * En "error" permite reintentar el aviso de stock (una fila o todas); en "pendiente",
- * consultar a SAGA si ya terminó de procesar los envíos.
+ * consultar a SAGA si ya terminó de procesar los envíos. El panel /operaciones pasa en `acciones`
+ * sus propias versiones, limitadas a las filas del usuario.
  */
-export default function TablaSincronizacionesSaga({ filas, estado }) {
+export default function TablaSincronizacionesSaga({ filas, estado, rutaProducto = "/admin/productos", acciones = {}, mostrarUsuario = false }) {
+  const reintentarTodo = acciones.reintentarTodo || reintentarTodoStockSaga;
+  const reintentar = acciones.reintentar || reintentarStockSaga;
+  const actualizar = acciones.actualizar || actualizarEstadoSaga;
   const [ocupado, setOcupado] = useState(null); // clave de la fila (o "todas") que se está procesando
   const [, iniciar] = useTransition();
 
@@ -36,7 +40,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
       <div className="admin-barra">
         <small style={{ color: "var(--gris)" }}>
           {esError
-            ? "Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30). Aquí puedes forzarlos ahora."
+            ? `Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30). Aquí puedes forzarlos ahora.`
             : "Envíos aceptados por SAGA que aún no confirmaron si se procesaron bien."}
         </small>
         <div className="admin-barra-der">
@@ -45,7 +49,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
               type="button"
               className="btn-ico-texto primario"
               disabled={ocupado !== null || filas.length === 0}
-              onClick={() => ejecutar("todas", () => reintentarTodoStockSaga())}
+              onClick={() => ejecutar("todas", () => reintentarTodo())}
             >
               {ocupado === "todas" ? "Reintentando…" : "Reintentar todos"}
             </button>
@@ -54,7 +58,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
               type="button"
               className="btn-ico-texto primario"
               disabled={ocupado !== null || filas.length === 0}
-              onClick={() => ejecutar("todas", () => actualizarEstadoSaga())}
+              onClick={() => ejecutar("todas", () => actualizar())}
             >
               {ocupado === "todas" ? "Consultando…" : "Actualizar estado SAGA"}
             </button>
@@ -76,6 +80,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
                 <th>Producto</th>
                 <th>SKU</th>
                 <th>Cuenta</th>
+                {mostrarUsuario && <th>Usuario</th>}
                 <th>Detalle</th>
                 <th>Stock web → SAGA</th>
                 {esError && <th>Intentos</th>}
@@ -95,6 +100,7 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
                     </td>
                     <td>{f.sku || "—"}</td>
                     <td>{f.cuenta}</td>
+                    {mostrarUsuario && <td>{f.usuario_panel || "Admin / automático"}</td>}
                     <td style={{ maxWidth: 360 }}>
                       {esError && (
                         <span className={f.stock_pendiente ? "chip-saga aviso" : "chip-saga"}>
@@ -114,12 +120,12 @@ export default function TablaSincronizacionesSaga({ filas, estado }) {
                           type="button"
                           className="btn-ico-texto"
                           disabled={ocupado !== null}
-                          onClick={() => ejecutar(clave, () => reintentarStockSaga(f.variante_id, f.cuenta_alias))}
+                          onClick={() => ejecutar(clave, () => reintentar(f.variante_id, f.cuenta_alias))}
                         >
                           {ocupado === clave ? "Reintentando…" : "Reintentar stock"}
                         </button>
                       )}{" "}
-                      <Link href={`/admin/productos/${f.producto_id}`} className="btn-ico-texto">
+                      <Link href={`${rutaProducto}/${f.producto_id}`} className="btn-ico-texto">
                         Editar producto
                       </Link>
                     </td>

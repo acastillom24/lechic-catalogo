@@ -7,7 +7,7 @@ import { requerirUsuarioVentas } from "../actions";
 import { getInventario } from "../../../../lib/inventario";
 import { contarPendientes } from "../../../../lib/ventas";
 
-export const metadata = { title: "Productos · Ventas Le Chic" };
+export const metadata = { title: "Productos · Le Chic · Operaciones" };
 export const dynamic = "force-dynamic";
 
 const POR_PAGINA = 30;
@@ -46,7 +46,7 @@ export default async function ProductosVentasPage({ searchParams }) {
     const u = new URLSearchParams();
     for (const [k, v] of Object.entries({ q, filtro: filtro === "alertas" ? "alertas" : "", ...extra })) if (v) u.set(k, String(v));
     const s = u.toString();
-    return s ? `/sales/productos?${s}` : "/sales/productos";
+    return s ? `/operaciones/productos?${s}` : "/operaciones/productos";
   };
 
   return (
@@ -58,7 +58,7 @@ export default async function ProductosVentasPage({ searchParams }) {
           {params?.guardado === "1" && <div className="mensaje-ok">Producto actualizado correctamente.</div>}
 
           <div className="admin-barra">
-            <form method="get" action="/sales/productos" className="admin-barra-buscar">
+            <form method="get" action="/operaciones/productos" className="admin-barra-buscar">
               <IconoBuscar size={18} />
               <input type="search" name="q" defaultValue={q} placeholder="Buscar por producto, variante o SKU..." />
               {filtro === "alertas" && <input type="hidden" name="filtro" value="alertas" />}
@@ -73,7 +73,7 @@ export default async function ProductosVentasPage({ searchParams }) {
               </Link>
             )}
             <div className="admin-barra-der">
-              <Link href="/sales/productos/nuevo" className="btn-ico-texto primario">
+              <Link href="/operaciones/productos/nuevo" className="btn-ico-texto primario">
                 <IconoMas /> Agregar producto
               </Link>
             </div>
