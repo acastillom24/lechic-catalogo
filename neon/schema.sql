@@ -272,6 +272,9 @@ alter table productos add column if not exists formato_belleza text not null def
 -- Campos extra por categoría primaria (ver lib/saga-campos.js): { FeedName: valor }.
 alter table productos add column if not exists saga_extras jsonb not null default '{}'::jsonb;  -- campos por producto
 alter table variantes add column if not exists saga_extras jsonb not null default '{}'::jsonb;  -- campos por variante (color, variante…)
+-- Valores GENERALES del producto para datos que se piden por variante: { registro_sanitario, variante_extras: {FeedName: valor} }.
+-- Cada variante hereda estos valores mientras no tenga uno propio (variantes.registro_sanitario / saga_extras).
+alter table productos add column if not exists atributos jsonb not null default '{}'::jsonb;
 alter table variantes add column if not exists codigo_barras text;
 alter table variantes add column if not exists volumen       text;  -- medida del frasco, ej. "50 ML"
 -- Datos de SAGA por variante.

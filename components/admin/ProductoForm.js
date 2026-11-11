@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { guardarProducto, traerDatosSaga } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
 import { LIMITES, CALIDAD, GENERO_POR_CATEGORIA, validarProducto, advertenciasSaga } from "../../lib/saga-mapeo";
-import { camposActivos, esCategoriaGeneral } from "../../lib/saga-campos";
+import { camposActivos, esCategoriaGeneral, heredarVariante } from "../../lib/saga-campos";
 import SelectBuscador from "./SelectBuscador";
 import CamposExtra from "./CamposExtra";
 import PackComponentes from "./PackComponentes";
@@ -89,7 +89,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
 
   const sg = producto?.saga || {};
   const [saga, setSaga] = useState({
-    sagaCategoria: sg.sagaCategoria || "",
+    // Producto nuevo: la categoría SAGA se preselecciona con la equivalencia de Configuración para su categoría web.
+    sagaCategoria: sg.sagaCategoria || (modo === "crear" ? opcionesSaga.mapaCategorias?.[categoria] || "" : ""),
     skuPadre: sg.skuPadre || "",
     usarSkuPadre: sg.usarSkuPadre === true,
     contenidoPaquete: sg.contenidoPaquete || "",
@@ -105,6 +106,11 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     caracteristicas: sg.caracteristicas || "",
     condicion: sg.condicion || "Nuevo",
     extras: sg.extras || {},
+  });
+  // Valores generales que heredan las variantes mientras no tengan uno propio.
+  const [atributos, setAtributos] = useState({
+    registroSanitario: sg.atributos?.registro_sanitario || "",
+    varianteExtras: sg.atributos?.variante_extras || {},
   });
   const [cuentasMarcadas, setCuentasMarcadas] = useState(sincronizadas);
   const esPerfume = ["feminine", "masculine", "couples"].includes(categoria);
@@ -268,7 +274,18 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   // Cambiar la categoría solo si deja de existir en la nueva pestaña.
   function ajustarCategoria(slugPestana) {
     const cats = pestanas.find((p) => p.slug === slugPestana)?.categorias || [];
-    if (!cats.some((c) => c.slug === categoria)) setCategoria(cats[0]?.slug || "");
+    if (!cats.some((c) => c.slug === categoria)) elegirCategoria(cats[0]?.slug || "");
+  }
+
+  // Elegir la categoría web preselecciona su equivalente de SAGA (Configuración → SAGA), sin pisar una elección distinta.
+  function elegirCategoria(slug) {
+    const mapa = opcionesSaga.mapaCategorias || {};
+    setCategoria(slug);
+    setSaga((prev) => {
+      const anterior = mapa[categoria] || "";
+      if (!mapa[slug] || (prev.sagaCategoria && prev.sagaCategoria !== anterior)) return prev;
+      return { ...prev, sagaCategoria: mapa[slug] };
+    });
   }
 
   function alCambiarMarca(nuevaMarca) {
@@ -322,7 +339,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       precio: num(o.precio) ?? num(v.precio), precio_oferta: num(o.precioOferta) ?? num(v.precioOferta),
       oferta_inicio: o.ofertaInicio || null, oferta_fin: o.ofertaFin || null,
     };
-    return validarProducto(p, vv, opcionesSaga);
+    const generales = { registro_sanitario: atributos.registroSanitario, variante_extras: atributos.varianteExtras };
+    return validarProducto(p, heredarVariante(generales, vv), opcionesSaga);
   }
   // Cada cuenta puede tener sus propios precios: se valida por cuenta. Lo que falta en todas se lista una vez.
   function faltantesPorCuenta(v) {
@@ -397,6 +415,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     <form action={accion} className="pf">
       {conSaga && <input type="hidden" name="sagaCampos" value="1" />}
       {conSaga && <input type="hidden" name="sagaExtras" value={JSON.stringify(saga.extras)} />}
+      {conSaga && (
+        <input type="hidden" name="atributosGenerales" value={JSON.stringify({ registro_sanitario: atributos.registroSanitario, variante_extras: atributos.varianteExtras })} />
+      )}
 
       <input type="hidden" name="modo" value={modo} />
       {modo === "editar" && <input type="hidden" name="idOriginal" value={producto.id} />}
@@ -486,7 +507,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
               id="categoria"
               name="categoria"
               value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
+              onChange={(e) => elegirCategoria(e.target.value)}
             >
               {categoriasOpc.map((c) => (
                 <option key={c.slug} value={c.slug}>
@@ -532,6 +553,96 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
           />
           Destacado (aparece resaltado en el catálogo)
         </label>
+
+        {conSaga && (
+          <div className="pf-bloque pf-bloque-saga">
+            <h5>Atributos del producto <small>los piden las plataformas; se llenan una vez aquí</small></h5>
+            <div className="form-grid">
+                  <div className="pf-grid-2">
+                    <div className="campo">
+                      <label htmlFor="sagaCategoria">Categoría primaria <em>obligatorio</em></label>
+                      <SelectBuscador
+                        id="sagaCategoria"
+                        name="sagaCategoria"
+                        valor={saga.sagaCategoria}
+                        onChange={(v) => cambiarSaga({ sagaCategoria: v })}
+                        opciones={(opcionesSaga.categorias || []).map((c) => ({ valor: c.id, etiqueta: `${c.id} — ${c.nombre}` }))}
+                        placeholder="Buscar por id o descripción…"
+                      />
+                    </div>
+                    {!sagaGeneral && (
+                      <div className="campo">
+                        <label htmlFor="tipoPerfume">Tipo de perfume <em>obligatorio</em></label>
+                        <select id="tipoPerfume" name="tipoPerfume" value={saga.tipoPerfume} onChange={(e) => cambiarSaga({ tipoPerfume: e.target.value })}>
+                          <option value="">— Elegir —</option>
+                          {TIPOS_PERFUME.map((t) => <option key={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pf-grid-3">
+                    {!sagaGeneral && (
+                      <>
+                        <div className="campo">
+                          <label htmlFor="genero">Género <em>obligatorio</em></label>
+                          <select id="genero" name="genero" value={generoActual} onChange={(e) => cambiarSaga({ genero: e.target.value })}>
+                            <option value="">— Elegir —</option>
+                            {(opcionesSaga.generos || []).map((g) => <option key={g}>{g}</option>)}
+                          </select>
+                        </div>
+                        <div className="campo">
+                          <label htmlFor="formatoBelleza">Formato belleza <em>obligatorio</em></label>
+                          <select id="formatoBelleza" name="formatoBelleza" value={saga.formatoBelleza} onChange={(e) => cambiarSaga({ formatoBelleza: e.target.value })}>
+                            {(opcionesSaga.formatosBelleza || []).map((f) => <option key={f}>{f}</option>)}
+                          </select>
+                        </div>
+                      </>
+                    )}
+                    <div className="campo">
+                      <label htmlFor="condicion">Condición <em>obligatorio</em></label>
+                      <select id="condicion" name="condicion" value={saga.condicion} onChange={(e) => cambiarSaga({ condicion: e.target.value })}>
+                        {CONDICIONES.map((c) => <option key={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="pf-grid-2">
+                    <div className="campo">
+                      <label htmlFor="modelo">Modelo</label>
+                      <input id="modelo" name="modelo" value={saga.modelo} onChange={(e) => cambiarSaga({ modelo: e.target.value })} />
+                    </div>
+                    <div className="campo">
+                      <label htmlFor="paisProduccion">País de producción</label>
+                      <SelectBuscador
+                        id="paisProduccion"
+                        name="paisProduccion"
+                        valor={saga.paisProduccion}
+                        onChange={(v) => cambiarSaga({ paisProduccion: v })}
+                        opciones={(opcionesSaga.paises || []).map((p) => ({ valor: p, etiqueta: p }))}
+                        placeholder="Buscar país…"
+                      />
+                    </div>
+                  </div>
+              {saga.sagaCategoria && camposProducto.length > 0 && (
+                <div className="campo">
+                  <label>Campos de la categoría <em>por producto</em></label>
+                  <CamposExtra campos={camposProducto} valores={saga.extras} onChange={(extras) => cambiarSaga({ extras })} prefijo="extra-prod" />
+                </div>
+              )}
+              <div className="campo">
+                <label htmlFor="registroGeneral">Registro sanitario <em>obligatorio</em></label>
+                <input id="registroGeneral" type="text" value={atributos.registroSanitario} onChange={(e) => setAtributos((p) => ({ ...p, registroSanitario: e.target.value }))} />
+                <small>Lo heredan todas las variantes. Si una variante tiene otro, se cambia en esa variante.</small>
+              </div>
+              {saga.sagaCategoria && camposVariante.length > 0 && (
+                <div className="campo">
+                  <label>Campos de la categoría <em>generales para las variantes</em></label>
+                  <CamposExtra campos={camposVariante} valores={atributos.varianteExtras} onChange={(varianteExtras) => setAtributos((p) => ({ ...p, varianteExtras }))} prefijo="extra-gen" />
+                  <small>Cada variante usa estos valores salvo que la personalices (por ejemplo, el color).</small>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* ===== 2. Plataformas (SAGA) ===== */}
@@ -578,72 +689,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
           )}
 
           <details className="saga-seccion" open>
-            <summary>Datos generales del producto en SAGA</summary>
+            <summary>SKU padre</summary>
             <div className="form-grid saga-cuerpo">
-              <div className="pf-grid-2">
-                <div className="campo">
-                  <label htmlFor="sagaCategoria">Categoría primaria <em>obligatorio</em></label>
-                  <SelectBuscador
-                    id="sagaCategoria"
-                    name="sagaCategoria"
-                    valor={saga.sagaCategoria}
-                    onChange={(v) => cambiarSaga({ sagaCategoria: v })}
-                    opciones={(opcionesSaga.categorias || []).map((c) => ({ valor: c.id, etiqueta: `${c.id} — ${c.nombre}` }))}
-                    placeholder="Buscar por id o descripción…"
-                  />
-                </div>
-                {!sagaGeneral && (
-                  <div className="campo">
-                    <label htmlFor="tipoPerfume">Tipo de perfume <em>obligatorio</em></label>
-                    <select id="tipoPerfume" name="tipoPerfume" value={saga.tipoPerfume} onChange={(e) => cambiarSaga({ tipoPerfume: e.target.value })}>
-                      <option value="">— Elegir —</option>
-                      {TIPOS_PERFUME.map((t) => <option key={t}>{t}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-              <div className="pf-grid-3">
-                {!sagaGeneral && (
-                  <>
-                    <div className="campo">
-                      <label htmlFor="genero">Género <em>obligatorio</em></label>
-                      <select id="genero" name="genero" value={generoActual} onChange={(e) => cambiarSaga({ genero: e.target.value })}>
-                        <option value="">— Elegir —</option>
-                        {(opcionesSaga.generos || []).map((g) => <option key={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <div className="campo">
-                      <label htmlFor="formatoBelleza">Formato belleza <em>obligatorio</em></label>
-                      <select id="formatoBelleza" name="formatoBelleza" value={saga.formatoBelleza} onChange={(e) => cambiarSaga({ formatoBelleza: e.target.value })}>
-                        {(opcionesSaga.formatosBelleza || []).map((f) => <option key={f}>{f}</option>)}
-                      </select>
-                    </div>
-                  </>
-                )}
-                <div className="campo">
-                  <label htmlFor="condicion">Condición <em>obligatorio</em></label>
-                  <select id="condicion" name="condicion" value={saga.condicion} onChange={(e) => cambiarSaga({ condicion: e.target.value })}>
-                    {CONDICIONES.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="pf-grid-2">
-                <div className="campo">
-                  <label htmlFor="modelo">Modelo</label>
-                  <input id="modelo" name="modelo" value={saga.modelo} onChange={(e) => cambiarSaga({ modelo: e.target.value })} />
-                </div>
-                <div className="campo">
-                  <label htmlFor="paisProduccion">País de producción</label>
-                  <SelectBuscador
-                    id="paisProduccion"
-                    name="paisProduccion"
-                    valor={saga.paisProduccion}
-                    onChange={(v) => cambiarSaga({ paisProduccion: v })}
-                    opciones={(opcionesSaga.paises || []).map((p) => ({ valor: p, etiqueta: p }))}
-                    placeholder="Buscar país…"
-                  />
-                </div>
-              </div>
               <div className="campo">
                 <label className="campo-check">
                   <input
@@ -678,19 +725,6 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
             </div>
           </details>
 
-          {saga.sagaCategoria && camposProducto.length > 0 && (
-            <details className="saga-seccion">
-              <summary>Campos extra de la categoría <em>por producto · se eligen en Configuración → SAGA</em></summary>
-              <div className="saga-cuerpo">
-                <CamposExtra
-                  campos={camposProducto}
-                  valores={saga.extras}
-                  onChange={(extras) => cambiarSaga({ extras })}
-                  prefijo="extra-prod"
-                />
-              </div>
-            </details>
-          )}
 
           <details className="saga-seccion">
             <summary>Paquete <em>un solo juego para todas las variantes</em></summary>
@@ -1035,6 +1069,35 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
               </div>
 
               {conSaga && (
+                <div className="pf-bloque">
+                  <h5>Atributos para plataformas <small>heredan los datos generales del producto</small></h5>
+                  <div className="pf-grid-2">
+                    <div className="campo">
+                      <label>Registro sanitario{v.registroSanitario.trim() && <em> personalizado</em>}</label>
+                      <input type="text" value={v.registroSanitario} placeholder={atributos.registroSanitario ? `General: ${atributos.registroSanitario}` : ""} onChange={(e) => actualizarVariante(i, { registroSanitario: e.target.value })} />
+                    </div>
+                    <div className="campo">
+                      <label>Código de barras</label>
+                      <input type="text" value={v.codigoBarras} onChange={(e) => actualizarVariante(i, { codigoBarras: e.target.value })} />
+                    </div>
+                  </div>
+                  {saga.sagaCategoria && camposVariante.length > 0 && (
+                    <CamposExtra
+                      campos={camposVariante}
+                      valores={v.sagaExtras}
+                      heredados={atributos.varianteExtras}
+                      onChange={(sagaExtras) => actualizarVariante(i, { sagaExtras })}
+                      prefijo={`extra-var-${i}`}
+                    />
+                  )}
+                  {(v.registroSanitario.trim() || Object.keys(v.sagaExtras || {}).length > 0) && (
+                    <button type="button" className="btn-ico-texto" onClick={() => actualizarVariante(i, { registroSanitario: "", sagaExtras: {} })}>
+                      Usar datos generales
+                    </button>
+                  )}
+                </div>
+              )}
+              {conSaga && (
                 <details className="pf-bloque pf-bloque-saga saga-seccion" open={cuentasMarcadas.length > 0}>
                   <summary>
                     <span className="pf-sello">SAGA</span> Datos de esta variante
@@ -1138,27 +1201,6 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                             placeholder={v.volumen ? `Vacío = ${v.volumen.replace(/\s+/g, "")}` : "Ej: 100ML"}
                           />
                         </div>
-                      </div>
-                    )}
-                    <div className="pf-grid-2">
-                      <div className="campo">
-                        <label>Registro sanitario <em>obligatorio</em></label>
-                        <input type="text" value={v.registroSanitario} onChange={(e) => actualizarVariante(i, { registroSanitario: e.target.value })} />
-                      </div>
-                      <div className="campo">
-                        <label>Código de barras</label>
-                        <input type="text" value={v.codigoBarras} onChange={(e) => actualizarVariante(i, { codigoBarras: e.target.value })} />
-                      </div>
-                    </div>
-                    {saga.sagaCategoria && camposVariante.length > 0 && (
-                      <div className="campo">
-                        <label>Campos extra de la categoría <em>por variante</em></label>
-                        <CamposExtra
-                          campos={camposVariante}
-                          valores={v.sagaExtras}
-                          onChange={(sagaExtras) => actualizarVariante(i, { sagaExtras })}
-                          prefijo={`extra-var-${i}`}
-                        />
                       </div>
                     )}
                     {!sagaGeneral && (

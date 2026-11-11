@@ -18,7 +18,7 @@ function Lista({ nombre, etiqueta, ayuda, valores, filas = 6 }) {
 }
 
 // Los valores deben ser EXACTAMENTE los de SAGA (mayúsculas, tildes, espacios).
-export default function SagaConfig({ opciones }) {
+export default function SagaConfig({ opciones, categoriasWeb = [] }) {
   const [estado, accion, enviando] = useActionState(guardarOpcionesSaga, {});
   const categoriasTexto = (opciones.categorias || []).map((c) => `${c.id} = ${c.nombre}`).join("\n");
 
@@ -46,6 +46,25 @@ export default function SagaConfig({ opciones }) {
             Una por línea: <code>id = Descripción</code> (ej. <code>1735 = Fragancias|perfumes</code>). Usa el id de una
             categoría final de SAGA (la más específica, sin subcategorías).
           </small>
+        </div>
+      </section>
+
+      <section className="admin-card form-grid">
+        <h2>Equivalencia de categorías</h2>
+        <small style={{ color: "var(--gris)" }}>
+          Elige la categoría de SAGA que corresponde a cada categoría de la web. Al elegir la categoría web en un producto se
+          preselecciona la de SAGA (se puede cambiar) y se piden sus atributos en el formulario del producto.
+        </small>
+        <div className="chips-grid">
+          {categoriasWeb.map((c) => (
+            <div className="campo" key={c.slug}>
+              <label htmlFor={`mapaCat_${c.slug}`}>{c.nombre}</label>
+              <select id={`mapaCat_${c.slug}`} name={`mapaCat_${c.slug}`} defaultValue={opciones.mapaCategorias?.[c.slug] || ""}>
+                <option value="">— Sin equivalencia —</option>
+                {(opciones.categorias || []).map((s) => <option key={s.id} value={s.id}>{s.id} — {s.nombre}</option>)}
+              </select>
+            </div>
+          ))}
         </div>
       </section>
 

@@ -772,7 +772,18 @@ export async function guardarOpcionesSaga(prevState, formData) {
       const validos = new Set(camposDe(c.id).map((x) => x.id));
       c.extras = [...new Set(formData.getAll(`extras_${c.id}`).map(String).filter((x) => validos.has(x)))];
     }
+    // Equivalencia categoría web → categoría SAGA (solo ids que están en la lista de categorías).
+    const mapaCategorias = {};
+    for (const [clave, v] of formData.entries()) {
+      if (!clave.startsWith("mapaCat_")) continue;
+      const web = clave.slice("mapaCat_".length);
+      const idSaga = String(v || "").trim();
+      if (!idSaga) continue;
+      if (!categorias.some((c) => c.id === idSaga)) throw new Error(`La categoría SAGA ${idSaga} (equivalencia de «${web}») no está en la lista de categorías primarias.`);
+      mapaCategorias[web] = idSaga;
+    }
     valor = {
+      mapaCategorias,
       aromas: listaOpciones(formData, "aromas", "Aromas", { max: 100 }),
       cantidades: listaOpciones(formData, "cantidades", "Medidas del frasco"),
       tiposPerfume: listaOpciones(formData, "tiposPerfume", "Tipos de perfume", { max: 100 }),

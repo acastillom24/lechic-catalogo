@@ -47,7 +47,7 @@ export default async function ConfiguracionPage() {
           saga: (
             <>
               <CuentasSaga cuentas={cuentasSaga} opciones={{ urlsBase: opcionesSaga.urlsBase, operadores: opcionesSaga.operadores }} />
-              <SagaConfig opciones={opcionesSaga} />
+              <SagaConfig opciones={opcionesSaga} categoriasWeb={cfgMarcas.categorias.map(({ slug, nombre }) => ({ slug, nombre }))} />
             </>
           ),
         }}
