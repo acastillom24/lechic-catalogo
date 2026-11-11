@@ -411,9 +411,10 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         </div>
         <nav className="pf-nav" aria-label="Secciones del formulario">
           <a href="#pf-web">Web</a>
-          <a href="#pf-variantes">Variantes</a>
           {conSaga && <a href="#pf-plataformas">Plataformas</a>}
           {conSaga && <a href="#pf-resumen">Resumen</a>}
+          <a href="#pf-variantes">Variantes</a>
+          {conSaga && <a href="#pf-precios">Precios</a>}
         </nav>
         {botonGuardar}
       </div>
@@ -533,7 +534,224 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         </label>
       </section>
 
-      {/* ===== 2. Variantes ===== */}
+      {/* ===== 2. Plataformas (SAGA) ===== */}
+      {conSaga && (
+        <section id="pf-plataformas" className="pf-seccion pf-seccion-saga">
+          <header className="pf-seccion-cab">
+            <div>
+              <h3>Plataformas</h3>
+              <small>Elige dónde publicar. Cada plataforma se puede plegar; sus datos no se muestran en la web.</small>
+            </div>
+          </header>
+
+          <details className="saga-seccion pf-plataforma" open>
+          <summary>
+            <span className="pf-sello">SAGA</span> {cuentasSaga.map((c) => c.nombre).join(" · ")}
+            {estadoSagaChip}
+          </summary>
+          <div className="saga-cuerpo form-grid">
+          <div className="pf-cuentas">
+            {cuentasSaga.map((c) => (
+              <label className="campo-check" key={c.alias}>
+                <input
+                  type="checkbox"
+                  name="sagaCuentas"
+                  value={c.alias}
+                  checked={cuentasMarcadas.includes(c.alias)}
+                  onChange={(e) =>
+                    setCuentasMarcadas((prev) =>
+                      e.target.checked ? [...prev, c.alias] : prev.filter((a) => a !== c.alias)
+                    )
+                  }
+                />
+                Publicar en SAGA — {c.nombre}
+              </label>
+            ))}
+          </div>
+          {largoNombreSaga > 0 && (
+            <small style={{ color: largoNombreSaga > LIMITES.texto ? "#b3261e" : avisosPorVariante.some((a) => a.some((x) => x.startsWith("Título"))) ? "#9a6700" : "var(--gris)" }}>
+              {largoNombreSaga > LIMITES.texto
+                ? `El nombre es muy largo para SAGA: máximo ${LIMITES.texto} caracteres y el peor caso queda en ${largoNombreSaga}. Acórtalo o desmarca «Combinar nombre» en la variante.`
+                : `Nombre en SAGA: la variante más larga tiene ${largoNombreSaga} caracteres; SAGA pide de ${CALIDAD.tituloMin} a ${CALIDAD.tituloMax}.`}
+              {avisosPorVariante.some((a) => a.some((x) => x.startsWith("Título"))) && " ⚠ Hay variantes fuera de ese rango (ver el resumen)."}
+            </small>
+          )}
+
+          <details className="saga-seccion" open>
+            <summary>Datos generales del producto en SAGA</summary>
+            <div className="form-grid saga-cuerpo">
+              <div className="pf-grid-2">
+                <div className="campo">
+                  <label htmlFor="sagaCategoria">Categoría primaria <em>obligatorio</em></label>
+                  <SelectBuscador
+                    id="sagaCategoria"
+                    name="sagaCategoria"
+                    valor={saga.sagaCategoria}
+                    onChange={(v) => cambiarSaga({ sagaCategoria: v })}
+                    opciones={(opcionesSaga.categorias || []).map((c) => ({ valor: c.id, etiqueta: `${c.id} — ${c.nombre}` }))}
+                    placeholder="Buscar por id o descripción…"
+                  />
+                </div>
+                {!sagaGeneral && (
+                  <div className="campo">
+                    <label htmlFor="tipoPerfume">Tipo de perfume <em>obligatorio</em></label>
+                    <select id="tipoPerfume" name="tipoPerfume" value={saga.tipoPerfume} onChange={(e) => cambiarSaga({ tipoPerfume: e.target.value })}>
+                      <option value="">— Elegir —</option>
+                      {TIPOS_PERFUME.map((t) => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                )}
+              </div>
+              <div className="pf-grid-3">
+                {!sagaGeneral && (
+                  <>
+                    <div className="campo">
+                      <label htmlFor="genero">Género <em>obligatorio</em></label>
+                      <select id="genero" name="genero" value={generoActual} onChange={(e) => cambiarSaga({ genero: e.target.value })}>
+                        <option value="">— Elegir —</option>
+                        {(opcionesSaga.generos || []).map((g) => <option key={g}>{g}</option>)}
+                      </select>
+                    </div>
+                    <div className="campo">
+                      <label htmlFor="formatoBelleza">Formato belleza <em>obligatorio</em></label>
+                      <select id="formatoBelleza" name="formatoBelleza" value={saga.formatoBelleza} onChange={(e) => cambiarSaga({ formatoBelleza: e.target.value })}>
+                        {(opcionesSaga.formatosBelleza || []).map((f) => <option key={f}>{f}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
+                <div className="campo">
+                  <label htmlFor="condicion">Condición <em>obligatorio</em></label>
+                  <select id="condicion" name="condicion" value={saga.condicion} onChange={(e) => cambiarSaga({ condicion: e.target.value })}>
+                    {CONDICIONES.map((c) => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="pf-grid-2">
+                <div className="campo">
+                  <label htmlFor="modelo">Modelo</label>
+                  <input id="modelo" name="modelo" value={saga.modelo} onChange={(e) => cambiarSaga({ modelo: e.target.value })} />
+                </div>
+                <div className="campo">
+                  <label htmlFor="paisProduccion">País de producción</label>
+                  <SelectBuscador
+                    id="paisProduccion"
+                    name="paisProduccion"
+                    valor={saga.paisProduccion}
+                    onChange={(v) => cambiarSaga({ paisProduccion: v })}
+                    opciones={(opcionesSaga.paises || []).map((p) => ({ valor: p, etiqueta: p }))}
+                    placeholder="Buscar país…"
+                  />
+                </div>
+              </div>
+              <div className="campo">
+                <label className="campo-check">
+                  <input
+                    type="checkbox"
+                    name="usarSkuPadre"
+                    checked={saga.usarSkuPadre}
+                    disabled={skuPadreBloqueado}
+                    onChange={(e) => cambiarSaga({ usarSkuPadre: e.target.checked })}
+                  />
+                  Usar SKU padre (agrupa las variantes en una sola ficha de SAGA)
+                </label>
+                <small>
+                  {skuPadreBloqueado
+                    ? "Ya se envió a SAGA: no se puede cambiar."
+                    : "Sin marcar, cada variante se publica en SAGA como un producto suelto, sin SKU padre."}
+                </small>
+              </div>
+              {saga.usarSkuPadre && (
+                <div className="campo">
+                  <label htmlFor="skuPadre">SKU padre</label>
+                  <input
+                    id="skuPadre"
+                    name="skuPadre"
+                    value={skuPadreBloqueado ? saga.skuPadre || producto?.id || "" : saga.skuPadre}
+                    disabled={skuPadreBloqueado}
+                    onChange={(e) => cambiarSaga({ skuPadre: e.target.value })}
+                    placeholder={`Vacío = se usa el id del producto${id ? ` (${id})` : ""}`}
+                  />
+                  <small>SAGA no lo asigna: lo defines tú. Queda guardado en el primer envío y se reutiliza al agregar variantes.</small>
+                </div>
+              )}
+            </div>
+          </details>
+
+          {saga.sagaCategoria && camposProducto.length > 0 && (
+            <details className="saga-seccion">
+              <summary>Campos extra de la categoría <em>por producto · se eligen en Configuración → SAGA</em></summary>
+              <div className="saga-cuerpo">
+                <CamposExtra
+                  campos={camposProducto}
+                  valores={saga.extras}
+                  onChange={(extras) => cambiarSaga({ extras })}
+                  prefijo="extra-prod"
+                />
+              </div>
+            </details>
+          )}
+
+          <details className="saga-seccion">
+            <summary>Paquete <em>un solo juego para todas las variantes</em></summary>
+            <div className="form-grid saga-cuerpo">
+              <div className="pf-grid-4">
+                {[["paqueteAncho", "Ancho (cm)"], ["paqueteLargo", "Largo (cm)"], ["paqueteAlto", "Alto (cm)"], ["paquetePeso", "Peso (kg)"]].map(([k, et]) => (
+                  <div className="campo" key={k}>
+                    <label>{et} <em>obligatorio</em></label>
+                    <input type="number" min="0" step="0.01" name={k} value={saga[k]} onChange={(e) => cambiarSaga({ [k]: e.target.value })} />
+                  </div>
+                ))}
+              </div>
+              <div className="campo">
+                <label>Contenido del paquete</label>
+                <input name="contenidoPaquete" value={saga.contenidoPaquete} onChange={(e) => cambiarSaga({ contenidoPaquete: e.target.value })} placeholder="Ej: 1 perfume 50 ml" />
+              </div>
+            </div>
+          </details>
+
+          {!sagaGeneral && (
+            <details className="saga-seccion">
+              <summary>Características <em>opcional</em></summary>
+              <div className="saga-cuerpo">
+                <input type="hidden" name="caracteristicas" value={saga.caracteristicas} />
+                <div className="chips-grid">
+                  {(opcionesSaga.caracteristicas || []).map((c) => (
+                    <label className="campo-check" key={c}>
+                      <input
+                        type="checkbox"
+                        checked={lista(saga.caracteristicas).some((x) => x.toLowerCase() === c.toLowerCase())}
+                        onChange={(e) => cambiarSaga({ caracteristicas: alternarEnLista(saga.caracteristicas, c, e.target.checked) })}
+                      />
+                      {c}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </details>
+          )}
+          </div>
+          </details>
+        </section>
+      )}
+
+      {/* ===== 3. Resumen por plataforma ===== */}
+      {conSaga && (
+        <ResumenPlataformas
+          cuentas={cuentasSaga.filter((c) => cuentasMarcadas.includes(c.alias))}
+          filas={variantes.map((v, i) => ({
+            i,
+            nombre: v.nombre.trim() || "Sin nombre",
+            sku: v.sku,
+            acciones: Object.fromEntries(cuentasMarcadas.map((a) => [a, etiquetaAccion(accionDe(v, a))])),
+            envia: Object.fromEntries(cuentasMarcadas.map((a) => [a, accionDe(v, a) === "crear"])),
+            faltantes: faltantesPorVariante[i],
+            avisos: avisosPorVariante[i],
+          }))}
+        />
+      )}
+
+      {/* ===== 4. Variantes ===== */}
       <section id="pf-variantes" className="pf-seccion">
         <header className="pf-seccion-cab">
           <div>
@@ -977,39 +1195,6 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                       </>
                     )}
 
-                    <div className="form-grid pf-precios-plataforma">
-                      <strong>Precios por plataforma</strong>
-                      <small style={{ color: "var(--gris)" }}>
-                        Web: {v.precio === "" ? "—" : v.precio}
-                        {v.precioOferta !== "" && ` (oferta ${v.precioOferta})`}. Si dejas un campo vacío, la plataforma usa el precio de la web.
-                      </small>
-                      {cuentasSaga.map((c) => {
-                        const p = v.preciosSaga[c.alias] || {};
-                        return (
-                          <div key={c.alias} className="form-grid">
-                            <small><strong>SAGA — {c.nombre}</strong></small>
-                            <div className="pf-grid-4">
-                              <div className="campo">
-                                <label>Precio</label>
-                                <input type="number" min="0" step="0.01" value={p.precio ?? ""} placeholder={v.precio === "" ? "" : `Web: ${v.precio}`} onChange={(e) => actualizarPrecioSaga(i, c.alias, { precio: e.target.value })} />
-                              </div>
-                              <div className="campo">
-                                <label>Precio oferta</label>
-                                <input type="number" min="0" step="0.01" value={p.precioOferta ?? ""} placeholder={v.precioOferta === "" ? "" : `Web: ${v.precioOferta}`} onChange={(e) => actualizarPrecioSaga(i, c.alias, { precioOferta: e.target.value })} />
-                              </div>
-                              <div className="campo">
-                                <label>Oferta desde</label>
-                                <input type="date" value={p.ofertaInicio ?? ""} onChange={(e) => actualizarPrecioSaga(i, c.alias, { ofertaInicio: e.target.value })} />
-                              </div>
-                              <div className="campo">
-                                <label>Oferta hasta</label>
-                                <input type="date" value={p.ofertaFin ?? ""} onChange={(e) => actualizarPrecioSaga(i, c.alias, { ofertaFin: e.target.value })} />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
                   </div>
                 </details>
               )}
@@ -1018,216 +1203,64 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         ))}
       </section>
 
-      {/* ===== 3. Plataformas (SAGA) ===== */}
+      {/* ===== 5. Precios por plataforma ===== */}
       {conSaga && (
-        <section id="pf-plataformas" className="pf-seccion pf-seccion-saga">
+        <section id="pf-precios" className="pf-seccion pf-precios">
           <header className="pf-seccion-cab">
             <div>
-              <h3><span className="pf-sello">SAGA</span> Plataformas</h3>
-              <small>Datos de envío: no se muestran en la web. Los datos propios de cada variante están dentro de la variante.</small>
+              <h3>Precios por plataforma</h3>
+              <small>Lo que se publica en cada plataforma. Si dejas un campo vacío, la plataforma usa el precio de la web.</small>
             </div>
-            {estadoSagaChip}
           </header>
-
-          <div className="pf-cuentas">
-            {cuentasSaga.map((c) => (
-              <label className="campo-check" key={c.alias}>
-                <input
-                  type="checkbox"
-                  name="sagaCuentas"
-                  value={c.alias}
-                  checked={cuentasMarcadas.includes(c.alias)}
-                  onChange={(e) =>
-                    setCuentasMarcadas((prev) =>
-                      e.target.checked ? [...prev, c.alias] : prev.filter((a) => a !== c.alias)
-                    )
-                  }
-                />
-                Publicar en SAGA — {c.nombre}
-              </label>
-            ))}
-          </div>
-          {largoNombreSaga > 0 && (
-            <small style={{ color: largoNombreSaga > LIMITES.texto ? "#b3261e" : avisosPorVariante.some((a) => a.some((x) => x.startsWith("Título"))) ? "#9a6700" : "var(--gris)" }}>
-              {largoNombreSaga > LIMITES.texto
-                ? `El nombre es muy largo para SAGA: máximo ${LIMITES.texto} caracteres y el peor caso queda en ${largoNombreSaga}. Acórtalo o desmarca «Combinar nombre» en la variante.`
-                : `Nombre en SAGA: la variante más larga tiene ${largoNombreSaga} caracteres; SAGA pide de ${CALIDAD.tituloMin} a ${CALIDAD.tituloMax}.`}
-              {avisosPorVariante.some((a) => a.some((x) => x.startsWith("Título"))) && " ⚠ Hay variantes fuera de ese rango (ver el resumen)."}
-            </small>
-          )}
-
-          <details className="saga-seccion" open>
-            <summary>Datos generales del producto en SAGA</summary>
-            <div className="form-grid saga-cuerpo">
-              <div className="pf-grid-2">
-                <div className="campo">
-                  <label htmlFor="sagaCategoria">Categoría primaria <em>obligatorio</em></label>
-                  <SelectBuscador
-                    id="sagaCategoria"
-                    name="sagaCategoria"
-                    valor={saga.sagaCategoria}
-                    onChange={(v) => cambiarSaga({ sagaCategoria: v })}
-                    opciones={(opcionesSaga.categorias || []).map((c) => ({ valor: c.id, etiqueta: `${c.id} — ${c.nombre}` }))}
-                    placeholder="Buscar por id o descripción…"
-                  />
-                </div>
-                {!sagaGeneral && (
-                  <div className="campo">
-                    <label htmlFor="tipoPerfume">Tipo de perfume <em>obligatorio</em></label>
-                    <select id="tipoPerfume" name="tipoPerfume" value={saga.tipoPerfume} onChange={(e) => cambiarSaga({ tipoPerfume: e.target.value })}>
-                      <option value="">— Elegir —</option>
-                      {TIPOS_PERFUME.map((t) => <option key={t}>{t}</option>)}
-                    </select>
-                  </div>
-                )}
-              </div>
-              <div className="pf-grid-3">
-                {!sagaGeneral && (
-                  <>
-                    <div className="campo">
-                      <label htmlFor="genero">Género <em>obligatorio</em></label>
-                      <select id="genero" name="genero" value={generoActual} onChange={(e) => cambiarSaga({ genero: e.target.value })}>
-                        <option value="">— Elegir —</option>
-                        {(opcionesSaga.generos || []).map((g) => <option key={g}>{g}</option>)}
-                      </select>
-                    </div>
-                    <div className="campo">
-                      <label htmlFor="formatoBelleza">Formato belleza <em>obligatorio</em></label>
-                      <select id="formatoBelleza" name="formatoBelleza" value={saga.formatoBelleza} onChange={(e) => cambiarSaga({ formatoBelleza: e.target.value })}>
-                        {(opcionesSaga.formatosBelleza || []).map((f) => <option key={f}>{f}</option>)}
-                      </select>
-                    </div>
-                  </>
-                )}
-                <div className="campo">
-                  <label htmlFor="condicion">Condición <em>obligatorio</em></label>
-                  <select id="condicion" name="condicion" value={saga.condicion} onChange={(e) => cambiarSaga({ condicion: e.target.value })}>
-                    {CONDICIONES.map((c) => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div className="pf-grid-2">
-                <div className="campo">
-                  <label htmlFor="modelo">Modelo</label>
-                  <input id="modelo" name="modelo" value={saga.modelo} onChange={(e) => cambiarSaga({ modelo: e.target.value })} />
-                </div>
-                <div className="campo">
-                  <label htmlFor="paisProduccion">País de producción</label>
-                  <SelectBuscador
-                    id="paisProduccion"
-                    name="paisProduccion"
-                    valor={saga.paisProduccion}
-                    onChange={(v) => cambiarSaga({ paisProduccion: v })}
-                    opciones={(opcionesSaga.paises || []).map((p) => ({ valor: p, etiqueta: p }))}
-                    placeholder="Buscar país…"
-                  />
-                </div>
-              </div>
-              <div className="campo">
-                <label className="campo-check">
-                  <input
-                    type="checkbox"
-                    name="usarSkuPadre"
-                    checked={saga.usarSkuPadre}
-                    disabled={skuPadreBloqueado}
-                    onChange={(e) => cambiarSaga({ usarSkuPadre: e.target.checked })}
-                  />
-                  Usar SKU padre (agrupa las variantes en una sola ficha de SAGA)
-                </label>
-                <small>
-                  {skuPadreBloqueado
-                    ? "Ya se envió a SAGA: no se puede cambiar."
-                    : "Sin marcar, cada variante se publica en SAGA como un producto suelto, sin SKU padre."}
-                </small>
-              </div>
-              {saga.usarSkuPadre && (
-                <div className="campo">
-                  <label htmlFor="skuPadre">SKU padre</label>
-                  <input
-                    id="skuPadre"
-                    name="skuPadre"
-                    value={skuPadreBloqueado ? saga.skuPadre || producto?.id || "" : saga.skuPadre}
-                    disabled={skuPadreBloqueado}
-                    onChange={(e) => cambiarSaga({ skuPadre: e.target.value })}
-                    placeholder={`Vacío = se usa el id del producto${id ? ` (${id})` : ""}`}
-                  />
-                  <small>SAGA no lo asigna: lo defines tú. Queda guardado en el primer envío y se reutiliza al agregar variantes.</small>
-                </div>
-              )}
-            </div>
-          </details>
-
-          {saga.sagaCategoria && camposProducto.length > 0 && (
-            <details className="saga-seccion">
-              <summary>Campos extra de la categoría <em>por producto · se eligen en Configuración → SAGA</em></summary>
-              <div className="saga-cuerpo">
-                <CamposExtra
-                  campos={camposProducto}
-                  valores={saga.extras}
-                  onChange={(extras) => cambiarSaga({ extras })}
-                  prefijo="extra-prod"
-                />
-              </div>
-            </details>
-          )}
-
-          <details className="saga-seccion">
-            <summary>Paquete <em>un solo juego para todas las variantes</em></summary>
-            <div className="form-grid saga-cuerpo">
-              <div className="pf-grid-4">
-                {[["paqueteAncho", "Ancho (cm)"], ["paqueteLargo", "Largo (cm)"], ["paqueteAlto", "Alto (cm)"], ["paquetePeso", "Peso (kg)"]].map(([k, et]) => (
-                  <div className="campo" key={k}>
-                    <label>{et} <em>obligatorio</em></label>
-                    <input type="number" min="0" step="0.01" name={k} value={saga[k]} onChange={(e) => cambiarSaga({ [k]: e.target.value })} />
-                  </div>
-                ))}
-              </div>
-              <div className="campo">
-                <label>Contenido del paquete</label>
-                <input name="contenidoPaquete" value={saga.contenidoPaquete} onChange={(e) => cambiarSaga({ contenidoPaquete: e.target.value })} placeholder="Ej: 1 perfume 50 ml" />
+          {variantes.map((v, i) => (
+            <div className="pf-precios-var" key={v.key}>
+              <strong>{i + 1}. {v.nombre.trim() || "Sin nombre"}{v.sku ? ` · SKU ${v.sku}` : ""}</strong>
+              <div className="admin-tabla-wrap">
+                <table className="admin-tabla">
+                  <thead>
+                    <tr>
+                      <th>Plataforma</th>
+                      <th>Precio (S/)</th>
+                      <th>Precio oferta</th>
+                      <th>Oferta desde</th>
+                      <th>Oferta hasta</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Web</td>
+                      <td>{v.precio === "" ? "—" : v.precio}</td>
+                      <td>{v.precioOferta === "" ? "—" : v.precioOferta}</td>
+                      <td>—</td>
+                      <td>—</td>
+                    </tr>
+                    {cuentasSaga.map((c) => {
+                      const p = v.preciosSaga[c.alias] || {};
+                      return (
+                        <tr key={c.alias}>
+                          <td>SAGA — {c.nombre}</td>
+                          <td>
+                            <input type="number" min="0" step="0.01" aria-label={`Precio en ${c.nombre}`} value={p.precio ?? ""} placeholder={v.precio === "" ? "" : `Web: ${v.precio}`} onChange={(e) => actualizarPrecioSaga(i, c.alias, { precio: e.target.value })} />
+                          </td>
+                          <td>
+                            <input type="number" min="0" step="0.01" aria-label={`Precio oferta en ${c.nombre}`} value={p.precioOferta ?? ""} placeholder={v.precioOferta === "" ? "" : `Web: ${v.precioOferta}`} onChange={(e) => actualizarPrecioSaga(i, c.alias, { precioOferta: e.target.value })} />
+                          </td>
+                          <td>
+                            <input type="date" aria-label={`Oferta desde en ${c.nombre}`} value={p.ofertaInicio ?? ""} onChange={(e) => actualizarPrecioSaga(i, c.alias, { ofertaInicio: e.target.value })} />
+                          </td>
+                          <td>
+                            <input type="date" aria-label={`Oferta hasta en ${c.nombre}`} value={p.ofertaFin ?? ""} onChange={(e) => actualizarPrecioSaga(i, c.alias, { ofertaFin: e.target.value })} />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
-          </details>
-
-          {!sagaGeneral && (
-            <details className="saga-seccion">
-              <summary>Características <em>opcional</em></summary>
-              <div className="saga-cuerpo">
-                <input type="hidden" name="caracteristicas" value={saga.caracteristicas} />
-                <div className="chips-grid">
-                  {(opcionesSaga.caracteristicas || []).map((c) => (
-                    <label className="campo-check" key={c}>
-                      <input
-                        type="checkbox"
-                        checked={lista(saga.caracteristicas).some((x) => x.toLowerCase() === c.toLowerCase())}
-                        onChange={(e) => cambiarSaga({ caracteristicas: alternarEnLista(saga.caracteristicas, c, e.target.checked) })}
-                      />
-                      {c}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </details>
-          )}
+          ))}
         </section>
       )}
-
-      {/* ===== 4. Resumen por plataforma ===== */}
-      {conSaga && (
-        <ResumenPlataformas
-          cuentas={cuentasSaga.filter((c) => cuentasMarcadas.includes(c.alias))}
-          filas={variantes.map((v, i) => ({
-            i,
-            nombre: v.nombre.trim() || "Sin nombre",
-            sku: v.sku,
-            acciones: Object.fromEntries(cuentasMarcadas.map((a) => [a, etiquetaAccion(accionDe(v, a))])),
-            envia: Object.fromEntries(cuentasMarcadas.map((a) => [a, accionDe(v, a) === "crear"])),
-            faltantes: faltantesPorVariante[i],
-            avisos: avisosPorVariante[i],
-          }))}
-        />
-      )}
-
       <div className="pf-pie">{botonGuardar}</div>
     </form>
   );

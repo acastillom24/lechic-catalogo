@@ -935,7 +935,9 @@ html { scroll-behavior: smooth; }
 .pf-traer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
 .pf-imagen-fila { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 16px; align-items: start; }
 .pf-imagen .imagen-actual { max-width: 120px; display: block; margin-bottom: 8px; border-radius: var(--radio); }
-.pf-precios-plataforma { border-top: 1px dashed var(--linea); padding-top: 10px; }
+.pf-precios-var { display: grid; gap: 6px; margin-bottom: 14px; }
+.pf-precios .admin-tabla { width: 100%; }
+.pf-precios .admin-tabla input { width: 100%; min-width: 96px; }
 
 /* Sugerencias de la lista que corresponde (aromas de SAGA, etc.) */
 .pf-sugerencias { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
