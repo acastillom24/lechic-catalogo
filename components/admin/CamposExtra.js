@@ -1,5 +1,7 @@
 "use client";
 
+import SelectMulti from "./SelectMulti";
+
 /**
  * Campos extra de la categoría SAGA elegida (ver lib/saga-campos.js). `campos` ya viene filtrado por nivel;
  * `valores` = { FeedName: valor } (multi = lista). Cada cambio llama a onChange con los valores nuevos.
@@ -28,18 +30,7 @@ export default function CamposExtra({ campos, valores, onChange, prefijo = "extr
           return (
             <div className="campo" key={c.id}>
               <label>{etiqueta}</label>
-              <div className="chips-grid">
-                {(c.opciones || []).map((o) => (
-                  <label className="campo-check" key={o}>
-                    <input
-                      type="checkbox"
-                      checked={marcados.includes(o)}
-                      onChange={(e) => poner(c.id, e.target.checked ? [...marcados, o] : marcados.filter((x) => x !== o))}
-                    />
-                    {o}
-                  </label>
-                ))}
-              </div>
+              <SelectMulti valor={marcados} opciones={c.opciones || []} onChange={(v) => poner(c.id, v)} placeholder="Elegir…" />
               {hereda && marcados.length === 0 && textoH(c.id) && <small>General: {textoH(c.id)}</small>}
             </div>
           );
@@ -52,7 +43,7 @@ export default function CamposExtra({ campos, valores, onChange, prefijo = "extr
               <label htmlFor={idCampo}>{etiqueta}</label>
               <select id={idCampo} value={valor || ""} onChange={(e) => poner(c.id, e.target.value)}>
                 <option value="">{hereda && textoH(c.id) ? `— Igual que el general (${textoH(c.id)}) —` : "— Elegir —"}</option>
-                {fuera && <option value={valor}>{valor} (no está en la lista de SAGA)</option>}
+                {fuera && <option value={valor}>{valor} (ya no está en la lista)</option>}
                 {(c.opciones || []).map((o) => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>

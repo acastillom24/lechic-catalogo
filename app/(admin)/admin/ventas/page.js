@@ -1,4 +1,8 @@
-import { getVentas, contarPendientes } from "../../../../lib/ventas";
+import Link from "next/link";
+import { getVentas, contarPendientes, getVentaPorId } from "../../../../lib/ventas";
+import { editarVentaAccion } from "../actions";
+import VentaForm from "../../../../components/sales/VentaForm";
+import { IconoEditar } from "../../../../components/admin/Iconos";
 import { leerFiltrosVentas } from "../../../../lib/filtros-ventas";
 import { getOpcionesVentas } from "../../../../lib/ventas-opciones";
 import { ATAJOS, PERIODOS, hoyLima } from "../../../../lib/periodos";
@@ -26,6 +30,15 @@ export default async function VentasPage({ searchParams }) {
   const paginas = Math.max(1, Math.ceil(total / porPagina));
   const pagina = Math.min(paginaPedida, paginas);
 
+  const editarId = Number(params?.editar) || null;
+  const aEditar = editarId ? await getVentaPorId(editarId) : null;
+  const ventaEdicion = aEditar && {
+    ...aEditar,
+    fecha: fechaISO(aEditar.fecha),
+    monto: String(aEditar.monto),
+    adelanto: String(aEditar.adelanto),
+  };
+
   // Enlaces que conservan los filtros activos. El rango de fechas se pide por periodo, por día o por
   // desde/hasta (en ese orden de prioridad); aquí se deja solo el que corresponde.
   const qs = (extra = {}) => {
@@ -42,6 +55,14 @@ export default async function VentasPage({ searchParams }) {
   const href = (extra = {}) => {
     const s = qs(extra);
     return s ? `/admin/ventas?${s}` : "/admin/ventas";
+  };
+  // Edición en línea: ?editar=<id> sobre la misma lista, conservando filtros y página.
+  const volverHref = href(pagina > 1 ? { pagina } : {});
+  const hrefEditar = (id) => {
+    const u = new URLSearchParams(qs());
+    if (pagina > 1) u.set("pagina", String(pagina));
+    u.set("editar", String(id));
+    return `/admin/ventas?${u.toString()}`;
   };
   const sinFechas = { periodo: "", fecha: "", desde: "", hasta: "" };
   const hrefExportar = (formato) => {
@@ -77,6 +98,18 @@ export default async function VentasPage({ searchParams }) {
         <h1 className="admin-titulo">Ventas ({total.toLocaleString("es-PE")})</h1>
       </div>
       <TabsVentas activo="ventas" pendientes={pendientes} />
+
+      {editarId && ventaEdicion && (
+        <VentaForm
+          hoy={hoyLima()}
+          defaults={{ categoria: ventaEdicion.categoria, destino: ventaEdicion.destino }}
+          opciones={opciones}
+          venta={ventaEdicion}
+          volverHref={volverHref}
+          accion={editarVentaAccion}
+        />
+      )}
+      {editarId && !ventaEdicion && <div className="mensaje-error">Esa venta ya no existe.</div>}
 
       <VentasBarra
         filtros={filtros}
@@ -146,11 +179,14 @@ export default async function VentasPage({ searchParams }) {
                 </td>
                 <td>{v.registrado_por_nombre || (v.origen === "csv" ? "Excel" : "—")}</td>
                 <td>
-                  {v.estado === "cerrada" && (
-                    <div className="acciones-fila">
+                  <div className="acciones-fila">
+                    <Link href={hrefEditar(v.id)} className="btn-ico" title="Editar venta" aria-label="Editar venta">
+                      <IconoEditar />
+                    </Link>
+                    {v.estado === "cerrada" && (
                       <EliminarVentaBoton id={v.id} resumen={`${fechaCorta(v.fecha)} · ${v.telefono} · ${soles(v.monto)}`} />
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

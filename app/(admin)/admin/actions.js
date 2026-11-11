@@ -23,10 +23,13 @@ import {
   refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock,
   consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
 } from "../../../lib/saga-sync";
-import { getOpcionesSaga, IDS_BASE } from "../../../lib/saga-opciones";
+import { getOpcionesSaga, getBaseIntegracion, IDS_BASE, CLAVE as CLAVE_SAGA_OPCIONES, CLAVE_ATRIBUTOS, CLAVE_EQUIVALENCIAS } from "../../../lib/saga-opciones";
+import { aplicarFormularioSaga, extrasPorCategoria, normalizarEquivalencias } from "../../../lib/equivalencias";
+import { esGrupoValido, GRUPO_PREDETERMINADO, porId as campoWebPorId } from "../../../lib/campos-web";
+import { TIPOS as TIPOS_ATRIBUTO, idDeEtiqueta } from "../../../lib/atributos-categoria";
 import { CLAVE as CLAVE_VENTAS } from "../../../lib/ventas-opciones";
 import { IDS as IDS_ATRIBUTOS } from "../../../lib/saga-atributos";
-import { camposDe } from "../../../lib/saga-campos";
+import { camposDe, IMAGENES_TOPE } from "../../../lib/saga-campos";
 import { guardarSeguimiento } from "../../../lib/reclamos";
 import { credenciales as credencialesSaga, producto as productoSaga } from "../../../lib/sellercenter";
 import { desdeSaga } from "../../../lib/saga-mapeo";
@@ -37,7 +40,11 @@ import {
   eliminarUsuarioVentas,
   cerrarVenta,
   eliminarVentaCerrada,
+  actualizarVentaAdmin,
+  esClienteExistente,
 } from "../../../lib/ventas";
+import { ventaDesdeForm, valoresDeForm } from "../../../lib/ventas-form";
+import { TELEFONO_SIN_DATO } from "../../../lib/ventas-core";
 import {
   crearColaborador,
   actualizarColaborador,
@@ -115,6 +122,8 @@ export async function eliminarProducto(id) {
   await query("delete from productos where id = $1", [id]);
 
   revalidatePath("/", "layout");
+
+  revalidatePath("/api/catalogo");
   if (producto?.pestana) revalidatePath(`/marca/${producto.pestana}`);
   revalidatePath("/admin");
   redirect("/admin?eliminado=1");
@@ -130,6 +139,8 @@ export async function eliminarProductos(ids) {
   const borrados = await query("delete from productos where id = any($1::text[]) returning id", [lista]);
 
   revalidatePath("/", "layout");
+
+  revalidatePath("/api/catalogo");
   for (const { pestana } of pestanas) revalidatePath(`/marca/${pestana}`);
   revalidatePath("/admin");
   redirect(`/admin?eliminados=${borrados.length}`);
@@ -242,7 +253,7 @@ export async function importarCsv(prevState, formData) {
         categoria,
         nombre: nombreProducto,
         descripcion: (fila.descripcion || "").toString().trim(),
-        aromas: parseAromas((fila.aromas_producto || "").toString().replaceAll("|", ",")),
+        notas: parseAromas((fila.notas_producto ?? fila.aromas_producto ?? "").toString().replaceAll("|", ",")).join(", ") || null,
         destacado: aBooleano(fila.destacado, false),
         variantes: [],
       });
@@ -265,7 +276,7 @@ export async function importarCsv(prevState, formData) {
       precio_oferta: parseNumero(fila.precio_oferta),
       stock: aBooleano(fila.stock, true),
       imagen: (fila.imagen || "").toString().trim() || null,
-      aromas: parseAromas((fila.aromas_variante || "").toString().replaceAll("|", ",")),
+      notas: parseAromas((fila.notas_variante ?? fila.aromas_variante ?? "").toString().replaceAll("|", ",")).join(", ") || null,
       orden: producto.variantes.length,
       sku: (fila.sku || "").toString().trim() || null,
       stock_cantidad: stockCantidad,
@@ -299,12 +310,12 @@ export async function importarCsv(prevState, formData) {
       for (const x of quitadas) await sincronizarStockVariante(Number(x.id), { cero: true }); // antes de que se borren
       await transaction((t) => [
         t.query(
-          `insert into productos (id, marca, pestana, categoria, nombre, descripcion, aromas, destacado, orden)
+          `insert into productos (id, marca, pestana, categoria, nombre, descripcion, notas_aromaticas, destacado, orden)
            values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
            on conflict (id) do update set marca=excluded.marca, pestana=excluded.pestana, categoria=excluded.categoria,
-             nombre=excluded.nombre, descripcion=excluded.descripcion, aromas=excluded.aromas,
+             nombre=excluded.nombre, descripcion=excluded.descripcion, notas_aromaticas=excluded.notas_aromaticas,
              destacado=excluded.destacado, orden=excluded.orden`,
-          [p.id, p.marca, p.pestana, p.categoria, p.nombre, p.descripcion, p.aromas, p.destacado, Date.now()]
+          [p.id, p.marca, p.pestana, p.categoria, p.nombre, p.descripcion, p.notas, p.destacado, Date.now()]
         ),
         // Variantes: se actualizan (por SKU o, sin SKU, por nombre) en vez de
         // borrar y reinsertar, para conservar stock e historial.
@@ -312,16 +323,19 @@ export async function importarCsv(prevState, formData) {
           v.sku
             ? [
                 t.query(
-                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, notas_aromaticas, orden,
                      sku, stock_minimo, costo, activo)
                    values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
                    on conflict (sku) where sku is not null do update set
                      producto_id=excluded.producto_id, nombre=excluded.nombre, precio=excluded.precio,
                      precio_oferta=excluded.precio_oferta,
                      stock = case when variantes.stock_actual is null then excluded.stock else variantes.stock end,
-                     imagen=excluded.imagen, aromas=excluded.aromas, orden=excluded.orden,
+                     imagen=excluded.imagen,
+                     imagenes = case when excluded.imagen is null then '{}'::text[]
+                                     else array[excluded.imagen] || array_remove(variantes.imagenes, excluded.imagen) end,
+                     notas_aromaticas=excluded.notas_aromaticas, orden=excluded.orden,
                      stock_minimo=excluded.stock_minimo, costo=excluded.costo, activo=true`,
-                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.notas, v.orden,
                    v.sku, v.stock_minimo, v.costo]
                 ),
               ]
@@ -329,18 +343,20 @@ export async function importarCsv(prevState, formData) {
                 t.query(
                   `update variantes set precio=$3, precio_oferta=$4,
                      stock = case when stock_actual is null then $5 else stock end,
-                     imagen=$6, aromas=$7, orden=$8, stock_minimo=$9, costo=$10, activo=true
+                     imagen=$6::text,
+                     imagenes = case when $6::text is null then '{}'::text[] else array[$6::text] || array_remove(imagenes, $6::text) end,
+                     notas_aromaticas=$7, orden=$8, stock_minimo=$9, costo=$10, activo=true
                    where producto_id = $1 and nombre = $2`,
-                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.notas, v.orden,
                    v.stock_minimo, v.costo]
                 ),
                 t.query(
-                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, aromas, orden,
+                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, notas_aromaticas, orden,
                      stock_minimo, costo, activo)
-                   select $1::text, $2::text, $3::numeric, $4::numeric, $5::boolean, $6::text, $7::text[], $8::int,
+                   select $1::text, $2::text, $3::numeric, $4::numeric, $5::boolean, $6::text, $7::text, $8::int,
                           $9::int, $10::numeric, true
                    where not exists (select 1 from variantes where producto_id = $1 and nombre = $2)`,
-                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.aromas, v.orden,
+                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.notas, v.orden,
                    v.stock_minimo, v.costo]
                 ),
               ]
@@ -387,6 +403,8 @@ export async function importarCsv(prevState, formData) {
   }
 
   revalidatePath("/", "layout");
+
+  revalidatePath("/api/catalogo");
   for (const marca of marcasTocadas) revalidatePath(`/marca/${marca}`);
   revalidatePath("/admin");
 
@@ -578,6 +596,8 @@ export async function guardarConfiguracion(prevState, formData) {
   }
 
   revalidatePath("/", "layout");
+
+  revalidatePath("/api/catalogo");
   revalidatePath("/admin/configuracion");
   return { ok: "Configuración guardada. Ya se ve en el sitio." };
 }
@@ -585,6 +605,7 @@ export async function guardarConfiguracion(prevState, formData) {
 export async function restablecerConfiguracion() {
   await query("delete from configuracion where clave = 'sitio'");
   revalidatePath("/", "layout");
+  revalidatePath("/api/catalogo");
   revalidatePath("/admin/configuracion");
 }
 
@@ -624,6 +645,30 @@ export async function cerrarVentaAccion(id) {
   revalidatePath("/admin/ventas");
   revalidatePath("/admin/ventas/pendientes");
   revalidatePath("/admin/dashboard");
+}
+
+/** Edita cualquier venta (cerrada o pendiente) desde el reporte de ventas (admin). */
+export async function editarVentaAccion(prevState, formData) {
+  const id = Number(formData.get("id")) || null;
+  if (!id) return { error: "Venta no encontrada." };
+
+  const { venta, error } = await ventaDesdeForm(formData);
+  if (error) return { error, valores: valoresDeForm(formData) };
+
+  try {
+    // Si se vació el tipo de cliente, se deduce por el historial del teléfono (igual que al registrar).
+    if (!venta.tipo_cliente && venta.telefono !== TELEFONO_SIN_DATO) {
+      venta.tipo_cliente = (await esClienteExistente(venta.telefono)) ? "RECOMPRA" : "NUEVO";
+    }
+    const ok = await actualizarVentaAdmin(id, venta);
+    if (!ok) return { error: "La venta ya no existe.", valores: valoresDeForm(formData) };
+  } catch (err) {
+    return { error: `No se pudo guardar: ${err.message}`, valores: valoresDeForm(formData) };
+  }
+  revalidatePath("/admin/ventas");
+  revalidatePath("/admin/ventas/pendientes");
+  revalidatePath("/admin/dashboard");
+  return { ok: "Venta actualizada.", n: Date.now(), editada: true };
 }
 
 /** Elimina una venta cerrada desde el reporte de ventas (admin). */
@@ -728,6 +773,7 @@ function listaOpciones(formData, campo, etiqueta, { max = 500 } = {}) {
 
 export async function guardarOpcionesSaga(prevState, formData) {
   let valor;
+  let nuevaBase;
   try {
     let acciones;
     try {
@@ -765,25 +811,29 @@ export async function guardarOpcionesSaga(prevState, formData) {
       categorias.push({ id: idCat, nombre: nombreCat });
     }
     if (!categorias.length) throw new Error("Agrega al menos una categoría de SAGA.");
+    // «Permitir variantes» ya no se edita aquí (vive en Integraciones → Web): se conserva lo que hubiera guardado.
+    const previas = new Map(((await getOpcionesSaga()).categorias || []).map((c) => [c.id, c]));
     // Campos extra que se muestran por categoría (casillas de Configuración). Solo se guardan los que SAGA
     // define para esa categoría; sin marcador (categoría recién agregada) rigen los predeterminados.
     for (const c of categorias) {
-      if (!formData.has(`extrasMarca_${c.id}`)) continue;
-      const validos = new Set(camposDe(c.id).map((x) => x.id));
-      c.extras = [...new Set(formData.getAll(`extras_${c.id}`).map(String).filter((x) => validos.has(x)))];
-    }
-    // Equivalencia categoría web → categoría SAGA (solo ids que están en la lista de categorías).
-    const mapaCategorias = {};
-    for (const [clave, v] of formData.entries()) {
-      if (!clave.startsWith("mapaCat_")) continue;
-      const web = clave.slice("mapaCat_".length);
-      const idSaga = String(v || "").trim();
-      if (!idSaga) continue;
-      if (!categorias.some((c) => c.id === idSaga)) throw new Error(`La categoría SAGA ${idSaga} (equivalencia de «${web}») no está en la lista de categorías primarias.`);
-      mapaCategorias[web] = idSaga;
+      // Imágenes mínimas/máximas que SAGA pide en la categoría (solo se guardan si cambian los valores por defecto).
+      if (formData.has(`imgMin_${c.id}`)) {
+        const entero = (k) => Math.trunc(Number(formData.get(k)));
+        const min = entero(`imgMin_${c.id}`);
+        const max = entero(`imgMax_${c.id}`);
+        if (!(min >= 1 && min <= IMAGENES_TOPE) || !(max >= 1 && max <= IMAGENES_TOPE)) {
+          throw new Error(`Categoría ${c.id}: las imágenes mínimas y máximas deben ser un entero de 1 a ${IMAGENES_TOPE}.`);
+        }
+        if (max < min) throw new Error(`Categoría ${c.id}: las imágenes máximas no pueden ser menos que las mínimas.`);
+        c.imagenesMin = min;
+        c.imagenesMax = max;
+      }
+      // ¿La categoría permite varias variantes? (casilla de Configuración)
+      if (formData.has(`variantesMarca_${c.id}`)) c.variantes = formData.get(`variantes_${c.id}`) === "on";
+      else if (typeof previas.get(c.id)?.variantes === "boolean") c.variantes = previas.get(c.id).variantes;
     }
     valor = {
-      mapaCategorias,
+      mapaCategorias: {}, // las equivalencias de categoría viven ahora en la clave `equivalencias`
       aromas: listaOpciones(formData, "aromas", "Aromas", { max: 100 }),
       cantidades: listaOpciones(formData, "cantidades", "Medidas del frasco"),
       tiposPerfume: listaOpciones(formData, "tiposPerfume", "Tipos de perfume", { max: 100 }),
@@ -799,6 +849,8 @@ export async function guardarOpcionesSaga(prevState, formData) {
     };
     const mala = valor.urlsBase.find((u) => !/^https:\/\/\S+$/.test(u));
     if (mala) throw new Error(`URL base inválida: "${mala}". Debe empezar con https://`);
+    // Equivalencias de atributos (SAGA ↔ atributos web): se calculan sobre lo guardado y actualizan los campos usados.
+    nuevaBase = aplicarFormularioSaga(await getBaseIntegracion(), valor.categorias, { has: (k) => formData.has(k), get: (k) => formData.get(k) });
   } catch (err) {
     return { error: err.message || "No se pudo leer el formulario." };
   }
@@ -809,12 +861,142 @@ export async function guardarOpcionesSaga(prevState, formData) {
        on conflict (clave) do update set valor = excluded.valor, updated_at = now()`,
       [JSON.stringify(valor)]
     );
+    await guardarClaveConfiguracion(CLAVE_EQUIVALENCIAS, nuevaBase.equivalencias);
+    await guardarClaveConfiguracion(CLAVE_ATRIBUTOS, nuevaBase.catalogo);
   } catch (err) {
     return { error: `No se pudo guardar: ${err.message}` };
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/productos", "layout");
   return { ok: "Opciones de SAGA guardadas.", n: Date.now() };
+}
+
+/**
+ * Configuración → Integraciones → Web: atributos de cada categoría de la web (nombre, tipo y opciones) y equivalencias de
+ * categoría con cada plataforma (varias por plataforma). Mantiene los enlaces de atributos que siguen siendo válidos.
+ */
+export async function guardarIntegracionWeb(prevState, formData) {
+  try {
+    const leer = (campo, vacio, msg) => {
+      try {
+        return JSON.parse((formData.get(campo) || vacio).toString());
+      } catch {
+        throw new Error(msg);
+      }
+    };
+    const crudo = leer("atributosJson", "{}", "No se pudieron leer los atributos. Recarga la página e inténtalo de nuevo.");
+    const crudoCategorias = leer("categoriasJson", "{}", "No se pudieron leer las equivalencias de categoría. Recarga la página e inténtalo de nuevo.");
+    const crudoEnlaces = leer("enlacesJson", "{}", "No se pudieron leer las equivalencias de atributos. Recarga la página e inténtalo de nuevo.");
+    const crudoFijos = leer("fijosJson", "{}", "No se pudieron leer las equivalencias de los campos de la web. Recarga la página e inténtalo de nuevo.");
+    const crudoConfig = leer("configCategoriasJson", "{}", "No se pudo leer la configuración de las categorías. Recarga la página e inténtalo de nuevo.");
+    if (!crudo || typeof crudo !== "object" || Array.isArray(crudo)) throw new Error("Atributos inválidos.");
+    const { categorias } = await getConfigMarcas();
+    const slugs = new Set(categorias.map((c) => c.slug));
+
+    // Atributos web por categoría.
+    const catalogo = {};
+    for (const [slug, lista] of Object.entries(crudo)) {
+      if (!slugs.has(slug)) throw new Error(`La categoría "${slug}" no existe.`);
+      if (!Array.isArray(lista) || lista.length > 40) throw new Error(`Categoría "${slug}": máximo 40 atributos.`);
+      const ids = new Set();
+      const attrs = lista.map((a, i) => {
+        const etiqueta = String(a?.etiqueta || "").trim();
+        if (!etiqueta || etiqueta.length > 60) throw new Error(`Categoría "${slug}", atributo ${i + 1}: el nombre es obligatorio (máx. 60 caracteres).`);
+        const tipo = String(a?.tipo || "");
+        if (!TIPOS_ATRIBUTO.includes(tipo)) throw new Error(`Atributo "${etiqueta}": tipo no válido.`);
+        const id = /^[a-z0-9_]{1,40}$/.test(String(a?.id || "")) ? String(a.id) : idDeEtiqueta(etiqueta);
+        if (!id || ids.has(id)) throw new Error(`Categoría "${slug}": el atributo "${etiqueta}" está repetido.`);
+        ids.add(id);
+        const sinOpciones = tipo === "texto" || tipo === "numero";
+        const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean))];
+        if (opciones.some((o) => o.length > 100) || opciones.length > 200) throw new Error(`Atributo "${etiqueta}": máximo 200 opciones de hasta 100 caracteres.`);
+        if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
+        return { id, etiqueta, tipo, opciones, grupo: esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO };
+      });
+      if (attrs.length) catalogo[slug] = attrs;
+    }
+
+    // Equivalencias de categoría por plataforma (varias por plataforma). En SAGA solo valen las de su lista de categorías.
+    const op = await getOpcionesSaga();
+    const sagaIds = new Set((op.categorias || []).map((c) => c.id));
+    const plataformas = op.equivalencias.plataformas;
+    const idsPlataforma = new Set(plataformas.map((x) => x.id));
+    const categoriasEq = {};
+    for (const [web, porPlat] of Object.entries(crudoCategorias || {})) {
+      if (!slugs.has(web)) throw new Error(`La categoría "${web}" no existe.`);
+      for (const [plat, lista] of Object.entries(porPlat || {})) {
+        if (!idsPlataforma.has(plat)) throw new Error(`Plataforma desconocida: "${plat}".`);
+        const cats = [...new Set((Array.isArray(lista) ? lista : []).map((x) => String(x).trim()).filter(Boolean))];
+        const mala = plat === "saga" ? cats.find((c) => !sagaIds.has(c)) : cats.find((c) => !/^[A-Za-z0-9_-]{1,40}$/.test(c));
+        if (mala) throw new Error(`Categoría "${web}": el código "${mala}" no está en la lista de categorías de ${plat === "saga" ? "SAGA" : plat}.`);
+        if (cats.length) (categoriasEq[web] ||= {})[plat] = cats;
+      }
+    }
+
+    // Enlaces de atributos que siguen siendo válidos: el atributo web existe y la categoría de la plataforma sigue cruzada.
+    const eqEnviada = normalizarEquivalencias({ plataformas, categorias: categoriasEq, atributos: crudoEnlaces });
+    const atributos = {};
+    for (const [web, porPlat] of Object.entries(eqEnviada.atributos)) {
+      for (const [plat, porCat] of Object.entries(porPlat)) {
+        for (const [cat, campos] of Object.entries(porCat)) {
+          if (!(categoriasEq[web]?.[plat] || []).includes(cat)) continue;
+          const validos = Object.fromEntries(Object.entries(campos).filter(([, attr]) => (catalogo[web] || []).some((a) => a.id === attr)));
+          if (Object.keys(validos).length) (((atributos[web] ||= {})[plat] ||= {})[cat] = validos);
+        }
+      }
+    }
+    // Equivalencia de los campos propios de la web (solo los que se pueden cambiar) y variantes por categoría web.
+    const fijosEnviados = normalizarEquivalencias({ plataformas, fijos: crudoFijos }).fijos;
+    const fijos = {};
+    for (const [web, porPlat] of Object.entries(fijosEnviados)) {
+      if (!slugs.has(web)) continue;
+      for (const [plat, campos] of Object.entries(porPlat)) {
+        for (const [campoWeb, campoPlat] of Object.entries(campos)) {
+          if (campoWebPorId(campoWeb)?.clave) continue;
+          (((fijos[web] ||= {})[plat] ||= {})[campoWeb] = campoPlat);
+        }
+      }
+    }
+    const configCategorias = normalizarEquivalencias({ plataformas, configCategorias: crudoConfig }).configCategorias;
+    for (const web of Object.keys(configCategorias)) if (!slugs.has(web)) delete configCategorias[web];
+    const equivalencias = { plataformas, categorias: categoriasEq, atributos, fijos, configCategorias };
+
+    // Los campos de SAGA que se usan por categoría siguen a los enlaces (quitar un atributo web lo deja de usar).
+    const [filaSaga] = await query("select valor from configuracion where clave = $1", [CLAVE_SAGA_OPCIONES]);
+    const usados = extrasPorCategoria(equivalencias);
+    const guardadoSaga = filaSaga?.valor && typeof filaSaga.valor === "object" ? filaSaga.valor : null;
+    if (guardadoSaga && Array.isArray(guardadoSaga.categorias)) {
+      guardadoSaga.categorias = guardadoSaga.categorias.map((c) => ({ ...c, extras: usados[c.id] || [] }));
+      await guardarClaveConfiguracion(CLAVE_SAGA_OPCIONES, guardadoSaga);
+    }
+
+    await guardarClaveConfiguracion(CLAVE_ATRIBUTOS, catalogo);
+    await guardarClaveConfiguracion(CLAVE_EQUIVALENCIAS, equivalencias);
+  } catch (err) {
+    return { error: err.message || "No se pudo guardar." };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/productos", "layout");
+  revalidatePath("/operaciones/productos", "layout");
+  return { ok: "Equivalencias y atributos de la web guardados.", n: Date.now() };
+}
+
+/** Agrega una plataforma al registro de integraciones (equivalencias de categorías, atributos y marcas). */
+export async function agregarPlataforma(nombre) {
+  try {
+    const limpio = String(nombre || "").trim().slice(0, 40);
+    const id = slugify(limpio).replace(/-/g, "_").slice(0, 30);
+    if (!limpio || !id) return { error: "Escribe el nombre de la plataforma." };
+    const base = await getBaseIntegracion();
+    if (base.equivalencias.plataformas.some((p) => p.id === id)) return { error: `Ya existe la plataforma "${limpio}".` };
+    const equivalencias = { ...base.equivalencias, plataformas: [...base.equivalencias.plataformas, { id, nombre: limpio }] };
+    await guardarClaveConfiguracion(CLAVE_EQUIVALENCIAS, equivalencias);
+    await guardarClaveConfiguracion(CLAVE_ATRIBUTOS, base.catalogo);
+  } catch (err) {
+    return { error: err.message || "No se pudo agregar la plataforma." };
+  }
+  revalidatePath("/admin/configuracion");
+  return { ok: `Plataforma «${String(nombre).trim()}» agregada.` };
 }
 
 export async function restablecerOpcionesSaga() {
@@ -867,6 +1049,7 @@ async function guardarClaveConfiguracion(clave, valor) {
 
 function revalidarMarcasPestanas() {
   revalidatePath("/", "layout");
+  revalidatePath("/api/catalogo");
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/productos", "layout");
   revalidatePath("/operaciones/productos", "layout");
@@ -878,6 +1061,7 @@ export async function guardarMarcasConfig(prevState, formData) {
     const lista = listaJson(formData, "marcasJson", "las marcas");
     const pestanas = await getPestanas();
     const slugsPestana = new Set(pestanas.map((p) => p.slug));
+    const idsPlataforma = new Set((await getBaseIntegracion()).equivalencias.plataformas.map((p) => p.id));
     const vistos = new Set();
     const marcas = lista.map((m, i) => {
       const slug = slugConfig(m?.slug, `Marca ${i + 1}`);
@@ -887,7 +1071,14 @@ export async function guardarMarcasConfig(prevState, formData) {
       const nombreSaga = textoConfig(m.nombreSaga, `Marca "${slug}" (nombre en SAGA)`, 100);
       const pestanaDefault = String(m.pestanaDefault || "");
       if (!slugsPestana.has(pestanaDefault)) throw new Error(`Marca "${nombre}": elige una pestaña por defecto válida.`);
-      return { slug, nombre, nombreSaga, pestanaDefault };
+      // Nombre exacto en las demás plataformas registradas (Configuración → Integraciones).
+      const nombres = {};
+      for (const [plat, valor] of Object.entries(m.nombres && typeof m.nombres === "object" ? m.nombres : {})) {
+        if (!idsPlataforma.has(plat)) continue;
+        const t = textoConfig(valor, `Marca "${slug}" (nombre en ${plat})`, 100);
+        if (t) nombres[plat] = t;
+      }
+      return { slug, nombre, nombreSaga, nombres, pestanaDefault };
     });
     if (!marcas.length) throw new Error("Agrega al menos una marca.");
 

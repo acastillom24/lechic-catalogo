@@ -15,6 +15,12 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
   const sinStock = variante.stock === false;
   const varias = producto.variantes.length > 1;
 
+  // Galería: todas las imágenes de la variante (la primera es la principal). Al cambiar de presentación vuelve a la primera.
+  const [foto, setFoto] = useState(0);
+  const fotos = variante.imagenes?.length ? variante.imagenes : variante.imagen ? [variante.imagen] : [];
+  const fotoActiva = Math.min(foto, Math.max(0, fotos.length - 1));
+  const imagenActual = fotos[fotoActiva] || null;
+
   const aromas = variante.aromas || producto.aromas || [];
   const precioFinal = variante.precioOferta ?? variante.precio;
   const hayOferta = variante.precioOferta != null;
@@ -62,9 +68,9 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
               <span>Agotado</span>
             </div>
           )}
-          {variante.imagen && (
+          {imagenActual && (
             <img
-              src={variante.imagen}
+              src={imagenActual}
               alt={`${producto.nombre} ${varias ? variante.nombre : ""}`}
               onError={(e) => {
                 e.currentTarget.style.display = "none";
@@ -74,17 +80,34 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
           )}
           <div
             className="detalle-img-fallback"
-            style={{ display: variante.imagen ? "none" : "flex" }}
+            style={{ display: imagenActual ? "none" : "flex" }}
           >
             <span>{producto.nombre}</span>
           </div>
+          {fotos.length > 1 && (
+            <div className="detalle-miniaturas" style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+              {fotos.map((url, n) => (
+                <button
+                  key={url}
+                  type="button"
+                  onClick={() => setFoto(n)}
+                  aria-label={`Ver imagen ${n + 1}`}
+                  aria-current={n === fotoActiva}
+                  style={{ padding: 0, width: 56, height: 56, border: n === fotoActiva ? "2px solid var(--rosa)" : "1px solid var(--linea)", borderRadius: 8, overflow: "hidden", background: "#fff", cursor: "pointer" }}
+                >
+                  <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Info */}
         <div className="detalle-info">
           {categoria && <p className="detalle-cat">{categoria.nombre}</p>}
           <h1 className="detalle-nombre serif">{producto.nombre}</h1>
-          <p className="detalle-desc">{producto.descripcion}</p>
+          {/* Con varias variantes, cada una puede tener su propia descripción; si no, se muestra la del producto. */}
+          <p className="detalle-desc">{varias && variante.descripcion ? variante.descripcion : producto.descripcion}</p>
 
           {/* Selector de variantes */}
           {varias && (
@@ -97,6 +120,7 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
                     className={`variante-btn ${i === idx ? "activo" : ""}`}
                     onClick={() => {
                       setIdx(i);
+                      setFoto(0);
                       setCantidad(1);
                     }}
                   >

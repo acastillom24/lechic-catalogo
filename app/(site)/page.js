@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getPestanas, getProductosPorPestana } from "../../lib/data";
 import { getConfigSitio } from "../../lib/config";
 import OfertasCarousel from "../../components/OfertasCarousel";
+import BuscadorInicio from "../../components/BuscadorInicio";
 
 // Igual que /marca/[slug] y /producto/[id]: página ISR. La frescura la da
 // revalidatePath() desde las acciones de /admin; las 24 h son solo una red de
@@ -32,6 +33,13 @@ export default async function Home() {
 
   return (
     <>
+      {/* ---------- BUSCADOR (todo el catálogo) ---------- */}
+      <section className="buscador-seccion">
+        <div className="contenedor">
+          <BuscadorInicio />
+        </div>
+      </section>
+
       {/* ---------- OFERTAS DESTACADAS ---------- */}
       {ofertasDestacadas.length > 0 && (
         <section className="ofertas-seccion">
@@ -94,6 +102,9 @@ export default async function Home() {
       <style>{`
         .marcas-seccion .seccion-titulo {
           color: var(--rosa);
+        }
+        .buscador-seccion {
+          padding: 22px 0 6px;
         }
         .ofertas-seccion {
           padding: 10px 0 8px;

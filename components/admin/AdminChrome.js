@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cerrarSesion } from "../../app/(admin)/admin/actions";
@@ -24,6 +25,22 @@ const ENLACES = [
 export default function AdminChrome({ children, reclamos = { abiertos: 0, vencidos: 0 } }) {
   const pathname = usePathname();
   const esLogin = pathname === "/admin/login";
+  const barraRef = useRef(null);
+
+  // La barra del panel queda fija al hacer scroll; su alto (puede ocupar dos líneas) se publica para que las barras
+  // siguientes (menú de Configuración, subpestañas, barra del producto) queden apiladas justo debajo.
+  useEffect(() => {
+    const el = barraRef.current;
+    if (!el) return undefined;
+    const publicar = () => document.documentElement.style.setProperty("--admin-topbar-h", `${el.offsetHeight}px`);
+    publicar();
+    const ro = new ResizeObserver(publicar);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--admin-topbar-h");
+    };
+  }, [esLogin]);
 
   if (esLogin) return children;
 
@@ -36,7 +53,7 @@ export default function AdminChrome({ children, reclamos = { abiertos: 0, vencid
 
   return (
     <>
-      <header className="admin-topbar">
+      <header className="admin-topbar" ref={barraRef}>
         <div className="admin-topbar-inner">
           <span className="admin-topbar-marca">Panel Le Chic</span>
           <nav className="admin-nav">

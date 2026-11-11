@@ -935,6 +935,16 @@ html { scroll-behavior: smooth; }
 .pf-traer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
 .pf-imagen-fila { display: grid; grid-template-columns: minmax(220px, 1fr) 2fr; gap: 16px; align-items: start; }
 .pf-imagen .imagen-actual { max-width: 120px; display: block; margin-bottom: 8px; border-radius: var(--radio); }
+.pf-imagenes { display: grid; gap: 8px; }
+.pf-imagenes-lista { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; }
+.pf-imagen-item { position: relative; display: grid; gap: 4px; justify-items: center; }
+.pf-imagen-item .imagen-actual { width: 96px; height: 96px; margin: 0; }
+.pf-imagen-principal { position: absolute; top: 4px; left: 4px; background: var(--rosa); color: #fff; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.pf-imagen-acciones { display: flex; gap: 2px; }
+.pf-imagen-acciones .btn-ico { width: 28px; height: 28px; font-size: 1.1rem; }
+.pf-imagen-acciones .btn-ico:disabled { opacity: 0.35; cursor: default; }
+.pf-imagen-agregar { width: 96px; height: 96px; display: grid; place-items: center; align-content: center; gap: 4px; border: 1.5px dashed var(--linea); border-radius: var(--radio); background: #fff; color: var(--gris); font: inherit; font-size: 0.8rem; cursor: pointer; }
+.pf-imagen-agregar:hover { border-color: var(--rosa); color: var(--rosa-hover); }
 .pf-precios-var { display: grid; gap: 6px; margin-bottom: 14px; }
 .pf-precios .admin-tabla { width: 100%; }
 .pf-precios .admin-tabla input { width: 100%; min-width: 96px; }
@@ -968,3 +978,150 @@ html { scroll-behavior: smooth; }
 }
 
 .admin-tabla-wrap { overflow-x: auto; }
+
+/* Selección múltiple con buscador (SelectMulti) y panel de atributos del producto */
+.sel-multi { position: relative; display: grid; gap: 8px; }
+.sel-multi-boton { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; font: inherit; text-align: left; padding: 9px 12px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; color: var(--tinta); cursor: pointer; }
+.sel-multi-boton:hover, .sel-multi-boton[aria-expanded="true"] { border-color: var(--rosa); }
+.sel-multi-panel { position: absolute; z-index: 20; top: 42px; left: 0; right: 0; display: grid; gap: 6px; padding: 8px; background: #fff; border: 1px solid var(--linea); border-radius: 10px; box-shadow: 0 8px 22px rgba(0, 0, 0, .14); }
+.sel-multi-panel ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+.sel-multi-panel li { padding: 5px 8px; border-radius: 6px; }
+.sel-multi-panel li:hover { background: var(--rosa-tenue); }
+.sel-multi-panel .campo-check { display: flex; align-items: center; gap: 10px; width: 100%; font-size: .88rem; cursor: pointer; }
+.sel-multi-panel .campo-check input { margin: 0; flex: none; }
+.sel-multi-agregar button { width: 100%; text-align: left; font: inherit; font-size: .88rem; font-weight: 600; background: none; border: 0; padding: 0; color: var(--rosa-hover); cursor: pointer; }
+.sel-multi-vacio { color: var(--gris); }
+.sel-multi-limpiar { justify-self: end; font: inherit; font-size: .78rem; background: none; border: 0; color: var(--gris); cursor: pointer; text-decoration: underline; }
+.sel-multi-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.sel-multi-chips .pf-chip { display: inline-flex; align-items: center; gap: 6px; cursor: default; }
+.sel-multi-chips .pf-chip button { font: inherit; font-size: .7rem; line-height: 1; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; opacity: .7; }
+.sel-multi-chips .pf-chip button:hover { opacity: 1; }
+.sel-multi-chips .pf-chip.fuera { border-style: dashed; }
+
+.pf-atributos { display: grid; gap: 16px; }
+.pf-atributos-grupo { display: grid; gap: 12px; padding: 14px 16px; border: 1px solid var(--linea); border-radius: var(--radio); background: #fff; }
+.pf-atributos-grupo > h5 { margin: 0; font-size: .78rem; text-transform: uppercase; letter-spacing: .05em; color: var(--gris); font-weight: 600; }
+.pf-atributos-grupo .campo > label em { margin-left: 4px; }
+.pf-seccion-plegable > summary { list-style: none; cursor: pointer; display: flex; align-items: flex-start; justify-content: flex-start; gap: 10px; }
+.pf-seccion-plegable > summary::-webkit-details-marker { display: none; }
+.pf-seccion-plegable > summary::before { content: "▸"; color: var(--gris); transition: transform .15s; margin-top: 2px; }
+.pf-seccion-plegable[open] > summary::before { transform: rotate(90deg); }
+.pf-seccion-plegable:not([open]) { gap: 0; }
+.cfg-atributo { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--linea); border-radius: 10px; }
+.cfg-atributo-fila { display: grid; grid-template-columns: 1fr 160px auto; gap: 8px; align-items: end; }
+@media (max-width: 640px) { .cfg-atributo-fila { grid-template-columns: 1fr; } }
+
+.pf-grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px 16px; align-items: start; }
+
+/* Traer datos de SAGA: cuenta elegible + botón */
+.pf-traer-panel { display: grid; gap: 6px; align-content: end; }
+.pf-traer-panel .pf-traer { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.pf-traer-cuenta { display: grid; gap: 4px; font-size: .78rem; color: var(--gris); }
+.pf-traer-cuenta select { font: inherit; font-size: .88rem; padding: 8px 10px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; color: var(--tinta); }
+.pf-traer-panel small { margin: 0; color: var(--gris); }
+
+/* Atributos de una variante: acciones de copiar/usar los del producto */
+.pf-var-attrs-acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pf-var-attrs-acciones small { flex-basis: 100%; margin: 0; color: var(--gris); }
+.pf-var-attrs > summary em { margin-left: 8px; }
+
+/* SKU con botón discreto de «traer datos», id bloqueado y botón de agregar variante */
+.pf-sku-grupo { display: flex; align-items: stretch; gap: 6px; }
+.pf-sku-grupo input { flex: 1; min-width: 0; }
+.pf-traer-cuenta-sel { font: inherit; font-size: .8rem; padding: 0 6px; border: 1px solid var(--linea); border-radius: 8px; background: #fff; color: var(--gris); max-width: 130px; }
+.pf-icono-btn { display: inline-flex; align-items: center; justify-content: center; width: 38px; flex: none; border: 1px solid var(--linea); border-radius: 8px; background: #fff; color: var(--gris); cursor: pointer; }
+.pf-icono-btn:hover:not(:disabled) { border-color: var(--rosa); color: var(--rosa-hover); }
+.pf-icono-btn:disabled { opacity: .45; cursor: not-allowed; }
+input.pf-id-bloqueado, input.pf-id-bloqueado:focus { background: #f3f1ef; color: var(--gris); cursor: not-allowed; border-color: var(--linea); outline: none; }
+.pf-agregar-variante { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 4px; }
+.pf-agregar-variante small { color: var(--gris); margin: 0; }
+
+/* Panel de SAGA en pasos: cuentas → acción → categoría primaria → SKU padre */
+.pf-pasos { display: grid; gap: 14px; }
+.pf-paso { display: grid; gap: 10px; padding: 14px 16px; border: 1px solid var(--linea); border-radius: var(--radio); background: #fff; }
+.pf-paso-apagado { opacity: .6; }
+.pf-paso-cab { display: flex; align-items: flex-start; gap: 12px; }
+.pf-paso-cab > div { display: grid; gap: 2px; }
+.pf-paso-cab strong { font-size: .95rem; color: var(--tinta); }
+.pf-paso-cab small { color: var(--gris); font-size: .8rem; margin: 0; }
+.pf-paso-cab em { font-style: normal; font-size: .75rem; color: var(--rosa-hover); }
+.pf-paso-n { flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--rosa-tenue); color: var(--rosa-hover); font-size: .8rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.pf-paso-vacio { color: var(--gris); }
+.pf-cuentas-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.pf-cuenta-card { position: relative; display: grid; gap: 2px; padding: 12px 14px 12px 40px; border: 1.5px solid var(--linea); border-radius: 10px; background: #fff; cursor: pointer; transition: border-color .15s, background .15s; }
+.pf-cuenta-card input { position: absolute; left: 14px; top: 14px; margin: 0; width: 16px; height: 16px; accent-color: var(--rosa); }
+.pf-cuenta-card:hover { border-color: var(--rosa); }
+.pf-cuenta-card.activa { border-color: var(--rosa); background: var(--rosa-tenue); }
+.pf-cuenta-nombre { font-weight: 600; color: var(--tinta); }
+.pf-cuenta-estado { font-size: .78rem; color: var(--gris); }
+.pf-cuenta-card.activa .pf-cuenta-estado { color: var(--rosa-hover); }
+.pf-acciones-lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.pf-acciones-tabla select { min-width: 190px; }
+
+/* Precios por plataforma */
+.pf-precios-vacio { display: grid; gap: 4px; padding: 18px; border: 1.5px dashed var(--linea); border-radius: var(--radio); text-align: center; color: var(--gris); }
+.pf-precios-vacio strong { color: var(--tinta); }
+.pf-precios-var { padding: 14px 16px; border: 1px solid var(--linea); border-radius: var(--radio); background: #fff; }
+.pf-precios-var-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.pf-precios-tabla th { white-space: nowrap; }
+.pf-precios-tabla td { vertical-align: middle; }
+.pf-precios-tabla td:first-child { white-space: nowrap; }
+.pf-precios-web { background: #faf8f6; color: var(--gris); }
+.pf-precios-web small { color: var(--gris); }
+.pf-precios-tabla td:last-child { min-width: 150px; }
+.pf-precio-oferta { color: var(--rosa-hover); font-weight: 600; font-size: .85rem; }
+.pf-precio-hereda, .pf-precio-aviso { display: block; font-size: .72rem; margin: 0; }
+.pf-precio-hereda { color: var(--gris); }
+.pf-precio-aviso { color: #9a6700; }
+
+/* Datos de la web: subsecciones plegables (todo arranca minimizado) */
+.pf-subs { display: grid; gap: 12px; }
+.pf-sub > summary { padding: 12px 16px; }
+.pf-sub > summary em { margin-left: 4px; }
+.pf-sub-cuerpo { display: grid; gap: 14px; padding: 4px 16px 16px; }
+.pf-sub-plano .pf-bloque { border: 0; padding: 0; background: transparent; }
+.pf-sub-plano .pf-bloque > h5 { display: none; }
+.pf-sub-atributos { background: #fcfbfa; }
+.pf-sub-atributos > summary { font-size: .9rem; }
+.pf-atributos-cuerpo { display: grid; gap: 14px; }
+.pf-atributos { gap: 10px; }
+.pf-seccion-plegable > summary .pf-seccion-resumen { margin-left: auto; align-self: center; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .82rem; color: var(--gris); background: var(--rosa-tenue); padding: 3px 12px; border-radius: 999px; }
+.pf-seccion-plegable > summary { flex-wrap: nowrap; }
+.pf-seccion-plegable > summary > div { min-width: 0; }
+@media (max-width: 640px) { .pf-seccion-plegable > summary .pf-seccion-resumen { display: none; } }
+.pf-seccion-plegable > summary > button { margin-left: auto; align-self: center; }
+
+/* Integraciones: subpestañas y tablas de equivalencias */
+.pestanas-sub { margin-top: 0; }
+.pestana-agregar { margin-left: auto; font-style: italic; }
+.pf-eq-tabla td { vertical-align: top; min-width: 240px; }
+.pf-eq-tabla td:first-child { min-width: 160px; }
+.cfg-atributo-enlaces { display: flex; flex-wrap: wrap; gap: 6px; }
+.pf-eq-bloque { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--linea); border-radius: 10px; background: #fcfbfa; }
+.pf-eq-bloque > strong { font-size: .9rem; }
+.pf-eq-tabla-campos select { min-width: 220px; width: 100%; }
+
+/* Integraciones → Web: todos los campos por categoría con su equivalencia */
+.pf-eq-tabla-web { width: 100%; }
+.pf-eq-tabla-web th:first-child { width: 36%; }
+.pf-eq-tabla-web input, .pf-eq-tabla-web select { width: 100%; }
+.pf-eq-tabla-web td { vertical-align: top; }
+.pf-eq-fija code { background: #f3f1ef; padding: 2px 8px; border-radius: 6px; }
+.pf-eq-fija small { color: var(--gris); margin-left: 4px; }
+.pf-eq-celdas { display: grid; gap: 6px; }
+.pf-eq-celda { display: grid; grid-template-columns: 56px 1fr; align-items: center; gap: 8px; }
+.pf-eq-celda > span { font-size: .78rem; font-weight: 600; color: var(--gris); }
+.pf-eq-propio-extra td { background: #fcfbfa; }
+.pf-eq-extra { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+
+/* Obligatorios de SAGA sin atributo web (en rojo) */
+.pf-eq-falta td { background: #fdeceb; color: #b3261e; }
+.pf-eq-falta small { color: #b3261e; }
+.pf-eq-alerta { padding: 10px 14px; border: 1px solid #f1b8b4; background: #fdeceb; color: #b3261e; border-radius: 10px; font-size: .88rem; }
+
+/* Barras fijas: panel → menú de Configuración → subpestañas (el título de la página sí se va con el scroll) */
+.admin-topbar { position: sticky; top: 0; z-index: 30; }
+.pestanas { top: var(--admin-topbar-h, 0px); z-index: 25; background: var(--papel-hondo, var(--papel)); }
+.pestanas-sub { top: calc(var(--admin-topbar-h, 0px) + var(--cfg-pestanas-h, 0px)); z-index: 24; background: var(--papel-hondo, var(--papel)); align-items: center; box-shadow: 0 6px 8px -8px rgba(0, 0, 0, .25); }
+.pestana-guardar { height: 34px; margin: 4px 0 4px 8px; }
+.pf-barra { top: var(--admin-topbar-h, 0px); }

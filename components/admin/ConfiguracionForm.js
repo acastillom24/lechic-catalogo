@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   guardarConfiguracion,
   restablecerConfiguracion,
+  agregarPlataforma,
 } from "../../app/(admin)/admin/actions";
 
 const ICONOS = [
@@ -48,7 +49,7 @@ const PESTANAS = [
   ["marcas", "Marcas"],
   ["pestanasweb", "Pestañas de la web"],
   ["equipo", "Equipo"],
-  ["saga", "SAGA"],
+  ["integraciones", "Integraciones"],
   ["ventas", "Ventas"],
 ];
 const GRUPO_SECCION = {
@@ -68,17 +69,51 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
   const [estado, accion, enviando] = useActionState(guardarConfiguracion, {});
   const [c, setC] = useState(() => prepararInicial(inicial));
   const [pestana, setPestana] = useState("general");
+  const pestanasRef = useRef(null);
+  // Alto de la barra de pestañas: la barra de subpestañas se apila justo debajo al hacer scroll.
+  useEffect(() => {
+    const el = pestanasRef.current;
+    if (!el) return undefined;
+    const publicar = () => document.documentElement.style.setProperty("--cfg-pestanas-h", `${el.offsetHeight}px`);
+    publicar();
+    const ro = new ResizeObserver(publicar);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--cfg-pestanas-h");
+    };
+  }, []);
 
   // La pestaña activa se recuerda en la URL (#saga) para poder recargar o compartir el enlace.
   useEffect(() => {
-    const h = window.location.hash.replace("#", "");
-    if (PESTANAS.some(([id]) => id === h)) setPestana(h);
+    const partes = window.location.hash.split("#").filter(Boolean);
+    // El enlace antiguo #saga ahora vive en Integraciones → SAGA.
+    if (partes[0] === "saga") {
+      setPestana("integraciones");
+      setSub("saga");
+      return;
+    }
+    if (PESTANAS.some(([id]) => id === partes[0])) setPestana(partes[0]);
+    if (partes[0] === "integraciones" && partes[1]) setSub(partes[1]);
   }, []);
   const elegir = (id) => {
     setPestana(id);
-    window.history.replaceState(null, "", `#${id}`);
+    window.history.replaceState(null, "", id === "integraciones" ? `#integraciones#${sub}` : `#${id}`);
   };
-  const esSitio = !["marcas", "pestanasweb", "equipo", "saga", "ventas"].includes(pestana);
+  const esSitio = !["marcas", "pestanasweb", "equipo", "integraciones", "ventas"].includes(pestana);
+  // Integraciones: subpestañas Web, SAGA y las plataformas que se agreguen (hash #integraciones#saga).
+  const subs = extras.integraciones || [];
+  const [sub, setSub] = useState("web");
+  const [avisoPlat, setAvisoPlat] = useState(null);
+  const elegirSub = (id) => {
+    setSub(id);
+    window.history.replaceState(null, "", `#integraciones#${id}`);
+  };
+  async function nuevaPlataforma() {
+    const nombre = (window.prompt("Nombre de la plataforma (ej. Intercorp):") || "").trim();
+    if (!nombre) return;
+    setAvisoPlat(await agregarPlataforma(nombre));
+  }
 
   const upd = (fn) =>
     setC((prev) => {
@@ -101,7 +136,7 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
 
   return (
     <div className="form-grid">
-    <nav className="pestanas" role="tablist" aria-label="Secciones de configuración">
+    <nav className="pestanas" role="tablist" aria-label="Secciones de configuración" ref={pestanasRef}>
       {PESTANAS.map(([id, nombre]) => (
         <button
           key={id}
@@ -357,7 +392,42 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
     <div className="form-grid" hidden={pestana !== "marcas"}>{extras.marcas}</div>
     <div className="form-grid" hidden={pestana !== "pestanasweb"}>{extras.pestanasweb}</div>
     <div className="form-grid" hidden={pestana !== "equipo"}>{extras.equipo}</div>
-    <div className="form-grid" hidden={pestana !== "saga"}>{extras.saga}</div>
+    <div className="form-grid" hidden={pestana !== "integraciones"}>
+      <nav className="pestanas pestanas-sub" role="tablist" aria-label="Integraciones">
+        {subs.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            role="tab"
+            aria-selected={sub === s.id}
+            className={`pestana${sub === s.id ? " activa" : ""}`}
+            onClick={() => elegirSub(s.id)}
+          >
+            {s.nombre}
+          </button>
+        ))}
+        <button type="button" className="pestana pestana-agregar" onClick={nuevaPlataforma} title="Agregar otra plataforma (ej. Intercorp)">
+          + Plataforma
+        </button>
+        {subs.find((x) => x.id === sub)?.formId && (
+          <button
+            type="submit"
+            form={subs.find((x) => x.id === sub).formId}
+            className="btn-admin solido pestana-guardar"
+            title="Guardar los cambios de esta pestaña"
+          >
+            Guardar
+          </button>
+        )}
+      </nav>
+      {avisoPlat?.error && <div className="mensaje-error">{avisoPlat.error}</div>}
+      {avisoPlat?.ok && <div className="mensaje-ok">{avisoPlat.ok}</div>}
+      {subs.map((s) => (
+        <div key={s.id} className="form-grid" hidden={sub !== s.id}>
+          {s.contenido}
+        </div>
+      ))}
+    </div>
     <div className="form-grid" hidden={pestana !== "ventas"}>{extras.ventas}</div>
     </div>
   );
