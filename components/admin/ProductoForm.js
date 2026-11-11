@@ -63,7 +63,7 @@ function nuevaVariante() {
   };
 }
 
-export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, permitirSaga = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, opcionesSaga = {}, variantesPack = [] }) {
+export default function ProductoForm({ modo, marcas, pestanas = [], producto, accionGuardar, restringido = false, permitirSaga = false, cuentasSaga = [], sincronizadas = [], variantesSincronizadas = [], estadoSync = {}, preciosCanal = {}, paquetesCuenta = {}, opcionesSaga = {}, variantesPack = [] }) {
   const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
@@ -112,6 +112,10 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     registroSanitario: sg.atributos?.registro_sanitario || "",
     varianteExtras: sg.atributos?.variante_extras || {},
   });
+  // Paquete propio por cuenta (solo las que se personalizaron; el resto usa el general del producto).
+  const [paquetes, setPaquetes] = useState(() =>
+    Object.fromEntries(Object.entries(paquetesCuenta).map(([alias, d]) => [alias, { personalizar: true, ...d }]))
+  );
   const [cuentasMarcadas, setCuentasMarcadas] = useState(sincronizadas);
   const esPerfume = ["feminine", "masculine", "couples"].includes(categoria);
   const conSaga = (!restringido || permitirSaga) && cuentasSaga.length > 0;
@@ -318,6 +322,19 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   const accionDe = (v, alias) =>
     v.acciones[alias] ?? (v.id && !variantesSincronizadas.map(String).includes(String(v.id)) ? "ninguna" : "crear");
 
+  // Paquete que usa una cuenta: el propio si lo personalizó o, si no, el general del producto.
+  const paqueteDe = (alias) => (alias && paquetes[alias]?.personalizar ? paquetes[alias] : saga);
+  function cambiarPaquete(alias, cambios) {
+    setPaquetes((prev) => {
+      const actual = prev[alias] || { personalizar: false };
+      // Al personalizar por primera vez se parte de una copia del general.
+      const base = cambios.personalizar && !actual.contenidoPaquete && actual.paqueteAncho === undefined
+        ? { contenidoPaquete: saga.contenidoPaquete, paqueteAncho: saga.paqueteAncho, paqueteLargo: saga.paqueteLargo, paqueteAlto: saga.paqueteAlto, paquetePeso: saga.paquetePeso }
+        : {};
+      return { ...prev, [alias]: { ...base, ...actual, ...cambios } };
+    });
+  }
+
   // Qué le falta a cada variante para publicarse en SAGA (mismas reglas que al enviar).
   function faltantesSaga(v, alias) {
     if (!conSaga) return [];
@@ -327,9 +344,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       id, nombre, marca, categoria, descripcion,
       saga_categoria: saga.sagaCategoria, modelo: saga.modelo, pais_produccion: saga.paisProduccion,
       tipo_perfume: saga.tipoPerfume, genero: generoActual, formato_belleza: saga.formatoBelleza,
-      condicion: saga.condicion, caracteristicas: saga.caracteristicas, contenido_paquete: saga.contenidoPaquete,
-      paquete_ancho: num(saga.paqueteAncho), paquete_largo: num(saga.paqueteLargo),
-      paquete_alto: num(saga.paqueteAlto), paquete_peso: num(saga.paquetePeso),
+      condicion: saga.condicion, caracteristicas: saga.caracteristicas, contenido_paquete: paqueteDe(alias).contenidoPaquete,
+      paquete_ancho: num(paqueteDe(alias).paqueteAncho), paquete_largo: num(paqueteDe(alias).paqueteLargo),
+      paquete_alto: num(paqueteDe(alias).paqueteAlto), paquete_peso: num(paqueteDe(alias).paquetePeso),
       usar_sku_padre: saga.usarSkuPadre, aromas: lista(aromasProducto), saga_extras: saga.extras,
     };
     const vv = {
@@ -415,6 +432,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     <form action={accion} className="pf">
       {conSaga && <input type="hidden" name="sagaCampos" value="1" />}
       {conSaga && <input type="hidden" name="sagaExtras" value={JSON.stringify(saga.extras)} />}
+      {conSaga && <input type="hidden" name="paquetesJson" value={JSON.stringify(paquetes)} />}
       {conSaga && (
         <input type="hidden" name="atributosGenerales" value={JSON.stringify({ registro_sanitario: atributos.registroSanitario, variante_extras: atributos.varianteExtras })} />
       )}
@@ -633,6 +651,22 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 <input id="registroGeneral" type="text" value={atributos.registroSanitario} onChange={(e) => setAtributos((p) => ({ ...p, registroSanitario: e.target.value }))} />
                 <small>Lo heredan todas las variantes. Si una variante tiene otro, se cambia en esa variante.</small>
               </div>
+              <div className="campo">
+                <label>Paquete <em>general para todas las variantes y plataformas</em></label>
+                <div className="pf-grid-4">
+                  {[["paqueteAncho", "Ancho (cm)"], ["paqueteLargo", "Largo (cm)"], ["paqueteAlto", "Alto (cm)"], ["paquetePeso", "Peso (kg)"]].map(([k, et]) => (
+                    <div className="campo" key={k}>
+                      <label>{et} <em>obligatorio</em></label>
+                      <input type="number" min="0" step="0.01" name={k} value={saga[k]} onChange={(e) => cambiarSaga({ [k]: e.target.value })} />
+                    </div>
+                  ))}
+                </div>
+                <div className="campo">
+                  <label>Contenido del paquete</label>
+                  <input name="contenidoPaquete" value={saga.contenidoPaquete} onChange={(e) => cambiarSaga({ contenidoPaquete: e.target.value })} placeholder="Ej: 1 perfume 50 ml" />
+                </div>
+                <small>Cada plataforma usa este paquete salvo que la personalices en «Plataformas».</small>
+              </div>
               {saga.sagaCategoria && camposVariante.length > 0 && (
                 <div className="campo">
                   <label>Campos de la categoría <em>generales para las variantes</em></label>
@@ -727,20 +761,39 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
 
 
           <details className="saga-seccion">
-            <summary>Paquete <em>un solo juego para todas las variantes</em></summary>
+            <summary>Paquete por cuenta <em>usa el general o personalízalo</em></summary>
             <div className="form-grid saga-cuerpo">
-              <div className="pf-grid-4">
-                {[["paqueteAncho", "Ancho (cm)"], ["paqueteLargo", "Largo (cm)"], ["paqueteAlto", "Alto (cm)"], ["paquetePeso", "Peso (kg)"]].map(([k, et]) => (
-                  <div className="campo" key={k}>
-                    <label>{et} <em>obligatorio</em></label>
-                    <input type="number" min="0" step="0.01" name={k} value={saga[k]} onChange={(e) => cambiarSaga({ [k]: e.target.value })} />
+              {cuentasSaga.map((c) => {
+                const pq = paquetes[c.alias] || { personalizar: false };
+                return (
+                  <div className="campo" key={c.alias}>
+                    <label className="campo-check">
+                      <input type="checkbox" checked={Boolean(pq.personalizar)} onChange={(e) => cambiarPaquete(c.alias, { personalizar: e.target.checked })} />
+                      Personalizar el paquete en SAGA — {c.nombre}
+                    </label>
+                    {pq.personalizar ? (
+                      <>
+                        <div className="pf-grid-4">
+                          {[["paqueteAncho", "Ancho (cm)"], ["paqueteLargo", "Largo (cm)"], ["paqueteAlto", "Alto (cm)"], ["paquetePeso", "Peso (kg)"]].map(([k, et]) => (
+                            <div className="campo" key={k}>
+                              <label>{et} <em>obligatorio</em></label>
+                              <input type="number" min="0" step="0.01" value={pq[k] ?? ""} onChange={(e) => cambiarPaquete(c.alias, { [k]: e.target.value })} />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="campo">
+                          <label>Contenido del paquete</label>
+                          <input value={pq.contenidoPaquete ?? ""} onChange={(e) => cambiarPaquete(c.alias, { contenidoPaquete: e.target.value })} />
+                        </div>
+                      </>
+                    ) : (
+                      <small>
+                        Usa el paquete general: {saga.paqueteAncho || "—"} × {saga.paqueteLargo || "—"} × {saga.paqueteAlto || "—"} cm, {saga.paquetePeso || "—"} kg.
+                      </small>
+                    )}
                   </div>
-                ))}
-              </div>
-              <div className="campo">
-                <label>Contenido del paquete</label>
-                <input name="contenidoPaquete" value={saga.contenidoPaquete} onChange={(e) => cambiarSaga({ contenidoPaquete: e.target.value })} placeholder="Ej: 1 perfume 50 ml" />
-              </div>
+                );
+              })}
             </div>
           </details>
 

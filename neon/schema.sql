@@ -400,6 +400,19 @@ create table if not exists precios_canal (
   primary key (variante_id, sistema, cuenta_alias)
 );
 
+-- Paquete propio de un producto en una cuenta/plataforma. Sin fila = se usa el paquete general del producto.
+create table if not exists paquete_plataforma (
+  producto_id      text    not null references productos(id) on delete cascade on update cascade,
+  sistema          text    not null default 'saga',
+  cuenta_alias     text    not null references cuentas_saga(alias) on update cascade on delete cascade,
+  contenido_paquete text,
+  paquete_ancho    numeric,
+  paquete_largo    numeric,
+  paquete_alto     numeric,
+  paquete_peso     numeric,
+  primary key (producto_id, sistema, cuenta_alias)
+);
+
 -- ============================================================
 --  LIBRO DE RECLAMACIONES (formulario público + monitor en /admin/reclamos)
 --  codigo: LCH-AAAA-NNNNNN (se asigna al guardar). fecha_limite = 15 días

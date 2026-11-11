@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getMarcas, getPestanas, getProducto, getVariantesParaPack } from "../../../../../lib/data";
-import { getCuentasActivas, getSincronizacionesProducto, getPreciosCanalProducto } from "../../../../../lib/saga-sync";
+import { getCuentasActivas, getSincronizacionesProducto, getPreciosCanalProducto, getPaquetesCuentaProducto } from "../../../../../lib/saga-sync";
 import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
 import EliminarProductoBoton from "../../../../../components/admin/EliminarProductoBoton";
@@ -34,13 +34,15 @@ export default async function EditarProductoPage({ params }) {
     };
   }
 
+  const paquetesCuenta = await getPaquetesCuentaProducto(producto.id);
+
   return (
     <div className="form-grid">
       <div className="admin-titulo-fila">
         <h1 className="admin-titulo">Editar producto</h1>
         <EliminarProductoBoton id={producto.id} nombre={producto.nombre} />
       </div>
-      <ProductoForm modo="editar" marcas={marcas} pestanas={pestanas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
+      <ProductoForm modo="editar" marcas={marcas} pestanas={pestanas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} paquetesCuenta={paquetesCuenta} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
     </div>
   );
 }
