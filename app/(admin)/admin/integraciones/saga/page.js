@@ -1,6 +1,7 @@
 import { listarUsuariosVentas } from "../../../../../lib/ventas";
 import { after } from "next/server";
-import { procesarCola, getCuentas, getSincronizacionesSaga, contarSincronizacionesSaga, contarRevisionSaga } from "../../../../../lib/saga-sync";
+import { drenarCola } from "../../../../../lib/saga-cola";
+import { getCuentas, getSincronizacionesSaga, contarSincronizacionesSaga, contarRevisionSaga } from "../../../../../lib/saga-sync";
 import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import { CATEGORIAS_REVISION } from "../../../../../lib/saga-revision";
 import { stockParaSaga } from "../../../../../lib/saga-mapeo";
@@ -20,7 +21,7 @@ const texto = (v) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 60) 
 export default async function SagaPage({ searchParams }) {
   const params = await searchParams;
   // Sin demorar la página: envía lo que SAGA dejó en espera por su límite de 1 feed cada 2 minutos por cuenta.
-  after(() => procesarCola());
+  after(() => drenarCola());
   const estado = ["pendiente", "publicado"].includes(params?.estado) ? params.estado : "error";
   const pagina = Math.max(1, parseInt(params?.pagina, 10) || 1);
   // Filtros: usuario del panel /operaciones (vacío = todos, "__admin" = admin o automático), cuenta y búsqueda.
@@ -45,6 +46,7 @@ export default async function SagaPage({ searchParams }) {
   const datos = filas.map((f) => ({
     ...f,
     revision_fecha: f.revision_fecha ? new Date(f.revision_fecha).toISOString() : null,
+    proximo_envio: f.proximo_envio ? new Date(f.proximo_envio).toISOString() : null,
     variante_id: String(f.variante_id),
     proximo_intento: f.proximo_intento ? new Date(f.proximo_intento).toISOString() : null,
     ultimo_sync: f.ultimo_sync ? new Date(f.ultimo_sync).toISOString() : null,

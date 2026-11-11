@@ -8,7 +8,8 @@ import {
   consultarEstadoSagaVentas, aplicarAccionSagaVentas, cambiarAccionSagaVentas,
 } from "../../actions";
 import { after } from "next/server";
-import { procesarCola, getCuentas, getSincronizacionesSaga, contarSincronizacionesSaga, contarRevisionSaga } from "../../../../../lib/saga-sync";
+import { drenarCola } from "../../../../../lib/saga-cola";
+import { getCuentas, getSincronizacionesSaga, contarSincronizacionesSaga, contarRevisionSaga } from "../../../../../lib/saga-sync";
 import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import { CATEGORIAS_REVISION } from "../../../../../lib/saga-revision";
 import { stockParaSaga } from "../../../../../lib/saga-mapeo";
@@ -25,7 +26,7 @@ export default async function SagaOperacionesPage({ searchParams }) {
   const usuario = await requerirUsuarioVentas();
   const params = await searchParams;
   // Sin demorar la página: envía lo que SAGA dejó en espera por su límite de 1 feed cada 2 minutos por cuenta.
-  after(() => procesarCola());
+  after(() => drenarCola());
   const estado = ["pendiente", "publicado"].includes(params?.estado) ? params.estado : "error";
   const pagina = Math.max(1, parseInt(params?.pagina, 10) || 1);
   const sincronizados = estado === "publicado";
@@ -53,6 +54,7 @@ export default async function SagaOperacionesPage({ searchParams }) {
     proximo_intento: f.proximo_intento ? new Date(f.proximo_intento).toISOString() : null,
     ultimo_sync: f.ultimo_sync ? new Date(f.ultimo_sync).toISOString() : null,
     revision_fecha: f.revision_fecha ? new Date(f.revision_fecha).toISOString() : null,
+    proximo_envio: f.proximo_envio ? new Date(f.proximo_envio).toISOString() : null,
     stock_saga: stockParaSaga(f),
   }));
 

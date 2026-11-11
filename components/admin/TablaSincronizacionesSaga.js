@@ -204,6 +204,13 @@ export default function TablaSincronizacionesSaga({
                             {f.stock_pendiente ? "Stock (reintento automático)" : "Datos del producto"}
                           </span>
                         )}
+                        {esPendiente && f.cola_modo && (
+                          <div style={{ marginBottom: 4 }}>
+                            <span className="chip-saga aviso">
+                              En cola · intento {f.cola_intentos || 0} · próximo envío {fechaHora(f.proximo_envio)}
+                            </span>
+                          </div>
+                        )}
                         {esPendiente && (f.revision_categoria || f.revision_puntaje !== null) && (
                           <div style={{ marginBottom: 4 }}>
                             {f.revision_categoria && <span className="chip-saga aviso">{nombreCategoria(f.revision_categoria)}</span>}{" "}

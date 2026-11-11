@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { getInventario, getMovimientos, getAlertasStock } from "../../../lib/inventario";
-import { reintentarStockPendiente, procesarCola } from "../../../lib/saga-sync";
+import { reintentarStockPendiente } from "../../../lib/saga-sync";
+import { drenarCola } from "../../../lib/saga-cola";
 import Link from "next/link";
 import TablaProductos from "../../../components/admin/TablaProductos";
 import Paginacion from "../../../components/admin/Paginacion";
@@ -19,7 +20,7 @@ export default async function AdminProductosPage({ searchParams }) {
   // Al abrir el panel se reintentan, sin demorar la página, los avisos de stock a SAGA que fallaron.
   after(async () => {
     await reintentarStockPendiente();
-    await procesarCola(); // envíos que SAGA dejó en espera por su límite de 1 feed cada 2 minutos
+    await drenarCola(); // envíos que SAGA dejó en espera por su límite de 1 feed cada 2 minutos
   });
   const q = typeof params?.q === "string" ? params.q.trim() : "";
   const filtro = FILTROS.some(([k]) => k === params?.filtro) ? params.filtro : "todas";

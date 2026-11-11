@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { drenarCola } from "../../../lib/saga-cola";
 import Papa from "papaparse";
 
 import {
@@ -1007,6 +1009,7 @@ export async function actualizarEstadoSaga() {
 /** Consulta a SAGA el estado de las filas elegidas ("varianteId|alias") y guarda los motivos de su revisión. */
 export async function consultarEstadoSagaSeleccion(claves) {
   const n = await consultarSeleccion(claves);
+  after(() => drenarCola()); // continúa lo que haya quedado en cola o por avanzar
   revalidatePath("/admin");
   revalidatePath("/admin/integraciones/saga");
   return { mensaje: `Se consultó el estado de ${n} envío(s) en SAGA.` };
@@ -1015,6 +1018,7 @@ export async function consultarEstadoSagaSeleccion(claves) {
 /** Aplica una acción de vinculación (vincular, vincular todo…) a las filas elegidas. */
 export async function aplicarAccionSagaSeleccion(claves, modo) {
   const resultados = await aplicarAccionSeleccion(claves, String(modo || ""));
+  after(() => drenarCola());
   revalidatePath("/admin");
   revalidatePath("/admin/integraciones/saga");
   return { mensaje: resultados.length ? resumirResultados(resultados) : "No hay filas para aplicar." };
@@ -1025,6 +1029,7 @@ export async function cambiarAccionSagaSeleccion(claves, accion, enviarAhora = f
   try {
     const n = await cambiarAccionSeleccion(claves, String(accion || ""));
     const resultados = enviarAhora && n ? await aplicarAccionSeleccion(claves, String(accion)) : [];
+    if (resultados.length) after(() => drenarCola());
     revalidatePath("/admin/integraciones/saga");
     return { mensaje: `Tipo de vinculación cambiado en ${n} fila(s).${resultados.length ? ` Envío: ${resumirResultados(resultados)}` : ""}` };
   } catch (e) {

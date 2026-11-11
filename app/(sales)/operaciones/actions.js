@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { drenarCola } from "../../../lib/saga-cola";
 
 import {
   NOMBRE_COOKIE_VENTAS,
@@ -216,6 +218,7 @@ export async function reintentarTodoStockSagaVentas() {
 export async function consultarEstadoSagaVentas(claves) {
   const usuario = await requerirUsuarioVentas();
   const n = await consultarSeleccion(claves, { usuario: usuario.usuario });
+  after(() => drenarCola()); // continúa lo que haya quedado en cola o por avanzar
   revalidatePath("/operaciones/integraciones/saga");
   return { mensaje: `Se consultó el estado de ${n} envío(s) en SAGA.` };
 }
@@ -224,6 +227,7 @@ export async function consultarEstadoSagaVentas(claves) {
 export async function aplicarAccionSagaVentas(claves, modo) {
   const usuario = await requerirUsuarioVentas();
   const resultados = await aplicarAccionSeleccion(claves, String(modo || ""), { usuario: usuario.usuario });
+  after(() => drenarCola());
   revalidatePath("/operaciones/integraciones/saga");
   return { mensaje: resultados.length ? resumirResultados(resultados) : "No hay filas para aplicar." };
 }
@@ -234,6 +238,7 @@ export async function cambiarAccionSagaVentas(claves, accion, enviarAhora = fals
   try {
     const n = await cambiarAccionSeleccion(claves, String(accion || ""), { usuario: usuario.usuario });
     const resultados = enviarAhora && n ? await aplicarAccionSeleccion(claves, String(accion), { usuario: usuario.usuario }) : [];
+    if (resultados.length) after(() => drenarCola());
     revalidatePath("/operaciones/integraciones/saga");
     return { mensaje: `Tipo de vinculación cambiado en ${n} fila(s).${resultados.length ? ` Envío: ${resumirResultados(resultados)}` : ""}` };
   } catch (e) {
