@@ -165,8 +165,7 @@ export default function TablaSincronizacionesSaga({
                 {mostrarUsuario && <th>Usuario</th>}
                 {esSincronizado ? <th>Vinculación</th> : <th>Detalle</th>}
                 {!esSincronizado && !esSinPublicar && <th>Stock web → SAGA</th>}
-                {esError && <th>Intentos</th>}
-                <th>{esError ? "Próximo intento" : "Último envío"}</th>
+                <th>Último envío</th>
                 <th></th>
               </tr>
             </thead>
@@ -259,8 +258,7 @@ export default function TablaSincronizacionesSaga({
                         {f.stock_actual === null ? (f.stock ? "hay" : "sin stock") : f.stock_actual} → <strong>{f.stock_saga}</strong>
                       </td>
                     )}
-                    {esError && <td>{f.stock_pendiente ? f.intentos : "—"}</td>}
-                    <td>{fechaHora(esError ? (f.stock_pendiente ? f.proximo_intento : null) : f.ultimo_sync)}</td>
+                    <td>{fechaHora(f.ultimo_sync)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <Link href={`${rutaProducto}/${f.producto_id}`} className="btn-ico-texto">
                         Editar producto
