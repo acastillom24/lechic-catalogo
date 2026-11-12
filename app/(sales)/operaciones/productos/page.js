@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 const POR_PAGINA = 30;
 
 export default async function ProductosVentasPage({ searchParams }) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const params = await searchParams;
   const q = typeof params?.q === "string" ? params.q.trim().slice(0, 60) : "";
   const filtro = params?.filtro === "alertas" ? "alertas" : "todas";
@@ -40,6 +40,7 @@ export default async function ProductosVentasPage({ searchParams }) {
     stock_minimo: Number(v.stock_minimo),
     precio: v.precio === null ? null : Number(v.precio),
     precio_oferta: v.precio_oferta === null ? null : Number(v.precio_oferta),
+    sync: v.sync || [],
   }));
 
   const href = (extra = {}) => {
@@ -83,7 +84,7 @@ export default async function ProductosVentasPage({ searchParams }) {
             Productos ({total}) · más recientes primero
           </h1>
 
-          <TablaProductosVentas filas={filas} />
+          <TablaProductosVentas filas={filas} mostrarSistemas={usuario.permisos.sistemas} />
 
           <Paginacion
             pagina={pagina}

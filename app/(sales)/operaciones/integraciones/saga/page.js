@@ -23,11 +23,13 @@ const texto = (v) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 60) 
 
 /** Misma vista que /admin/integraciones/saga, limitada a las sincronizaciones que originó el usuario. */
 export default async function SagaOperacionesPage({ searchParams }) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   const params = await searchParams;
   // Sin demorar la página: envía lo que SAGA dejó en espera por su límite de 1 feed cada 2 minutos por cuenta.
   after(() => drenarCola());
-  const estado = ["pendiente", "publicado"].includes(params?.estado) ? params.estado : "error";
+  // «Sincronizados» solo si el usuario lo tiene habilitado (Configuración → Equipo); si no, cae en Errores.
+  const verSincronizados = usuario.permisos.sincronizados;
+  const estado = ["pendiente", ...(verSincronizados ? ["publicado"] : [])].includes(params?.estado) ? params.estado : "error";
   const pagina = Math.max(1, parseInt(params?.pagina, 10) || 1);
   const sincronizados = estado === "publicado";
   const filtros = {
@@ -84,7 +86,7 @@ export default async function SagaOperacionesPage({ searchParams }) {
   return (
     <div className="form-grid">
       <FiltrosSincronizaciones action={BASE} estado={estado} filtros={filtros} cuentas={cuentas} acciones={sincronizados ? opcionesAccion.map((a) => [a.id, a.nombre]) : null} chips={chips} />
-      <TabsSaga activo={estado} conteo={conteo} base={BASE} extra={extraTabs} />
+      <TabsSaga activo={estado} conteo={conteo} base={BASE} extra={extraTabs} ocultar={verSincronizados ? [] : ["publicado"]} />
       {estado === "pendiente" && <CategoriasRevision activa={categoria} conteo={porCategoria} href={(c) => href({ categoria: c })} />}
       <TablaSincronizacionesSaga
         key={estado}

@@ -11,7 +11,7 @@ export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export default async function EditarProductoVentasPage({ params }) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const { id } = await params;
   const producto = await getProducto(id, { incluirInactivas: true });
   if (!producto) notFound();

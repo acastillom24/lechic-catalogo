@@ -22,7 +22,7 @@ const soles = (n) =>
 const fechaCorta = (f) => fechaISO(f).split("-").reverse().join("/");
 
 export default async function SalesPage({ searchParams }) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("ventas");
   const params = await searchParams;
   const q = typeof params?.q === "string" ? params.q.trim().slice(0, 40) : "";
   const vista = VISTAS.includes(params?.vista) ? params.vista : "hoy";

@@ -2,9 +2,9 @@
 
 import { useActionState, useMemo, useState } from "react";
 import { guardarIntegracionWeb } from "../../app/(admin)/admin/actions";
-import { idDeEtiqueta, camposEnlazables, compatible } from "../../lib/atributos-categoria";
+import { idDeEtiqueta } from "../../lib/atributos-categoria";
 import { permiteVariantesWeb } from "../../lib/equivalencias";
-import { GRUPOS, GRUPOS_ATRIBUTOS, CAMPOS_WEB, CATEGORIAS_PERFUME } from "../../lib/campos-web";
+import { GRUPOS, CAMPOS_WEB, CATEGORIAS_PERFUME } from "../../lib/campos-web";
 import SelectMulti from "./SelectMulti";
 
 const TIPOS = [
@@ -13,45 +13,33 @@ const TIPOS = [
   ["texto", "Texto libre"],
   ["numero", "Número"],
 ];
-const ETIQUETA_TIPO = { multi: "varias opciones", lista: "una opción", texto: "texto", numero: "número" };
+const ETIQUETA_TIPO = Object.fromEntries(TIPOS.map(([v, t]) => [v, t.toLowerCase()]));
 const sinOpciones = (t) => t === "texto" || t === "numero";
 const nuevoTmp = () => `nuevo_${Math.random().toString(36).slice(2, 8)}`;
+const clave = (a) => a.id || a.tmp;
+const idDe = (a) => a.id || idDeEtiqueta(a.etiqueta);
 
 /**
  * Integraciones → Web. La web es la fuente de todo:
  *  1. Por categoría de la web: si permite variantes y con qué categorías de cada plataforma equivale (varias).
- *  2. Por categoría de la web: TODOS sus campos agrupados como en el formulario de producto (Identificación, Precio y stock,
- *     Imágenes, Clasificación, Aromas, Medida, Detalles, Paquete) con su equivalencia en cada plataforma. Los campos propios de
- *     la web ya traen marcada la equivalencia de SAGA (se puede cambiar o quitar); los que agregues aquí van en el apartado que
- *     elijas (por defecto Detalles) y se enlazan al campo de SAGA que signifique lo mismo, con el nombre que quieras en la web.
+ *  2. Atributos de la web agrupados como en el formulario de producto (Identificación, Precio y stock, Imágenes, Clasificación,
+ *     Perfil, Detalles, Paquete). Los principales son fijos; en los apartados que lo admiten se pueden crear atributos y cambiar su
+ *     etiqueta, pero no borrarlos (afectaría a los productos ya guardados).
+ *  3. Por categoría de la web: cuáles de esos atributos se ven. Las equivalencias con SAGA se eligen en Integraciones → SAGA
+ *     solo entre los atributos visibles de la categoría; allí se avisa de lo que falta.
  */
-export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], categoriasSaga = [], equivalencias, catalogo = {} }) {
+export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], categoriasSaga = [], equivalencias, catalogo = [], porCategoria = {} }) {
   const [estado, accion, enviando] = useActionState(guardarIntegracionWeb, {});
   const [cats, setCats] = useState(() => structuredClone(equivalencias?.categorias || {}));
   const [config, setConfig] = useState(() => structuredClone(equivalencias?.configCategorias || {}));
   // Los campos generales son fijos: se reenvía tal cual lo que hubiera guardado (compatibilidad).
   const fijos = equivalencias?.fijos || {};
-  const [datos, setDatos] = useState(() =>
-    Object.fromEntries(
-      Object.entries(catalogo).map(([slug, lista]) => [slug, lista.map((a) => ({ ...a, opcionesTexto: (a.opciones || []).join("\n") }))])
-    )
-  );
-  // Enlaces de atributos web con campos de SAGA, vistos desde el atributo: { web: { atributoId: { categoriaSaga: campo } } }.
-  const [vinc, setVinc] = useState(() => {
-    const salida = {};
-    for (const [web, porPlat] of Object.entries(equivalencias?.atributos || {})) {
-      for (const [cat, campos] of Object.entries(porPlat.saga || {})) {
-        for (const [campo, attr] of Object.entries(campos)) ((salida[web] ||= {})[attr] ||= {})[cat] = campo;
-      }
-    }
-    return salida;
-  });
+  const [datos, setDatos] = useState(() => catalogo.map((a) => ({ ...a, opcionesTexto: (a.opciones || []).join("\n") })));
+  // Atributos visibles por categoría web: { slug: [clave del atributo] }.
+  const [activos, setActivos] = useState(() => Object.fromEntries(Object.entries(porCategoria).map(([s, l]) => [s, l.map((a) => a.id)])));
   const [slug, setSlug] = useState(categoriasWeb[0]?.slug || "");
-  const lista = datos[slug] || [];
-  const sagaCats = cats[slug]?.saga || [];
-  const sagaNombre = (id) => categoriasSaga.find((c) => String(c.id) === String(id))?.nombre || "";
-  const esPerfume = sagaCats.includes("1735") || (!sagaCats.length && CATEGORIAS_PERFUME.includes(slug));
   const eqVivo = useMemo(() => ({ categorias: cats, configCategorias: config }), [cats, config]);
+  const esPerfume = (cats[slug]?.saga || []).includes("1735") || (!(cats[slug]?.saga || []).length && CATEGORIAS_PERFUME.includes(slug));
 
   const opcionesDe = (plat) => (plat === "saga" ? categoriasSaga.map((c) => ({ id: String(c.id), etiqueta: `${c.id} — ${c.nombre}` })) : []);
   const ponerCategorias = (web, plat, ids) =>
@@ -67,98 +55,48 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
   const variantesDe = (web) => permiteVariantesWeb(eqVivo, categoriasSaga, web);
   const ponerVariantes = (web, v) => setConfig((p) => ({ ...p, [web]: { variantes: v } }));
 
-  // --- atributos propios del slug actual ---
-  const poner = (nueva) => setDatos((p) => ({ ...p, [slug]: nueva }));
-  const clave = (a) => a.id || a.tmp;
-  const cambiar = (k, cambios) => poner(lista.map((a) => (clave(a) === k ? { ...a, ...cambios } : a)));
-  const agregar = (grupo) => poner([...lista, { id: "", tmp: nuevoTmp(), etiqueta: "", tipo: "texto", opciones: [], opcionesTexto: "", grupo }]);
-  const quitar = (a) => {
-    const enlaces = Object.entries(vinc[slug]?.[clave(a)] || {});
-    if (enlaces.length && !window.confirm(`«${a.etiqueta || "Atributo"}» está enlazado con SAGA (${enlaces.map(([c, f]) => `${c} · ${f}`).join("; ")}). Al quitarlo, esos campos dejan de usarse. ¿Quitarlo?`)) return;
-    poner(lista.filter((x) => clave(x) !== clave(a)));
-    setVinc((p) => {
-      const sig = structuredClone(p);
-      if (sig[slug]) delete sig[slug][clave(a)];
-      return sig;
+  // Campos de SAGA enlazados (guardados) a un atributo web en una categoría web: ["1735 · Acabado", ...].
+  const enlacesDe = (web, id) =>
+    Object.entries(equivalencias?.atributos?.[web]?.saga || {}).flatMap(([cat, campos]) =>
+      Object.entries(campos).filter(([, attr]) => attr === id).map(([campo]) => `${cat} · ${campo}`)
+    );
+  const visibleEn = (web, a) => (activos[web] || []).includes(clave(a));
+
+  const cambiar = (k, cambios) => setDatos((p) => p.map((a) => (clave(a) === k ? { ...a, ...cambios } : a)));
+  const mostrar = (web, k, marcar) =>
+    setActivos((p) => {
+      const resto = (p[web] || []).filter((x) => x !== k);
+      return { ...p, [web]: marcar ? [...resto, k] : resto };
     });
+  const alternar = (a, marcar) => {
+    const en = marcar ? [] : enlacesDe(slug, a.id);
+    if (en.length && !window.confirm(`«${a.etiqueta || "Atributo"}» está enlazado con SAGA en esta categoría (${en.join("; ")}). Al ocultarlo, esos campos dejan de usarse. ¿Ocultarlo?`)) return;
+    mostrar(slug, clave(a), marcar);
   };
-  const mover = (a, d) => {
-    const i = lista.findIndex((x) => clave(x) === clave(a));
-    const j = i + d;
-    if (i < 0 || j < 0 || j >= lista.length) return;
-    const copia = [...lista];
-    [copia[i], copia[j]] = [copia[j], copia[i]];
-    poner(copia);
+  // Atributo nuevo en un apartado: queda visible en la categoría que estás viendo. Solo los aún no guardados se pueden quitar.
+  const agregar = (grupo) => {
+    const nuevo = { id: "", tmp: nuevoTmp(), etiqueta: "", tipo: "texto", opciones: [], opcionesTexto: "", grupo };
+    setDatos((p) => [...p, nuevo]);
+    mostrar(slug, clave(nuevo), true);
   };
-
-  // Campo de SAGA elegido para un atributo web en una categoría de SAGA, y campos que aún se pueden elegir.
-  const campoDe = (a, cat) => vinc[slug]?.[clave(a)]?.[cat] || "";
-  const ponerCampo = (a, cat, campo) =>
-    setVinc((p) => {
-      const sig = structuredClone(p);
-      const mapa = ((sig[slug] ||= {})[clave(a)] ||= {});
-      if (campo) mapa[cat] = campo;
-      else delete mapa[cat];
-      return sig;
-    });
-  const camposLibres = (a, cat) => {
-    const usados = new Set(lista.filter((x) => clave(x) !== clave(a)).map((x) => campoDe(x, cat)).filter(Boolean));
-    return camposEnlazables(cat).filter((c) => compatible({ tipo: a.tipo }, c) && !usados.has(c.id));
+  const quitarNuevo = (a) => {
+    setDatos((p) => p.filter((x) => clave(x) !== clave(a)));
+    setActivos((p) => Object.fromEntries(Object.entries(p).map(([s, l]) => [s, l.filter((k) => k !== clave(a))])));
   };
 
-  const json = JSON.stringify(
-    Object.fromEntries(
-      Object.entries(datos).map(([s, l]) => [
-        s,
-        l.map((a) => ({
-          id: a.id || idDeEtiqueta(a.etiqueta),
-          etiqueta: a.etiqueta,
-          tipo: a.tipo,
-          grupo: a.grupo,
-          opciones: sinOpciones(a.tipo) ? [] : a.opcionesTexto.split("\n").map((x) => x.trim()).filter(Boolean),
-        })),
-      ])
-    )
-  );
-  // Enlaces a enviar: los de otras plataformas tal cual y los de SAGA reconstruidos desde lo elegido en pantalla.
-  const enlaces = (() => {
-    const salida = structuredClone(equivalencias?.atributos || {});
-    for (const web of Object.keys(datos)) {
-      const porAttr = vinc[web] || {};
-      const nuevo = {};
-      for (const a of datos[web]) {
-        const id = a.id || idDeEtiqueta(a.etiqueta);
-        for (const [cat, campo] of Object.entries(porAttr[clave(a)] || {})) if (campo) ((nuevo[cat] ||= {})[campo] = id);
-      }
-      (salida[web] ||= {}).saga = nuevo;
-    }
-    return salida;
-  })();
+  const json = JSON.stringify({
+    catalogo: datos.map((a) => ({
+      id: idDe(a),
+      etiqueta: a.etiqueta,
+      tipo: a.tipo,
+      grupo: a.grupo,
+      opciones: sinOpciones(a.tipo) ? [] : a.opcionesTexto.split("\n").map((x) => x.trim()).filter(Boolean),
+    })),
+    activos: Object.fromEntries(Object.entries(activos).map(([s, ks]) => [s, datos.filter((a) => ks.includes(clave(a))).map(idDe)])),
+  });
 
-  // Obligatorios de SAGA (de las categorías que cruzan con esta categoría web) que aún no tienen atributo web: se muestran en rojo.
-  const faltantes = sagaCats.flatMap((cat) =>
-    camposEnlazables(cat)
-      .filter((c) => c.obligatorio && !lista.some((a) => campoDe(a, cat) === c.id))
-      .map((c) => ({ cat, campo: c }))
-  );
-  // «Crear atributo en la web»: reutiliza uno con el mismo nombre que esté libre o crea uno nuevo (apartado Detalles) ya enlazado.
-  const crearDesdeFalta = ({ cat, campo }) => {
-    const igual = lista.find((a) => idDeEtiqueta(a.etiqueta) === idDeEtiqueta(campo.etiqueta) && compatible(a, campo) && !campoDe(a, cat));
-    if (igual) return ponerCampo(igual, cat, campo.id);
-    const nuevo = {
-      id: "",
-      tmp: nuevoTmp(),
-      etiqueta: campo.etiqueta,
-      tipo: campo.tipo,
-      opciones: [...(campo.opciones || [])],
-      opcionesTexto: (campo.opciones || []).join("\n"),
-      grupo: "detalles",
-    };
-    poner([...lista, nuevo]);
-    ponerCampo(nuevo, cat, campo.id);
-  };
-
-  const camposVisibles = (g) => CAMPOS_WEB.filter((c) => c.grupo === g.id && (!c.soloPerfume || esPerfume));
+  const principales = (g) => CAMPOS_WEB.filter((c) => c.grupo === g.id);
+  const propios = (g) => datos.filter((a) => a.grupo === g.id);
 
   return (
     <form action={accion} className="form-grid" id="form-integracion-web">
@@ -166,7 +104,7 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
       <input type="hidden" name="atributosJson" value={json} />
       <input type="hidden" name="categoriasJson" value={JSON.stringify(cats)} />
-      <input type="hidden" name="enlacesJson" value={JSON.stringify(enlaces)} />
+      <input type="hidden" name="enlacesJson" value={JSON.stringify(equivalencias?.atributos || {})} />
       <input type="hidden" name="fijosJson" value={JSON.stringify(fijos)} />
       <input type="hidden" name="configCategoriasJson" value={JSON.stringify(config)} />
 
@@ -220,161 +158,76 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
       </section>
 
       <section className="admin-card form-grid">
-        <h2>Atributos por categoría</h2>
+        <h2>Atributos de la web</h2>
         <small style={{ color: "var(--gris)" }}>
-          Elige una categoría de la web y verás todos sus campos agrupados como en el formulario de producto, con su equivalencia en
-          cada plataforma. Los campos propios de la web traen marcada la equivalencia de SAGA (cámbiala o quítala); los atributos que
-          agregues van en el apartado que elijas (por defecto <strong>Detalles</strong>) y se enlazan al campo de SAGA que signifique lo
-          mismo, aunque en la web se llamen distinto.
+          Están agrupados como en el formulario de producto. Los <strong>principales</strong> vienen con la web y no se modifican. En
+          «Clasificación», «Perfil del producto», «Detalles» y «Paquete» puedes <strong>crear atributos</strong> y cambiar su nombre;
+          no se pueden borrar porque los productos ya guardados los usan. Qué atributos se ven en cada categoría se elige más abajo.
         </small>
-
-        <div className="campo">
-          <label htmlFor="attr-categoria">Categoría de la web</label>
-          <select id="attr-categoria" value={slug} onChange={(e) => setSlug(e.target.value)}>
-            {categoriasWeb.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.nombre}{datos[c.slug]?.length ? ` (${datos[c.slug].length} propios)` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {faltantes.length > 0 && (
-          <div className="pf-eq-alerta" role="alert">
-            ⚠ Obligatorios de SAGA sin atributo en la web: {faltantes.map(({ cat, campo }) => `${campo.etiqueta} (${cat})`).join(", ")}. Están en rojo en «Detalles»; créalos para poder publicar.
-          </div>
-        )}
-
-        <div className="cfg-atributo-enlaces">
-          {sagaCats.length ? (
-            sagaCats.map((id) => <span className="chip-saga ok" key={id}>SAGA {id}{sagaNombre(id) ? ` — ${sagaNombre(id)}` : ""}</span>)
-          ) : (
-            <span className="chip-saga aviso">Sin categoría de SAGA: asígnala arriba para enlazar atributos</span>
-          )}
-          {plataformas.slice(1).map((p) => (
-            <span className="chip-saga" key={p.id}>{p.nombre}: sus campos se habilitan al integrarla</span>
-          ))}
-        </div>
-
         {GRUPOS.map((g) => {
-          const fijosG = camposVisibles(g);
-          const propiosG = g.atributos ? lista.filter((a) => a.grupo === g.id) : [];
-          if (!fijosG.length && !g.atributos) return null;
+          const fijosG = principales(g);
+          const propiosG = g.atributos ? propios(g) : [];
           return (
             <details className="saga-seccion pf-sub" key={g.id}>
               <summary>
                 {g.nombre}
-                <em>{fijosG.length} de la web{propiosG.length ? ` · ${propiosG.length} propio${propiosG.length === 1 ? "" : "s"}` : ""}</em>
-                {g.id === "detalles" && faltantes.length > 0 && <span className="chip-saga aviso" style={{ background: "#fde8e8", color: "#b3261e" }}>{faltantes.length} sin atributo</span>}
+                <em>{fijosG.length} principales{g.atributos ? ` · ${propiosG.length} adicionales` : ""}</em>
               </summary>
               <div className="saga-cuerpo form-grid">
                 <div className="admin-tabla-wrap">
                   <table className="admin-tabla pf-eq-tabla-web">
                     <thead>
                       <tr>
-                        <th>Atributo de la web</th>
+                        <th>Atributo</th>
                         <th>Tipo</th>
-                        <th>Equivale en SAGA</th>
+                        <th>Origen</th>
                       </tr>
                     </thead>
                     <tbody>
                       {fijosG.map((def) => (
                         <tr key={def.id}>
-                          <td>
-                            {def.etiqueta}
-                            <small style={{ display: "block", color: "var(--gris)" }}>campo de la web{def.obligatorioSaga ? " · obligatorio en SAGA" : ""}</small>
-                          </td>
+                          <td>{def.etiqueta}</td>
                           <td>{ETIQUETA_TIPO[def.tipo] || def.tipo}</td>
-                          <td>
-                            {def.equivSoloPerfume && !esPerfume ? (
-                              <small style={{ color: "var(--gris)" }}>— solo en la web (SAGA la recibe solo en perfumes)</small>
-                            ) : (
-                              <span className="pf-eq-fija" title="Campo general de SAGA: no se puede cambiar">
-                                <code>{def.saga}</code> <small>fija</small>
-                              </span>
-                            )}
-                          </td>
+                          <td><small style={{ color: "var(--gris)" }}>🔒 principal{def.soloPerfume ? " · solo perfumes" : ""}</small></td>
                         </tr>
                       ))}
                       {propiosG.flatMap((a) => {
                         const k = clave(a);
-                        const filas = [
+                        const nuevo = !a.id; // aún sin guardar: tipo y opciones se definen ahora; después solo cambia la etiqueta
+                        return [
                           <tr key={k} className="pf-eq-propio">
                             <td>
                               <input value={a.etiqueta} maxLength={60} onChange={(e) => cambiar(k, { etiqueta: e.target.value })} placeholder="Nombre en la web (ej. Acabado)" aria-label="Nombre del atributo" />
-                              <small style={{ display: "block" }}>
-                                {a.virtual && <span className="chip-saga aviso">Nuevo desde SAGA: se guarda al presionar Guardar</span>}
-                              </small>
                             </td>
                             <td>
-                              <select value={a.tipo} onChange={(e) => cambiar(k, { tipo: e.target.value })} aria-label="Tipo">
-                                {TIPOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-                              </select>
-                            </td>
-                            <td>
-                              {sagaCats.length === 0 ? (
-                                <small>Asigna una categoría de SAGA arriba</small>
+                              {nuevo ? (
+                                <select value={a.tipo} onChange={(e) => cambiar(k, { tipo: e.target.value })} aria-label="Tipo">
+                                  {TIPOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                                </select>
                               ) : (
-                                <div className="pf-eq-celdas">
-                                  {sagaCats.map((cat) => {
-                                    const actual = campoDe(a, cat);
-                                    const libres = camposLibres(a, cat);
-                                    const actualDef = camposEnlazables(cat).find((c) => c.id === actual);
-                                    return (
-                                      <label key={cat} className="pf-eq-celda">
-                                        <span>{cat}</span>
-                                        <select value={actual} onChange={(e) => ponerCampo(a, cat, e.target.value)} aria-label={`Campo de SAGA ${cat} para ${a.etiqueta || "este atributo"}`}>
-                                          <option value="">— No usar —</option>
-                                          {actualDef && !libres.some((c) => c.id === actual) && <option value={actual}>{actualDef.etiqueta} ({actual})</option>}
-                                          {libres.map((c) => <option key={c.id} value={c.id}>{c.etiqueta} ({c.id}){c.obligatorio ? " · obligatorio" : ""}</option>)}
-                                        </select>
-                                      </label>
-                                    );
-                                  })}
-                                </div>
+                                ETIQUETA_TIPO[a.tipo] || a.tipo
+                              )}
+                            </td>
+                            <td>
+                              {nuevo ? (
+                                <button type="button" className="btn-admin peligro" onClick={() => quitarNuevo(a)}>Quitar</button>
+                              ) : (
+                                <small style={{ color: "var(--gris)" }}>adicional</small>
                               )}
                             </td>
                           </tr>,
-                        ];
-                        filas.push(
-                          <tr key={`${k}-extra`} className="pf-eq-propio-extra">
-                            <td colSpan={3}>
-                              <div className="pf-eq-extra">
-                                {!sinOpciones(a.tipo) && (
-                                  <div className="campo" style={{ flex: "1 1 280px" }}>
-                                    <label>Opciones <em>una por línea</em></label>
-                                    <textarea rows={3} value={a.opcionesTexto} onChange={(e) => cambiar(k, { opcionesTexto: e.target.value })} />
-                                  </div>
-                                )}
+                          !sinOpciones(a.tipo) && (
+                            <tr key={`${k}-op`} className="pf-eq-propio-extra">
+                              <td colSpan={3}>
                                 <div className="campo">
-                                  <label>Apartado del formulario</label>
-                                  <select value={a.grupo} onChange={(e) => cambiar(k, { grupo: e.target.value })}>
-                                    {GRUPOS_ATRIBUTOS.map((x) => <option key={x.id} value={x.id}>{x.nombre}</option>)}
-                                  </select>
+                                  <label>Opciones de «{a.etiqueta || "atributo"}» <em>una por línea</em></label>
+                                  <textarea rows={3} value={a.opcionesTexto} onChange={(e) => cambiar(k, { opcionesTexto: e.target.value })} />
                                 </div>
-                                <div style={{ display: "flex", gap: 6, alignItems: "end" }}>
-                                  <button type="button" className="btn-admin" onClick={() => mover(a, -1)} aria-label="Subir">↑</button>
-                                  <button type="button" className="btn-admin" onClick={() => mover(a, 1)} aria-label="Bajar">↓</button>
-                                  <button type="button" className="btn-admin peligro" onClick={() => quitar(a)}>Quitar</button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                        return filas;
+                              </td>
+                            </tr>
+                          ),
+                        ];
                       })}
-                      {g.id === "detalles" &&
-                        faltantes.map((f) => (
-                          <tr key={`${f.cat}-${f.campo.id}`} className="pf-eq-falta">
-                            <td colSpan={2}>
-                              Obligatorio en SAGA {f.cat}: <strong>{f.campo.etiqueta}</strong>
-                              <small style={{ display: "block" }}>{f.campo.id} · sin atributo en la web</small>
-                            </td>
-                            <td>
-                              <button type="button" className="btn-admin" onClick={() => crearDesdeFalta(f)}>Crear atributo en la web</button>
-                            </td>
-                          </tr>
-                        ))}
                     </tbody>
                   </table>
                 </div>
@@ -383,6 +236,56 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
                     <button type="button" className="btn-admin" onClick={() => agregar(g.id)}>+ Agregar atributo en «{g.nombre}»</button>
                   </div>
                 )}
+              </div>
+            </details>
+          );
+        })}
+      </section>
+
+      <section className="admin-card form-grid">
+        <h2>Atributos visibles por categoría</h2>
+        <small style={{ color: "var(--gris)" }}>
+          Elige una categoría y marca los atributos de la web que se ven en sus productos. Los principales vienen fijos. Si un atributo
+          no está visible aquí, no podrás elegirlo como equivalencia en <strong>Integraciones → SAGA</strong>.
+        </small>
+        <div className="campo">
+          <label htmlFor="attr-categoria">Categoría de la web</label>
+          <select id="attr-categoria" value={slug} onChange={(e) => setSlug(e.target.value)}>
+            {categoriasWeb.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.nombre}{activos[c.slug]?.length ? ` (${activos[c.slug].length} visibles)` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        {GRUPOS.map((g) => {
+          const fijosG = principales(g).filter((c) => !c.soloPerfume || esPerfume);
+          const lista = g.atributos ? propios(g) : [];
+          if (!fijosG.length && !lista.length) return null;
+          return (
+            <details className="saga-seccion pf-sub" key={g.id} open>
+              <summary>
+                {g.nombre}
+                <em>{fijosG.length + lista.filter((a) => visibleEn(slug, a)).length} visibles</em>
+              </summary>
+              <div className="saga-cuerpo form-grid">
+                {fijosG.map((def) => (
+                  <label key={def.id} className="campo-check" title="Atributo principal: siempre visible">
+                    <input type="checkbox" checked disabled readOnly />
+                    {def.etiqueta} <small style={{ color: "var(--gris)" }}>· principal</small>
+                  </label>
+                ))}
+                {lista.map((a) => {
+                  const enlaces = enlacesDe(slug, a.id);
+                  return (
+                    <label key={clave(a)} className="campo-check">
+                      <input type="checkbox" checked={visibleEn(slug, a)} onChange={(e) => alternar(a, e.target.checked)} />
+                      {a.etiqueta || "(sin nombre)"}
+                      {enlaces.length > 0 && <small style={{ color: "var(--gris)" }}> · enlazado con SAGA: {enlaces.join("; ")}</small>}
+                    </label>
+                  );
+                })}
+                {g.atributos && !lista.length && <small style={{ color: "var(--gris)" }}>Aún no hay atributos adicionales en este apartado. Créalos arriba.</small>}
               </div>
             </details>
           );

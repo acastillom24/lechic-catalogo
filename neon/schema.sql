@@ -260,6 +260,7 @@ alter table productos add column if not exists condicion          text not null 
 
 alter table productos add column if not exists sku_padre text;  -- ParentSku en SAGA; solo se usa si usar_sku_padre
 alter table productos add column if not exists usar_sku_padre boolean not null default false;  -- sin marcar: cada variante es un producto suelto en SAGA
+alter table productos add column if not exists sku_padre_web text;  -- SKU padre de la web (siempre editable); sku_padre es el que se envió a SAGA
 -- Paquete: un solo juego de medidas por producto.
 alter table productos add column if not exists contenido_paquete text;
 alter table productos add column if not exists paquete_ancho     numeric;

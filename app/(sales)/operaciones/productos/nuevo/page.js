@@ -10,7 +10,7 @@ export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
 export default async function NuevoProductoVentasPage() {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const [marcas, pestanas] = await Promise.all([getMarcas(), getPestanas()]);
   const saga = await getPropsSagaProducto(null);
 

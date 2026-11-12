@@ -7,6 +7,7 @@ import MarcasConfig from "../../../../components/admin/MarcasConfig";
 import PestanasConfig from "../../../../components/admin/PestanasConfig";
 import VentasConfig from "../../../../components/admin/VentasConfig";
 import { listarUsuariosVentas } from "../../../../lib/ventas";
+import { getPermisosGuardados, permisosDe } from "../../../../lib/ventas-permisos";
 import { listarColaboradores } from "../../../../lib/asistencias";
 import Colaboradores from "../../../../components/admin/Colaboradores";
 import ConfiguracionForm from "../../../../components/admin/ConfiguracionForm";
@@ -19,7 +20,7 @@ export const metadata = { title: "Configuración · Panel Le Chic" };
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
-  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas, cfgMarcas] = await Promise.all([
+  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas, cfgMarcas, permisosGuardados] = await Promise.all([
     getConfigSitio(),
     listarUsuariosVentas(),
     listarColaboradores(),
@@ -27,11 +28,12 @@ export default async function ConfiguracionPage() {
     getCuentas(),
     getOpcionesVentas(),
     getConfigMarcas(),
+    getPermisosGuardados(),
   ]);
   const categoriasWeb = cfgMarcas.categorias.map(({ slug, nombre }) => ({ slug, nombre }));
   // Las subpestañas Web y SAGA editan las mismas equivalencias: al cambiar lo guardado se vuelven a montar con los datos nuevos.
   const huella = String(
-    [...JSON.stringify([opcionesSaga.equivalencias, opcionesSaga.atributosCategoria])].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)
+    [...JSON.stringify([opcionesSaga.equivalencias, opcionesSaga.atributosCategoria, opcionesSaga.catalogoWeb])].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7)
   );
   return (
     <div className="form-grid">
@@ -45,7 +47,7 @@ export default async function ConfiguracionPage() {
           pestanasweb: <PestanasConfig pestanas={cfgMarcas.pestanasCrudas} categorias={cfgMarcas.categorias} />,
           equipo: (
             <>
-              <UsuariosVentas usuarios={usuarios} />
+              <UsuariosVentas usuarios={usuarios} permisos={Object.fromEntries(usuarios.map((u) => [u.id, permisosDe(permisosGuardados, u.id)]))} />
               <Colaboradores colaboradores={colaboradores} />
             </>
           ),
@@ -63,7 +65,8 @@ export default async function ConfiguracionPage() {
                   plataformas={opcionesSaga.equivalencias.plataformas}
                   categoriasSaga={opcionesSaga.categorias}
                   equivalencias={opcionesSaga.equivalencias}
-                  catalogo={opcionesSaga.atributosCategoria}
+                  catalogo={opcionesSaga.catalogoWeb}
+                  porCategoria={opcionesSaga.atributosCategoria}
                 />
               ),
             },

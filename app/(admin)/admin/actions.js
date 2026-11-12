@@ -23,10 +23,11 @@ import {
   refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock,
   consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
 } from "../../../lib/saga-sync";
-import { getOpcionesSaga, getBaseIntegracion, IDS_BASE, CLAVE as CLAVE_SAGA_OPCIONES, CLAVE_ATRIBUTOS, CLAVE_EQUIVALENCIAS } from "../../../lib/saga-opciones";
+import { getOpcionesSaga, getBaseIntegracion, IDS_BASE, CLAVE as CLAVE_SAGA_OPCIONES, CLAVE_ATRIBUTOS, CLAVE_CATALOGO, CLAVE_EQUIVALENCIAS } from "../../../lib/saga-opciones";
 import { aplicarFormularioSaga, extrasPorCategoria, normalizarEquivalencias } from "../../../lib/equivalencias";
 import { esGrupoValido, GRUPO_PREDETERMINADO, porId as campoWebPorId } from "../../../lib/campos-web";
 import { TIPOS as TIPOS_ATRIBUTO, idDeEtiqueta } from "../../../lib/atributos-categoria";
+import { IDS as PERMISOS_IDS, guardarPermisosUsuario } from "../../../lib/ventas-permisos";
 import { CLAVE as CLAVE_VENTAS } from "../../../lib/ventas-opciones";
 import { IDS as IDS_ATRIBUTOS } from "../../../lib/saga-atributos";
 import { camposDe, IMAGENES_TOPE } from "../../../lib/saga-campos";
@@ -635,6 +636,19 @@ export async function cambiarPasswordVentasAccion(id, prevState, formData) {
   return { ok: "Contraseña actualizada.", n: Date.now() };
 }
 
+/** Vistas de /operaciones que puede usar un usuario (Ventas, Productos, Integraciones) y la columna Sistemas de Productos. */
+export async function guardarPermisosVentasAccion(id, prevState, formData) {
+  try {
+    const permisos = Object.fromEntries(PERMISOS_IDS.map((k) => [k, formData.get(k) === "on"]));
+    await guardarPermisosUsuario(Number(id), permisos);
+  } catch (err) {
+    return { error: err.message || "No se pudieron guardar los permisos." };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/operaciones", "layout");
+  return { ok: "Permisos guardados.", n: Date.now() };
+}
+
 export async function eliminarUsuarioVentasAccion(id) {
   await eliminarUsuarioVentas(Number(id));
   revalidatePath("/admin/configuracion");
@@ -889,35 +903,45 @@ export async function guardarIntegracionWeb(prevState, formData) {
     const crudoEnlaces = leer("enlacesJson", "{}", "No se pudieron leer las equivalencias de atributos. Recarga la página e inténtalo de nuevo.");
     const crudoFijos = leer("fijosJson", "{}", "No se pudieron leer las equivalencias de los campos de la web. Recarga la página e inténtalo de nuevo.");
     const crudoConfig = leer("configCategoriasJson", "{}", "No se pudo leer la configuración de las categorías. Recarga la página e inténtalo de nuevo.");
-    if (!crudo || typeof crudo !== "object" || Array.isArray(crudo)) throw new Error("Atributos inválidos.");
+    if (!crudo || typeof crudo !== "object" || Array.isArray(crudo) || !Array.isArray(crudo.catalogo)) throw new Error("Atributos inválidos.");
     const { categorias } = await getConfigMarcas();
     const slugs = new Set(categorias.map((c) => c.slug));
 
-    // Atributos web por categoría.
+    // Catálogo único de atributos de la web (nombre, tipo, opciones y apartado) y cuáles se activan en cada categoría.
+    if (crudo.catalogo.length > 80) throw new Error("Máximo 80 atributos en el catálogo de la web.");
+    const ids = new Set();
+    const lista = crudo.catalogo.map((a, i) => {
+      const etiqueta = String(a?.etiqueta || "").trim();
+      if (!etiqueta || etiqueta.length > 60) throw new Error(`Atributo ${i + 1}: el nombre es obligatorio (máx. 60 caracteres).`);
+      const tipo = String(a?.tipo || "");
+      if (!TIPOS_ATRIBUTO.includes(tipo)) throw new Error(`Atributo "${etiqueta}": tipo no válido.`);
+      const id = /^[a-z0-9_]{1,40}$/.test(String(a?.id || "")) ? String(a.id) : idDeEtiqueta(etiqueta);
+      if (!id || ids.has(id)) throw new Error(`El atributo "${etiqueta}" está repetido.`);
+      ids.add(id);
+      const sinOpciones = tipo === "texto" || tipo === "numero";
+      const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean))];
+      if (opciones.some((o) => o.length > 100) || opciones.length > 200) throw new Error(`Atributo "${etiqueta}": máximo 200 opciones de hasta 100 caracteres.`);
+      if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
+      return { id, etiqueta, tipo, opciones, grupo: esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO };
+    });
+    // Lo ya guardado no se borra (los productos usan esos atributos) ni cambia de tipo: solo se renombra o amplía sus opciones.
+    const op = await getOpcionesSaga();
+    for (const previo of op.catalogoWeb || []) {
+      const i = lista.findIndex((a) => a.id === previo.id);
+      if (i < 0) lista.push({ id: previo.id, etiqueta: previo.etiqueta, tipo: previo.tipo, opciones: previo.opciones, grupo: previo.grupo });
+      else lista[i] = { ...lista[i], tipo: previo.tipo };
+    }
+    const activosEnviados = crudo.activos && typeof crudo.activos === "object" && !Array.isArray(crudo.activos) ? crudo.activos : {};
     const catalogo = {};
-    for (const [slug, lista] of Object.entries(crudo)) {
+    for (const [slug, marcados] of Object.entries(activosEnviados)) {
       if (!slugs.has(slug)) throw new Error(`La categoría "${slug}" no existe.`);
-      if (!Array.isArray(lista) || lista.length > 40) throw new Error(`Categoría "${slug}": máximo 40 atributos.`);
-      const ids = new Set();
-      const attrs = lista.map((a, i) => {
-        const etiqueta = String(a?.etiqueta || "").trim();
-        if (!etiqueta || etiqueta.length > 60) throw new Error(`Categoría "${slug}", atributo ${i + 1}: el nombre es obligatorio (máx. 60 caracteres).`);
-        const tipo = String(a?.tipo || "");
-        if (!TIPOS_ATRIBUTO.includes(tipo)) throw new Error(`Atributo "${etiqueta}": tipo no válido.`);
-        const id = /^[a-z0-9_]{1,40}$/.test(String(a?.id || "")) ? String(a.id) : idDeEtiqueta(etiqueta);
-        if (!id || ids.has(id)) throw new Error(`Categoría "${slug}": el atributo "${etiqueta}" está repetido.`);
-        ids.add(id);
-        const sinOpciones = tipo === "texto" || tipo === "numero";
-        const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean))];
-        if (opciones.some((o) => o.length > 100) || opciones.length > 200) throw new Error(`Atributo "${etiqueta}": máximo 200 opciones de hasta 100 caracteres.`);
-        if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
-        return { id, etiqueta, tipo, opciones, grupo: esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO };
-      });
+      const set = new Set(Array.isArray(marcados) ? marcados.map(String) : []);
+      const attrs = lista.filter((a) => set.has(a.id)); // en el orden del catálogo
+      if (attrs.length > 40) throw new Error(`Categoría "${slug}": máximo 40 atributos activos.`);
       if (attrs.length) catalogo[slug] = attrs;
     }
 
     // Equivalencias de categoría por plataforma (varias por plataforma). En SAGA solo valen las de su lista de categorías.
-    const op = await getOpcionesSaga();
     const sagaIds = new Set((op.categorias || []).map((c) => c.id));
     const plataformas = op.equivalencias.plataformas;
     const idsPlataforma = new Set(plataformas.map((x) => x.id));
@@ -970,6 +994,7 @@ export async function guardarIntegracionWeb(prevState, formData) {
       await guardarClaveConfiguracion(CLAVE_SAGA_OPCIONES, guardadoSaga);
     }
 
+    await guardarClaveConfiguracion(CLAVE_CATALOGO, lista);
     await guardarClaveConfiguracion(CLAVE_ATRIBUTOS, catalogo);
     await guardarClaveConfiguracion(CLAVE_EQUIVALENCIAS, equivalencias);
   } catch (err) {

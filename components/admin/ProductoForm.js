@@ -96,7 +96,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     // Producto nuevo: la categoría SAGA se preselecciona con la equivalencia de Configuración para su categoría web.
     // Producto nuevo: si la categoría web tiene una sola equivalente en SAGA (Integraciones → Web) se preselecciona.
     sagaCategoria: sg.sagaCategoria || (modo === "crear" && categoriasDePlataforma(opcionesSaga.equivalencias, categoria, "saga").length === 1 ? categoriasDePlataforma(opcionesSaga.equivalencias, categoria, "saga")[0] : ""),
-    skuPadre: sg.skuPadre || "",
+    skuPadre: sg.skuPadreWeb || "",
     usarSkuPadre: sg.usarSkuPadre === true,
     contenidoPaquete: sg.contenidoPaquete || "",
     paqueteAncho: sg.paqueteAncho ?? "",
@@ -1033,6 +1033,22 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                   {mensajesTraer(variantes[0])}
                 </div>
               )}
+              {!sinVariantes && (
+                <div className="campo">
+                  <label htmlFor="skuPadre">SKU padre</label>
+                  <input
+                    id="skuPadre"
+                    name="skuPadre"
+                    type="text"
+                    value={saga.skuPadre}
+                    onChange={(e) => cambiarSaga({ skuPadre: e.target.value })}
+                    placeholder="Código que agrupa las variantes"
+                  />
+                  {!skuPadreBloqueado && (
+                    <small>Agrupa las variantes. SAGA lo usa solo si marcas «Usar SKU padre» en Plataformas (vacío = id del producto).</small>
+                  )}
+                </div>
+              )}
               {sinVariantes && conSaga && (
                 <div className="campo">
                   <label htmlFor="codigoBarrasProducto">Código de barras</label>
@@ -1277,16 +1293,12 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 </label>
                 {permiteVar && saga.usarSkuPadre && (
                   <div className="campo">
-                    <label htmlFor="skuPadre">Código del SKU padre</label>
-                    <input
-                      id="skuPadre"
-                      name="skuPadre"
-                      value={skuPadreBloqueado ? saga.skuPadre || producto?.id || "" : saga.skuPadre}
-                      disabled={skuPadreBloqueado}
-                      onChange={(e) => cambiarSaga({ skuPadre: e.target.value })}
-                      placeholder={`Vacío = se usa el id del producto${id ? ` (${id})` : ""}`}
-                    />
-                    <small>SAGA no lo asigna: lo defines tú. Queda guardado en el primer envío y se reutiliza al agregar variantes.</small>
+                    <small>
+                      SKU padre en SAGA: <strong>{(skuPadreBloqueado ? producto?.saga?.skuPadre || producto?.id : saga.skuPadre) || id || "(id del producto)"}</strong>
+                      {skuPadreBloqueado
+                        ? " — ya se envió: no cambia aunque edites el de la web."
+                        : " — sale del SKU padre de Identificación. Queda guardado en el primer envío y se reutiliza al agregar variantes."}
+                    </small>
                   </div>
                 )}
               </div>

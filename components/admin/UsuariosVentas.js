@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   crearUsuarioVentasAccion,
   cambiarPasswordVentasAccion,
   eliminarUsuarioVentasAccion,
+  guardarPermisosVentasAccion,
 } from "../../app/(admin)/admin/actions";
 import { IconoMas, IconoLlave, IconoPapelera, IconoUsuario } from "./Iconos";
 import PasswordInput from "../PasswordInput";
@@ -39,8 +40,48 @@ function CambiarPassword({ id }) {
   );
 }
 
-/** Alta, cambio de contraseña y baja de usuarios que pueden ingresar a /operaciones. */
-export default function UsuariosVentas({ usuarios }) {
+// Mismos ids que lib/ventas-permisos.js (ese módulo es solo de servidor).
+const PERMISOS = [
+  ["ventas", "Ventas"],
+  ["productos", "Productos"],
+  ["integraciones", "Integraciones"],
+  ["sistemas", "Columna Sistemas"],
+  ["sincronizados", "Sincronizados (SAGA)"],
+];
+
+/** Vistas de /operaciones que puede ver un usuario, en un desplegable: se marcan y luego se guardan; lo desmarcado se oculta y se bloquea. */
+function PermisosUsuario({ id, permisos }) {
+  const [estado, accion, enviando] = useActionState(guardarPermisosVentasAccion.bind(null, id), {});
+  const menuRef = useRef(null);
+  const activas = PERMISOS.filter(([k]) => permisos[k]).length;
+
+  // Al guardar con éxito se cierra el desplegable.
+  useEffect(() => {
+    if (estado?.ok && menuRef.current) menuRef.current.open = false;
+  }, [estado?.n, estado?.ok]);
+
+  return (
+    <details className="admin-menu" ref={menuRef}>
+      <summary className="btn-ico-texto" title="Elegir qué ve este usuario en operaciones">
+        Vistas ({activas} de {PERMISOS.length}) ▾
+      </summary>
+      <form action={accion} className="admin-menu-lista" style={{ left: 0, right: "auto", padding: 12, gap: 8 }}>
+        {PERMISOS.map(([k, nombre]) => (
+          <label key={k} className="campo-check" title={k === "sistemas" ? "Muestra la columna Sistemas en Productos" : k === "sincronizados" ? "Muestra la pestaña Sincronizados en Integraciones → SAGA" : `Pestaña ${nombre}`}>
+            <input type="checkbox" name={k} defaultChecked={permisos[k]} /> {nombre}
+          </label>
+        ))}
+        <button type="submit" className="btn-ico-texto primario" disabled={enviando} style={{ justifySelf: "start" }}>
+          {enviando ? "Guardando..." : "Guardar"}
+        </button>
+        {estado?.error && <span style={{ color: "#c0392b", fontSize: 13 }}>{estado.error}</span>}
+      </form>
+    </details>
+  );
+}
+
+/** Alta, cambio de contraseña, vistas permitidas y baja de usuarios que pueden ingresar a /operaciones. */
+export default function UsuariosVentas({ usuarios, permisos = {} }) {
   const [estado, accion, enviando] = useActionState(crearUsuarioVentasAccion, {});
 
   return (
@@ -73,6 +114,7 @@ export default function UsuariosVentas({ usuarios }) {
             <th>Usuario</th>
             <th>Creado</th>
             <th>Contraseña</th>
+            <th>Vistas en operaciones</th>
             <th></th>
           </tr>
         </thead>
@@ -87,6 +129,9 @@ export default function UsuariosVentas({ usuarios }) {
               <td>{new Date(u.created_at).toLocaleDateString("es-PE", { timeZone: "America/Lima" })}</td>
               <td>
                 <CambiarPassword id={u.id} />
+              </td>
+              <td>
+                <PermisosUsuario id={u.id} permisos={permisos[u.id] || {}} />
               </td>
               <td>
                 <div className="acciones-fila">
@@ -108,7 +153,7 @@ export default function UsuariosVentas({ usuarios }) {
           ))}
           {usuarios.length === 0 && (
             <tr>
-              <td colSpan={4} style={{ textAlign: "center", color: "var(--gris)" }}>
+              <td colSpan={5} style={{ textAlign: "center", color: "var(--gris)" }}>
                 Aún no hay usuarios.
               </td>
             </tr>

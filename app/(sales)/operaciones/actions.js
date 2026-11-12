@@ -21,6 +21,7 @@ import {
   actualizarVenta,
   eliminarVentaPropia,
 } from "../../../lib/ventas";
+import { getPermisosUsuario, rutaInicial } from "../../../lib/ventas-permisos";
 import { TELEFONO_SIN_DATO } from "../../../lib/ventas-core";
 import { ventaDesdeForm, valoresDeForm } from "../../../lib/ventas-form";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
@@ -31,13 +32,19 @@ import {
   consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
 } from "../../../lib/saga-sync";
 
-/** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
-export async function requerirUsuarioVentas() {
+/**
+ * Usuario de la sesión actual, revalidado contra la BD (o redirige al login). Trae sus `permisos` (Configuración → Equipo).
+ * Con `vista` ("ventas" | "productos" | "integraciones") además exige tenerla: si no, lo manda a la primera vista permitida
+ * o, sin ninguna, a la página de sin acceso.
+ */
+export async function requerirUsuarioVentas(vista) {
   const store = await cookies();
   const uid = await leerSesionVentas(store.get(NOMBRE_COOKIE_VENTAS)?.value);
-  const usuario = uid ? await getUsuarioVentasActivo(uid) : null;
-  if (!usuario) redirect("/operaciones/login");
-  return usuario;
+  const base = uid ? await getUsuarioVentasActivo(uid) : null;
+  if (!base) redirect("/operaciones/login");
+  const permisos = await getPermisosUsuario(base.id);
+  if (vista && !permisos[vista]) redirect(rutaInicial(permisos) || "/operaciones/sin-acceso");
+  return { ...base, permisos };
 }
 
 export async function iniciarSesionVentas(prevState, formData) {
@@ -78,7 +85,7 @@ export async function registrarVenta(prevState, formData) {
 
 /** Crea una venta, o la actualiza si el formulario trae un `id` (edición). */
 async function guardarVenta(formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("ventas");
   const id = Number(formData.get("id")) || null;
 
   const { venta, error } = await ventaDesdeForm(formData);
@@ -117,14 +124,14 @@ async function guardarVenta(formData) {
 }
 
 export async function eliminarVentaDelDia(id) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("ventas");
   await eliminarVentaPropia(Number(id), usuario.id);
   revalidatePath("/operaciones");
 }
 
 /** Alta de producto desde /operaciones. Solo crea: nunca modifica productos existentes. */
 export async function crearProductoVentas(prevState, formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const r = await guardarProductoDesdeForm(formData, { soloCrear: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
   redirect("/operaciones/productos?creado=1");
@@ -135,7 +142,7 @@ export async function crearProductoVentas(prevState, formData) {
  * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
  */
 export async function editarProductoVentas(prevState, formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const r = await guardarProductoDesdeForm(formData, { restringido: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
   redirect("/operaciones/productos?guardado=1");
@@ -143,7 +150,7 @@ export async function editarProductoVentas(prevState, formData) {
 
 /** Movimiento de stock desde /operaciones (entrada, salida o conteo); queda el usuario en el historial. */
 export async function registrarMovimientoVentas(prevState, formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
 }
 
@@ -151,7 +158,7 @@ export async function registrarMovimientoVentas(prevState, formData) {
 
 /** Reintenta el aviso de stock de una variante/cuenta, solo si la fila es del usuario. */
 export async function reintentarStockSagaVentas(varianteId, alias) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   const [fila] = await query(
     "select 1 from sincronizaciones where variante_id = $1 and sistema = 'saga' and cuenta_alias = $2 and usuario_panel = $3",
     [Number(varianteId), String(alias || ""), usuario.usuario]
@@ -162,7 +169,7 @@ export async function reintentarStockSagaVentas(varianteId, alias) {
 
 /** Reintenta ahora todos los avisos de stock pendientes del usuario. */
 export async function reintentarTodoStockSagaVentas() {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   await reintentarStockPendiente({ forzar: true, limite: 50, usuario: usuario.usuario });
   revalidatePath("/operaciones/integraciones/saga");
 }
@@ -171,7 +178,7 @@ export async function reintentarTodoStockSagaVentas() {
 
 /** Consulta a SAGA el estado de las filas elegidas ("varianteId|alias") del usuario. */
 export async function consultarEstadoSagaVentas(claves) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   const n = await consultarSeleccion(claves, { usuario: usuario.usuario });
   after(() => drenarCola()); // continúa lo que haya quedado en cola o por avanzar
   revalidatePath("/operaciones/integraciones/saga");
@@ -180,7 +187,7 @@ export async function consultarEstadoSagaVentas(claves) {
 
 /** Aplica una acción de vinculación a las filas elegidas del usuario. */
 export async function aplicarAccionSagaVentas(claves, modo) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   const resultados = await aplicarAccionSeleccion(claves, String(modo || ""), { usuario: usuario.usuario });
   after(() => drenarCola());
   revalidatePath("/operaciones/integraciones/saga");
@@ -189,7 +196,7 @@ export async function aplicarAccionSagaVentas(claves, modo) {
 
 /** Cambia el tipo de vinculación de las filas elegidas del usuario; con `enviarAhora` también las envía. */
 export async function cambiarAccionSagaVentas(claves, accion, enviarAhora = false) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   try {
     const n = await cambiarAccionSeleccion(claves, String(accion || ""), { usuario: usuario.usuario });
     const resultados = enviarAhora && n ? await aplicarAccionSeleccion(claves, String(accion), { usuario: usuario.usuario }) : [];

@@ -4,7 +4,8 @@ import { useActionState } from "react";
 import { guardarOpcionesSaga, restablecerOpcionesSaga } from "../../app/(admin)/admin/actions";
 import AccionesSaga from "./AccionesSaga";
 import { imagenesRequeridas, IMAGENES_TOPE } from "../../lib/saga-campos";
-import { camposEnlazables, compatible, mapaCampos } from "../../lib/atributos-categoria";
+import { camposEnlazables, mapaCampos } from "../../lib/atributos-categoria";
+import EquivalenciasSagaBloque from "./EquivalenciasSagaBloque";
 
 const aTexto = (arr) => (arr || []).join("\n");
 
@@ -53,10 +54,12 @@ export default function SagaConfig({ opciones, categoriasWeb = [] }) {
       <section className="admin-card form-grid">
         <h2>Equivalencias por categoría</h2>
         <small style={{ color: "var(--gris)" }}>
-          La web manda: cada categoría de SAGA se cruza con las categorías de la web que la usan (se asignan en Integraciones → Web).
-          Aquí eliges, para cada atributo de SAGA, a qué atributo de la web equivale. Por defecto se crea en la web un atributo con el
-          mismo nombre (puedes renombrarlo allí). «No usar» deja el campo fuera: no se pide ni se envía. Los obligatorios de SAGA
-          siempre se usan. En Perfumes (1735) los campos base se llenan en su formulario propio.
+          Cada categoría de SAGA se configura una sola vez, sin repetirla por cada categoría de la web que la usa (se asignan en
+          Integraciones → Web). Los <strong>campos generales</strong> aparecen bloqueados con el campo de SAGA con el que hacen match y
+          no se pueden editar ni borrar. Para el resto eliges, por cada atributo de SAGA, el atributo de la web que equivale: se buscan
+          entre los atributos visibles en cualquiera de esas categorías de la web y que aún estén libres (los atributos nuevos se crean
+          en Integraciones → Web). «No usar» deja el campo fuera: no se pide ni se envía. En Perfumes (1735) los campos base se llenan
+          en su formulario propio.
         </small>
         {(opciones.categorias || []).map((c) => {
           const campos = camposEnlazables(c.id);
@@ -88,53 +91,13 @@ export default function SagaConfig({ opciones, categoriasWeb = [] }) {
                     Ninguna categoría de la web usa la categoría {c.id}: asígnala en <strong>Integraciones → Web</strong> para enlazar sus atributos.
                   </small>
                 ) : (
-                  webs.map((w) => {
-                    const enlaces = mapaCampos(eq, w.slug, "saga", c.id);
-                    const atributosWeb = opciones.atributosCategoria?.[w.slug] || [];
-                    return (
-                      <div className="pf-eq-bloque" key={w.slug}>
-                        <input type="hidden" name={`eqMarca_${c.id}__${w.slug}`} value="1" />
-                        <strong>Web: {w.nombre} ↔ SAGA {c.id}</strong>
-                        <div className="admin-tabla-wrap">
-                          <table className="admin-tabla pf-eq-tabla-campos">
-                            <thead>
-                              <tr>
-                                <th>Atributo de SAGA</th>
-                                <th>Atributo de la web</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {campos.map((campo) => {
-                                const enlace = enlaces[campo.id];
-                                const enlazado = atributosWeb.find((a) => a.id === enlace);
-                                // Un atributo creado por defecto (aún sin guardar) se muestra como «Crear…».
-                                const valor = !enlace ? "" : enlazado?.virtual ? "__crear" : enlace;
-                                const existentes = atributosWeb.filter((a) => !a.virtual && compatible(a, campo));
-                                return (
-                                  <tr key={campo.id}>
-                                    <td>
-                                      {campo.etiqueta}
-                                      <small style={{ display: "block", color: "var(--gris)" }}>
-                                        {campo.id} · {campo.tipo === "multi" ? "varias opciones" : campo.tipo === "lista" ? "una opción" : campo.tipo === "numero" ? "número" : "texto"}
-                                        {campo.obligatorio ? " · obligatorio" : ""}{campo.nivel === "variante" ? " · por variante" : ""}
-                                      </small>
-                                    </td>
-                                    <td>
-                                      <select name={`eq_${c.id}__${w.slug}__${campo.id}`} defaultValue={valor} aria-label={`Atributo de la web para ${campo.etiqueta}`}>
-                                        <option value="" disabled={campo.obligatorio}>— No usar —</option>
-                                        <option value="__crear">Crear «{campo.etiqueta}» en la web</option>
-                                        {existentes.map((a) => <option key={a.id} value={a.id}>{a.etiqueta}</option>)}
-                                      </select>
-                                    </td>
-                                  </tr>
-                                );
-                              })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    );
-                  })
+                  <EquivalenciasSagaBloque
+                    cat={c.id}
+                    webs={webs}
+                    campos={campos}
+                    enlacesPorWeb={Object.fromEntries(webs.map((w) => [w.slug, mapaCampos(eq, w.slug, "saga", c.id)]))}
+                    atributosPorWeb={Object.fromEntries(webs.map((w) => [w.slug, opciones.atributosCategoria?.[w.slug] || []]))}
+                  />
                 )}
               </div>
             </details>
@@ -183,3 +146,4 @@ export default function SagaConfig({ opciones, categoriasWeb = [] }) {
     </form>
   );
 }
+
