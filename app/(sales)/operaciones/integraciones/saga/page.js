@@ -5,7 +5,7 @@ import TablaSincronizacionesSaga from "../../../../../components/admin/TablaSinc
 import Paginacion from "../../../../../components/admin/Paginacion";
 import {
   requerirUsuarioVentas,
-  consultarEstadoSagaVentas, aplicarAccionSagaVentas, cambiarAccionSagaVentas,
+  consultarEstadoSagaVentas, cambiarAccionSagaVentas,
 } from "../../actions";
 import { after } from "next/server";
 import { drenarCola } from "../../../../../lib/saga-cola";
@@ -97,7 +97,6 @@ export default async function SagaOperacionesPage({ searchParams }) {
         opcionesAccion={opcionesAccion}
         acciones={{
           consultar: consultarEstadoSagaVentas,
-          aplicar: aplicarAccionSagaVentas,
           cambiarTipo: cambiarAccionSagaVentas,
         }}
       />

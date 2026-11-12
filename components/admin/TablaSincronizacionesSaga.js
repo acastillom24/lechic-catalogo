@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  consultarEstadoSagaSeleccion, aplicarAccionSagaSeleccion, cambiarAccionSagaSeleccion,
+  consultarEstadoSagaSeleccion, cambiarAccionSagaSeleccion,
 } from "../../app/(admin)/admin/actions";
 import { CATEGORIAS_REVISION } from "../../lib/saga-revision";
 
@@ -19,7 +19,7 @@ const nombreCategoria = (clave) => CATEGORIAS_REVISION.find(([k]) => k === clave
  *  - error:      con las filas elegidas se consulta su estado en SAGA: si el producto ya existe pasa a Sin publicar o
  *                Sincronizados (los avisos de stock fallidos se reintentan solos);
  *  - pendiente:  reporte del último estado guardado, con los motivos de la revisión de SAGA; con las filas
- *                elegidas se consulta su estado o se aplica una acción de vinculación;
+ *                elegidas se consulta su estado;
  *  - publicado:  con las filas elegidas se cambia el tipo de vinculación (y, si se quiere, se envía ya).
  * El panel /operaciones pasa en `acciones` sus propias versiones, limitadas a las filas del usuario.
  * `opcionesAccion` = acciones de vinculación configuradas ({ id, nombre }).
@@ -28,7 +28,6 @@ export default function TablaSincronizacionesSaga({
   filas, estado, rutaProducto = "/admin/productos", acciones = {}, opcionesAccion = [], mostrarUsuario = false,
 }) {
   const consultar = acciones.consultar || consultarEstadoSagaSeleccion;
-  const aplicar = acciones.aplicar || aplicarAccionSagaSeleccion;
   const cambiarTipo = acciones.cambiarTipo || cambiarAccionSagaSeleccion;
   const [ocupado, setOcupado] = useState(null); // clave de la fila (o "todas" / "lote") que se está procesando
   const [, iniciar] = useTransition();
@@ -86,7 +85,7 @@ export default function TablaSincronizacionesSaga({
           {esError
             ? "Envíos que SAGA no llegó a recibir o no pudo procesar (datos inválidos, configuración de la cuenta, error del envío). Elige filas y consulta su estado: si SAGA ya tiene el producto, pasa a Pendientes o Sin publicar según lo que SAGA indique. Los avisos de stock se reintentan solos."
             : esPendiente
-              ? "Productos que SAGA tiene en Pendientes (en revisión o con contenido, imágenes o compliance por corregir). Último estado guardado: no consulta a SAGA al abrir. Elige filas para consultar su estado o aplicarles una acción."
+              ? "Productos que SAGA tiene en Pendientes (en revisión o con contenido, imágenes o compliance por corregir). Último estado guardado: no consulta a SAGA al abrir. Elige filas para consultar su estado."
               : esSinPublicar
                 ? "Productos ya aprobados por SAGA (parte del catálogo) que todavía no se pueden vender. Elige filas y consulta el estado para ver qué falta; si ya quedaron vendibles pasan a Sincronizados."
                 : "Productos vinculados con SAGA. «Consultar estado» revisa su situación actual en SAGA: Pendientes si siguen en revisión, Sin publicar si están aprobados pero no vendibles. Con las filas elegidas también puedes cambiar su tipo de vinculación."}
@@ -107,23 +106,24 @@ export default function TablaSincronizacionesSaga({
             >
               {ocupado === "lote" ? "Consultando…" : "Consultar estado"}
             </button>
-            {!esError && selectorAccion}
-            {!esPendiente && !esError && (
-              <label className="campo-check" style={{ margin: 0 }}>
-                <input type="checkbox" checked={enviarAhora} onChange={(e) => setEnviarAhora(e.target.checked)} />
-                Enviar a SAGA ahora
-              </label>
+            {/* El tipo de vinculación solo se cambia en Sincronizados. */}
+            {esSincronizado && (
+              <>
+                {selectorAccion}
+                <label className="campo-check" style={{ margin: 0 }}>
+                  <input type="checkbox" checked={enviarAhora} onChange={(e) => setEnviarAhora(e.target.checked)} />
+                  Enviar a SAGA ahora
+                </label>
+                <button
+                  type="button"
+                  className="btn-ico-texto"
+                  disabled={ocupado !== null || !lista.length || !modo}
+                  onClick={() => ejecutar("lote", () => cambiarTipo(lista, modo, enviarAhora))}
+                >
+                  {ocupado === "lote" ? "Aplicando…" : "Cambiar tipo de vinculación"}
+                </button>
+              </>
             )}
-            {!esError && <button
-              type="button"
-              className="btn-ico-texto"
-              disabled={ocupado !== null || !lista.length || !modo}
-              onClick={() =>
-                ejecutar("lote", () => (esPendiente ? aplicar(lista, modo) : cambiarTipo(lista, modo, enviarAhora)))
-              }
-            >
-              {ocupado === "lote" ? "Aplicando…" : esPendiente ? "Aplicar acción" : "Cambiar tipo de vinculación"}
-            </button>}
           </div>
         </div>
       )}
