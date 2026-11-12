@@ -13,6 +13,7 @@
     "neon:aromas:dev": "node --env-file=.env.development scripts/migrar-aromas.js",
     "saga:probar": "node --env-file=.env.development scripts/saga-probar.js",
     "saga:campos": "node --env-file=.env.development scripts/saga-campos.js",
+    "saga:atributo": "node --env-file=.env.development scripts/saga-atributo.js",
     "saga:sku": "node --env-file=.env.development scripts/saga-sku.js",
     "neon:migrar-pestanas:dev": "node --env-file=.env.development scripts/migrar-marcas-pestanas.js",
     "neon:migrar-pestanas": "node --env-file=.env.production scripts/migrar-marcas-pestanas.js",

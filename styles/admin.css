@@ -1125,3 +1125,9 @@ input.pf-id-bloqueado, input.pf-id-bloqueado:focus { background: #f3f1ef; color:
 .pestanas-sub { top: calc(var(--admin-topbar-h, 0px) + var(--cfg-pestanas-h, 0px)); z-index: 24; background: var(--papel-hondo, var(--papel)); align-items: center; box-shadow: 0 6px 8px -8px rgba(0, 0, 0, .25); }
 .pestana-guardar { height: 34px; margin: 4px 0 4px 8px; }
 .pf-barra { top: var(--admin-topbar-h, 0px); }
+
+/* Integraciones → Web: barra de guardado fija y aviso flotante del resultado */
+.toast-integracion { position: fixed; top: 76px; right: 20px; z-index: 60; display: flex; gap: 12px; align-items: center; max-width: min(420px, calc(100vw - 40px)); padding: 12px 14px; border-radius: 10px; font-size: .9rem; box-shadow: 0 8px 24px rgba(0, 0, 0, .2); }
+.toast-integracion.ok { background: #e6f4ea; color: #1e5b2f; border: 1px solid #b7dcc2; }
+.toast-integracion.error { background: #fdecea; color: #8a1c14; border: 1px solid #f3b8b3; }
+.toast-integracion button { margin-left: auto; border: 0; background: transparent; color: inherit; font-size: 1.2rem; cursor: pointer; line-height: 1; }

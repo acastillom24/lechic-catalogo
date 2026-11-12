@@ -44,8 +44,9 @@ export default function AccionesSaga({ acciones }) {
   }
 
   return (
-    <section className="admin-card form-grid">
-      <h2>Acciones de vinculación</h2>
+    <details className="admin-card saga-seccion pf-sub">
+      <summary>Acciones de vinculación</summary>
+      <div className="saga-cuerpo form-grid">
       <small style={{ color: "var(--gris)" }}>
         Cada acción, al elegirla en una variante, comprueba que el SKU ya exista en SAGA y en cada guardado envía
         <strong> solo los atributos marcados</strong> que tengan valor (los vacíos no borran nada). Las cuatro primeras no se
@@ -128,6 +129,7 @@ export default function AccionesSaga({ acciones }) {
           + Agregar acción
         </button>
       </div>
-    </section>
+    </div>
+    </details>
   );
 }
