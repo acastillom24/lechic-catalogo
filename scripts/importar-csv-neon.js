@@ -28,7 +28,7 @@ const aArreglo = (v) => {
 
 async function main() {
   const url = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
-  if (!url) throw new Error("Falta DIRECT_DATABASE_URL en .env.local");
+  if (!url) throw new Error("Falta DIRECT_DATABASE_URL en .env.production");
 
   const productos = leer("productos_rows.csv");
   const variantes = leer("variantes_rows.csv");

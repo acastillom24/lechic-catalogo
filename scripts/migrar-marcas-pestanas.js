@@ -11,9 +11,9 @@
 // Es idempotente. Siempre imprime el estado antes/después.
 //
 // Uso:
-//   node --env-file=.env.dev   scripts/migrar-marcas-pestanas.js --dry-run   (solo muestra, deshace todo)
-//   node --env-file=.env.dev   scripts/migrar-marcas-pestanas.js             (aplica en dev)
-//   node --env-file=.env.local scripts/migrar-marcas-pestanas.js             (aplica en producción)
+//   node --env-file=.env.development   scripts/migrar-marcas-pestanas.js --dry-run   (solo muestra, deshace todo)
+//   node --env-file=.env.development   scripts/migrar-marcas-pestanas.js             (aplica en dev)
+//   node --env-file=.env.production scripts/migrar-marcas-pestanas.js             (aplica en producción)
 const { Client } = require("pg");
 const defaults = require("../data/marcas");
 
@@ -33,7 +33,7 @@ async function resumen(client, titulo) {
 
 async function main() {
   const url = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
-  if (!url) throw new Error("Falta DIRECT_DATABASE_URL (usa --env-file=.env.dev o .env.local).");
+  if (!url) throw new Error("Falta DIRECT_DATABASE_URL (usa --env-file=.env.development o .env.production).");
   const host = new URL(url).host;
   console.log(`Base de datos: ${host}${DRY ? "  [DRY-RUN: no se guardará nada]" : ""}`);
 

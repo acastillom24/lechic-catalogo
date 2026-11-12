@@ -5,7 +5,7 @@
 const fs = require("fs");
 const { Client } = require("pg");
 
-// Protección: nunca correr contra la base de .env.local (producción).
+// Protección: nunca correr contra la base de .env.production (producción).
 function host(url) {
   try {
     return new URL(url).host;
@@ -15,7 +15,7 @@ function host(url) {
 }
 function hostLocal() {
   try {
-    const m = /^DATABASE_URL=(.*)$/m.exec(fs.readFileSync(".env.local", "utf8"));
+    const m = /^DATABASE_URL=(.*)$/m.exec(fs.readFileSync(".env.production", "utf8"));
     return m ? host(m[1].trim().replace(/^["']|["']$/g, "")) : null;
   } catch {
     return null;
@@ -37,7 +37,7 @@ async function main() {
   const url = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
   if (!url) throw new Error("Falta DATABASE_URL (usa npm run asistencias:seed:dev).");
   if (host(url) && host(url) === hostLocal()) {
-    throw new Error("DATABASE_URL coincide con la de .env.local (producción). Abortado.");
+    throw new Error("DATABASE_URL coincide con la de .env.production (producción). Abortado.");
   }
 
   const client = new Client({ connectionString: url });

@@ -35,7 +35,7 @@ cada minuto).
 2. Crea una cuenta gratis en [cloudinary.com](https://cloudinary.com) y
    copia `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` y
    `CLOUDINARY_API_SECRET`. Las fotos se guardan en la carpeta `lechic/`.
-3. Copia `.env.local.example` como `.env.local` y completa las variables
+3. Copia `.env.example` como `.env.production` y completa las variables
    (más `ADMIN_PASSWORD` y `ADMIN_SESSION_SECRET`):
    ```bash
    node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
@@ -179,7 +179,7 @@ cantidad, la variante sigue usando solo el interruptor «hay stock»),
 #### Integración con facturación (opcional)
 
 El inventario puede recibir movimientos de un sistema de facturación mediante un
-endpoint firmado. Se activa con una variable de entorno (ver `.env.local.example`);
+endpoint firmado. Se activa con una variable de entorno (ver `.env.example`);
 sin ella, el endpoint permanece cerrado. La documentación del contrato está en la
 documentación interna del proyecto.
 
@@ -241,22 +241,22 @@ quieres cambiar de proveedor de base de datos, solo tocas `lib/data.js` y
 
 ```bash
 npm install
-npm run dev      # abre http://localhost:3000 (necesita .env.local)
-npm run build    # verifica que todo compile antes de publicar
+npm run dev      # abre http://localhost:3000 (usa .env.development)
+npm run build    # verifica que todo compile (usa .env.production)
 ```
 
-### Probar el admin contra develop
+### Entornos
 
-`npm run dev` usa `.env.local` (producción). Para probar el panel contra la
-base de datos y Cloudinary de develop, usa `.env.dev` (ignorado por git, con
-`DATABASE_URL`, `ADMIN_PASSWORD`, `ADMIN_SESSION_SECRET` y `CLOUDINARY_*`):
+Next.js elige el archivo de variables según el comando:
 
-```bash
-npm run dev:dev  # Next.js cargando .env.dev en vez de .env.local
-```
+- `npm run dev` carga `.env.development` (develop: base de datos y Cloudinary de pruebas).
+- `npm run build` / `npm run start` cargan `.env.production` (producción).
+
+Ambos están ignorados por git. Define en cada uno `DATABASE_URL`, `ADMIN_PASSWORD`,
+`ADMIN_SESSION_SECRET` y `CLOUDINARY_*` (ver `.env.example`).
 
 1. Abre http://localhost:3000/admin.
-2. Entra con el `ADMIN_PASSWORD` de `.env.dev`.
+2. Entra con el `ADMIN_PASSWORD` de `.env.development`.
 3. Verifica que `DATABASE_URL` apunte a la rama de develop de Neon antes de
    editar productos o subir fotos.
 
@@ -265,7 +265,7 @@ npm run dev:dev  # Next.js cargando .env.dev en vez de .env.local
 - El panel está protegido con contraseña y sesión revocable; usa un valor largo y
   único, y cámbialo si sospechas que se filtró.
 - `DATABASE_URL` y `CLOUDINARY_API_SECRET` dan acceso total: solo se usan
-  en el servidor (nunca llegan al navegador) y nunca deben subirse al repo (`.env.local` ya está en `.gitignore`).
+  en el servidor (nunca llegan al navegador) y nunca deben subirse al repo (`.env.production` ya está en `.gitignore`).
 - Las imágenes se suben a Cloudinary con URL **pública** (para
   que se vean en el catálogo sin login); no subas ahí nada que no deba
   ser público.

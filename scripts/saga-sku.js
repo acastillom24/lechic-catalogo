@@ -1,7 +1,7 @@
 // Muestra los datos que tiene SAGA de un SKU del vendedor, para compararlos con la web.
 //   npm run saga:sku -- 565626          -> campos ordenados (ParentSku, nombre, precios, paquete, atributos…)
 //   npm run saga:sku -- 565626 --raw    -> respuesta completa de SAGA (JSON)
-// Usa SELLERCENTER_BASE_URL, SELLERCENTER_USER_ID y SELLERCENTER_API_KEY de .env.dev.
+// Usa SELLERCENTER_BASE_URL, SELLERCENTER_USER_ID y SELLERCENTER_API_KEY de .env.development.
 const sc = require("../lib/sellercenter");
 
 // Campo de SAGA → etiqueta (equivalente en la web). Model, país y medidas del paquete
