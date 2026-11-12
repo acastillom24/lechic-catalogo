@@ -3,7 +3,6 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import {
-  reintentarStockSaga, reintentarTodoStockSaga,
   consultarEstadoSagaSeleccion, aplicarAccionSagaSeleccion, cambiarAccionSagaSeleccion,
 } from "../../app/(admin)/admin/actions";
 import { CATEGORIAS_REVISION } from "../../lib/saga-revision";
@@ -17,7 +16,8 @@ const nombreCategoria = (clave) => CATEGORIAS_REVISION.find(([k]) => k === clave
 
 /**
  * Lista de variantes × cuenta con su estado de sincronización en SAGA.
- *  - error:      reintentar el aviso de stock (una fila o todas);
+ *  - error:      con las filas elegidas se consulta su estado en SAGA: si el producto ya existe pasa a Sin publicar o
+ *                Sincronizados (los avisos de stock fallidos se reintentan solos);
  *  - pendiente:  reporte del último estado guardado, con los motivos de la revisión de SAGA; con las filas
  *                elegidas se consulta su estado o se aplica una acción de vinculación;
  *  - publicado:  con las filas elegidas se cambia el tipo de vinculación (y, si se quiere, se envía ya).
@@ -27,8 +27,6 @@ const nombreCategoria = (clave) => CATEGORIAS_REVISION.find(([k]) => k === clave
 export default function TablaSincronizacionesSaga({
   filas, estado, rutaProducto = "/admin/productos", acciones = {}, opcionesAccion = [], mostrarUsuario = false,
 }) {
-  const reintentarTodo = acciones.reintentarTodo || reintentarTodoStockSaga;
-  const reintentar = acciones.reintentar || reintentarStockSaga;
   const consultar = acciones.consultar || consultarEstadoSagaSeleccion;
   const aplicar = acciones.aplicar || aplicarAccionSagaSeleccion;
   const cambiarTipo = acciones.cambiarTipo || cambiarAccionSagaSeleccion;
@@ -57,7 +55,7 @@ export default function TablaSincronizacionesSaga({
   const esPendiente = estado === "pendiente";
   const esSinPublicar = estado === "sin_publicar";
   const esSincronizado = estado === "publicado";
-  const conSeleccion = !esError;
+  const conSeleccion = true;
   const claveDe = (f) => `${f.variante_id}|${f.cuenta_alias}`;
   const claves = filas.map(claveDe);
   const todas = claves.length > 0 && claves.every((c) => elegidas.has(c));
@@ -86,25 +84,13 @@ export default function TablaSincronizacionesSaga({
       <div className="admin-barra">
         <small style={{ color: "var(--gris)" }}>
           {esError
-            ? `Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30). Aquí puedes forzarlos ahora.`
+            ? "Envíos que fallaron. Elige filas y consulta su estado: si SAGA ya tiene el producto (por ejemplo, creado pero con contenido o imágenes por corregir) pasa a Sin publicar con el detalle. Los avisos de stock se reintentan solos."
             : esPendiente
               ? "Último estado guardado de cada envío (no consulta a SAGA al abrir). Elige filas para consultar su estado o aplicarles una acción."
               : esSinPublicar
                 ? "Productos ya creados en SAGA que todavía no se pueden vender. Elige filas y consulta el estado para ver qué falta; si ya quedaron vendibles pasan a Sincronizados."
                 : "Productos ya vinculados con SAGA. «Consultar estado» revisa si SAGA ya los deja vender (los que no, pasan a Sin publicar). Con las filas elegidas también puedes cambiar su tipo de vinculación."}
         </small>
-        <div className="admin-barra-der">
-          {esError && (
-            <button
-              type="button"
-              className="btn-ico-texto primario"
-              disabled={ocupado !== null || filas.length === 0}
-              onClick={() => ejecutar("todas", () => reintentarTodo())}
-            >
-              {ocupado === "todas" ? "Reintentando…" : "Reintentar todos"}
-            </button>
-          )}
-        </div>
       </div>
 
       {conSeleccion && filas.length > 0 && (
@@ -121,14 +107,14 @@ export default function TablaSincronizacionesSaga({
             >
               {ocupado === "lote" ? "Consultando…" : "Consultar estado"}
             </button>
-            {selectorAccion}
-            {!esPendiente && (
+            {!esError && selectorAccion}
+            {!esPendiente && !esError && (
               <label className="campo-check" style={{ margin: 0 }}>
                 <input type="checkbox" checked={enviarAhora} onChange={(e) => setEnviarAhora(e.target.checked)} />
                 Enviar a SAGA ahora
               </label>
             )}
-            <button
+            {!esError && <button
               type="button"
               className="btn-ico-texto"
               disabled={ocupado !== null || !lista.length || !modo}
@@ -137,7 +123,7 @@ export default function TablaSincronizacionesSaga({
               }
             >
               {ocupado === "lote" ? "Aplicando…" : esPendiente ? "Aplicar acción" : "Cambiar tipo de vinculación"}
-            </button>
+            </button>}
           </div>
         </div>
       )}
@@ -276,16 +262,6 @@ export default function TablaSincronizacionesSaga({
                     {esError && <td>{f.stock_pendiente ? f.intentos : "—"}</td>}
                     <td>{fechaHora(esError ? (f.stock_pendiente ? f.proximo_intento : null) : f.ultimo_sync)}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
-                      {esError && (
-                        <button
-                          type="button"
-                          className="btn-ico-texto"
-                          disabled={ocupado !== null}
-                          onClick={() => ejecutar(clave, () => reintentar(f.variante_id, f.cuenta_alias))}
-                        >
-                          {ocupado === clave ? "Reintentando…" : "Reintentar stock"}
-                        </button>
-                      )}{" "}
                       <Link href={`${rutaProducto}/${f.producto_id}`} className="btn-ico-texto">
                         Editar producto
                       </Link>

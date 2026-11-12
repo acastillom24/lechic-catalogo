@@ -4,7 +4,7 @@ import FiltrosSincronizaciones from "../../../../../components/admin/FiltrosSinc
 import TablaSincronizacionesSaga from "../../../../../components/admin/TablaSincronizacionesSaga";
 import Paginacion from "../../../../../components/admin/Paginacion";
 import {
-  requerirUsuarioVentas, reintentarStockSagaVentas, reintentarTodoStockSagaVentas,
+  requerirUsuarioVentas,
   consultarEstadoSagaVentas, aplicarAccionSagaVentas, cambiarAccionSagaVentas,
 } from "../../actions";
 import { after } from "next/server";
@@ -96,8 +96,6 @@ export default async function SagaOperacionesPage({ searchParams }) {
         rutaProducto="/operaciones/productos"
         opcionesAccion={opcionesAccion}
         acciones={{
-          reintentar: reintentarStockSagaVentas,
-          reintentarTodo: reintentarTodoStockSagaVentas,
           consultar: consultarEstadoSagaVentas,
           aplicar: aplicarAccionSagaVentas,
           cambiarTipo: cambiarAccionSagaVentas,
