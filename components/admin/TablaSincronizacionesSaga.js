@@ -55,6 +55,8 @@ export default function TablaSincronizacionesSaga({
 
   const esError = estado === "error";
   const esPendiente = estado === "pendiente";
+  const esSinPublicar = estado === "sin_publicar";
+  const esSincronizado = estado === "publicado";
   const conSeleccion = !esError;
   const claveDe = (f) => `${f.variante_id}|${f.cuenta_alias}`;
   const claves = filas.map(claveDe);
@@ -87,7 +89,9 @@ export default function TablaSincronizacionesSaga({
             ? `Los avisos de stock se reintentan solos (1, 2, 4, 8, 16 min y luego cada 30). Aquí puedes forzarlos ahora.`
             : esPendiente
               ? "Último estado guardado de cada envío (no consulta a SAGA al abrir). Elige filas para consultar su estado o aplicarles una acción."
-              : "Productos ya vinculados con SAGA. Elige filas para cambiar su tipo de vinculación en bloque."}
+              : esSinPublicar
+                ? "Productos ya creados en SAGA que todavía no se pueden vender. Elige filas y consulta el estado para ver qué falta; si ya quedaron vendibles pasan a Sincronizados."
+                : "Productos ya vinculados con SAGA. «Consultar estado» revisa si SAGA ya los deja vender (los que no, pasan a Sin publicar). Con las filas elegidas también puedes cambiar su tipo de vinculación."}
         </small>
         <div className="admin-barra-der">
           {esError && (
@@ -109,16 +113,14 @@ export default function TablaSincronizacionesSaga({
             {lista.length ? `${lista.length} fila(s) elegida(s)` : "Marca las filas con las casillas"}
           </small>
           <div className="admin-barra-der" style={{ flexWrap: "wrap", gap: 8 }}>
-            {esPendiente && (
-              <button
-                type="button"
-                className="btn-ico-texto primario"
-                disabled={ocupado !== null || !lista.length}
-                onClick={() => ejecutar("lote", () => consultar(lista))}
-              >
-                {ocupado === "lote" ? "Consultando…" : "Consultar estado"}
-              </button>
-            )}
+            <button
+              type="button"
+              className="btn-ico-texto primario"
+              disabled={ocupado !== null || !lista.length}
+              onClick={() => ejecutar("lote", () => consultar(lista))}
+            >
+              {ocupado === "lote" ? "Consultando…" : "Consultar estado"}
+            </button>
             {selectorAccion}
             {!esPendiente && (
               <label className="campo-check" style={{ margin: 0 }}>
@@ -147,7 +149,13 @@ export default function TablaSincronizacionesSaga({
       {filas.length === 0 ? (
         <div className="admin-card">
           <p style={{ margin: 0, color: "var(--gris)" }}>
-            {esError ? "No hay errores de sincronización." : esPendiente ? "No hay envíos pendientes." : "Aún no hay productos sincronizados."}
+            {esError
+              ? "No hay errores de sincronización."
+              : esPendiente
+                ? "No hay envíos pendientes."
+                : esSinPublicar
+                  ? "No hay productos sin publicar. Los productos aparecen aquí al usar «Consultar estado» en Sincronizados y detectar que SAGA aún no los deja vender."
+                  : "Aún no hay productos sincronizados."}
           </p>
         </div>
       ) : (
@@ -169,8 +177,8 @@ export default function TablaSincronizacionesSaga({
                 <th>SKU</th>
                 <th>Cuenta</th>
                 {mostrarUsuario && <th>Usuario</th>}
-                {estado === "publicado" ? <th>Vinculación</th> : <th>Detalle</th>}
-                {estado !== "publicado" && <th>Stock web → SAGA</th>}
+                {esSincronizado ? <th>Vinculación</th> : <th>Detalle</th>}
+                {!esSincronizado && !esSinPublicar && <th>Stock web → SAGA</th>}
                 {esError && <th>Intentos</th>}
                 <th>{esError ? "Próximo intento" : "Último envío"}</th>
                 <th></th>
@@ -195,8 +203,33 @@ export default function TablaSincronizacionesSaga({
                     <td>{f.sku || "—"}</td>
                     <td>{f.cuenta}</td>
                     {mostrarUsuario && <td>{f.usuario_panel || "Admin / automático"}</td>}
-                    {estado === "publicado" ? (
-                      <td>{nombreAccion(f.accion)}</td>
+                    {esSincronizado ? (
+                      <td>
+                        {nombreAccion(f.accion)}
+                        {f.venta_ok && f.venta_fecha && (
+                          <div><small style={{ color: "var(--gris)" }}>Vendible · revisado {fechaHora(f.venta_fecha)}</small></div>
+                        )}
+                      </td>
+                    ) : esSinPublicar ? (
+                      <td style={{ maxWidth: 380 }}>
+                        <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", fontSize: ".82rem", wordBreak: "break-word" }}>
+                          {(f.venta_detalle?.items || []).map((it) => (
+                            <li key={it.clave}>
+                              <span className={it.estado === "pendiente" ? "chip-saga aviso" : "chip-saga"}>
+                                {it.estado === "listo" ? "Listo" : it.estado === "pendiente" ? "Pendiente" : "Sin dato"}
+                              </span>{" "}
+                              <strong>{it.etiqueta}</strong>
+                              {it.detalle && <span style={{ color: "var(--gris)" }}> · {it.detalle}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                        {(f.venta_detalle?.motivos || []).length > 0 && (
+                          <div style={{ fontSize: ".82rem", marginTop: 4, wordBreak: "break-word" }}>
+                            <strong>Motivo de SAGA:</strong> {f.venta_detalle.motivos.join(" · ")}
+                          </div>
+                        )}
+                        {f.venta_fecha && <small style={{ color: "var(--gris)" }}>Revisado {fechaHora(f.venta_fecha)}</small>}
+                      </td>
                     ) : (
                       <td style={{ maxWidth: 380 }}>
                         {esError && (
@@ -235,7 +268,7 @@ export default function TablaSincronizacionesSaga({
                         )}
                       </td>
                     )}
-                    {estado !== "publicado" && (
+                    {!esSincronizado && !esSinPublicar && (
                       <td>
                         {f.stock_actual === null ? (f.stock ? "hay" : "sin stock") : f.stock_actual} → <strong>{f.stock_saga}</strong>
                       </td>

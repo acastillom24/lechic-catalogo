@@ -29,7 +29,7 @@ export default async function SagaOperacionesPage({ searchParams }) {
   after(() => drenarCola());
   // «Sincronizados» solo si el usuario lo tiene habilitado (Configuración → Equipo); si no, cae en Errores.
   const verSincronizados = usuario.permisos.sincronizados;
-  const estado = ["pendiente", ...(verSincronizados ? ["publicado"] : [])].includes(params?.estado) ? params.estado : "error";
+  const estado = ["pendiente", ...(verSincronizados ? ["publicado", "sin_publicar"] : [])].includes(params?.estado) ? params.estado : "error";
   const pagina = Math.max(1, parseInt(params?.pagina, 10) || 1);
   const sincronizados = estado === "publicado";
   const filtros = {
@@ -56,6 +56,7 @@ export default async function SagaOperacionesPage({ searchParams }) {
     proximo_intento: f.proximo_intento ? new Date(f.proximo_intento).toISOString() : null,
     ultimo_sync: f.ultimo_sync ? new Date(f.ultimo_sync).toISOString() : null,
     revision_fecha: f.revision_fecha ? new Date(f.revision_fecha).toISOString() : null,
+    venta_fecha: f.venta_fecha ? new Date(f.venta_fecha).toISOString() : null,
     proximo_envio: f.proximo_envio ? new Date(f.proximo_envio).toISOString() : null,
     stock_saga: stockParaSaga(f),
   }));
@@ -86,7 +87,7 @@ export default async function SagaOperacionesPage({ searchParams }) {
   return (
     <div className="form-grid">
       <FiltrosSincronizaciones action={BASE} estado={estado} filtros={filtros} cuentas={cuentas} acciones={sincronizados ? opcionesAccion.map((a) => [a.id, a.nombre]) : null} chips={chips} />
-      <TabsSaga activo={estado} conteo={conteo} base={BASE} extra={extraTabs} ocultar={verSincronizados ? [] : ["publicado"]} />
+      <TabsSaga activo={estado} conteo={conteo} base={BASE} extra={extraTabs} ocultar={verSincronizados ? [] : ["publicado", "sin_publicar"]} />
       {estado === "pendiente" && <CategoriasRevision activa={categoria} conteo={porCategoria} href={(c) => href({ categoria: c })} />}
       <TablaSincronizacionesSaga
         key={estado}
