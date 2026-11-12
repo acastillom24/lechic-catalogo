@@ -12,7 +12,7 @@ const fechaHora = (x) =>
     ? new Date(x).toLocaleString("es-PE", { timeZone: "America/Lima", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "—";
 
-const nombreCategoria = (clave) => CATEGORIAS_REVISION.find(([k]) => k === clave)?.[1] || "Otros";
+const nombreCategoria = (clave) => CATEGORIAS_REVISION.find(([k]) => k === clave)?.[1] || "Configuración Seller Center";
 
 /**
  * Lista de variantes × cuenta con su estado de sincronización en SAGA.
