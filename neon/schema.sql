@@ -422,6 +422,12 @@ alter table sincronizaciones add column if not exists revision_motivos jsonb;
 alter table sincronizaciones add column if not exists revision_puntaje integer;
 alter table sincronizaciones add column if not exists revision_fecha timestamptz;
 
+-- «Sin publicar»: producto ya creado en SAGA pero no vendible (IsPublished = 0 o QC no aprobado). venta_ok null =
+-- aún no consultado; venta_detalle = { items: [{ clave, etiqueta, estado, detalle }], motivos: [texto] }.
+alter table sincronizaciones add column if not exists venta_ok boolean;
+alter table sincronizaciones add column if not exists venta_detalle jsonb;
+alter table sincronizaciones add column if not exists venta_fecha timestamptz;
+
 -- Cola de envíos: SAGA permite 1 feed cada 2 minutos por cuenta; lo que no cabe espera aquí (acción a repetir y hora).
 alter table sincronizaciones add column if not exists cola_modo text;
 alter table sincronizaciones add column if not exists proximo_envio timestamptz;
