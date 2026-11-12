@@ -84,12 +84,12 @@ export default function TablaSincronizacionesSaga({
       <div className="admin-barra">
         <small style={{ color: "var(--gris)" }}>
           {esError
-            ? "Envíos que fallaron. Elige filas y consulta su estado: si SAGA ya tiene el producto (por ejemplo, creado pero con contenido o imágenes por corregir) pasa a Sin publicar con el detalle. Los avisos de stock se reintentan solos."
+            ? "Envíos que SAGA no llegó a recibir o no pudo procesar (datos inválidos, configuración de la cuenta, error del envío). Elige filas y consulta su estado: si SAGA ya tiene el producto, pasa a Pendientes o Sin publicar según lo que SAGA indique. Los avisos de stock se reintentan solos."
             : esPendiente
-              ? "Último estado guardado de cada envío (no consulta a SAGA al abrir). Elige filas para consultar su estado o aplicarles una acción."
+              ? "Productos que SAGA tiene en Pendientes (en revisión o con contenido, imágenes o compliance por corregir). Último estado guardado: no consulta a SAGA al abrir. Elige filas para consultar su estado o aplicarles una acción."
               : esSinPublicar
-                ? "Productos ya creados en SAGA que todavía no se pueden vender. Elige filas y consulta el estado para ver qué falta; si ya quedaron vendibles pasan a Sincronizados."
-                : "Productos ya vinculados con SAGA. «Consultar estado» revisa si SAGA ya los deja vender (los que no, pasan a Sin publicar). Con las filas elegidas también puedes cambiar su tipo de vinculación."}
+                ? "Productos ya aprobados por SAGA (parte del catálogo) que todavía no se pueden vender. Elige filas y consulta el estado para ver qué falta; si ya quedaron vendibles pasan a Sincronizados."
+                : "Productos vinculados con SAGA. «Consultar estado» revisa su situación actual en SAGA: Pendientes si siguen en revisión, Sin publicar si están aprobados pero no vendibles. Con las filas elegidas también puedes cambiar su tipo de vinculación."}
         </small>
       </div>
 
