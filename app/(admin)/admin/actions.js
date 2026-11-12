@@ -935,8 +935,8 @@ export async function guardarIntegracionWeb(prevState, formData) {
       if (!id || ids.has(id)) throw new Error(`El atributo "${etiqueta}" está repetido.`);
       ids.add(id);
       const sinOpciones = tipo === "texto" || tipo === "numero";
-      const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean))];
-      if (opciones.some((o) => o.length > 100) || opciones.length > 200) throw new Error(`Atributo "${etiqueta}": máximo 200 opciones de hasta 100 caracteres.`);
+      const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter((o) => o && !/^(…|\.{2,})$/.test(o)))];
+      if (opciones.some((o) => o.length > 100) || opciones.length > 1000) throw new Error(`Atributo "${etiqueta}": máximo 1000 opciones de hasta 100 caracteres.`);
       if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
       // Largo mínimo/máximo solo para texto libre (opcionales).
       const largo = (v) => (v === "" || v == null ? null : Number.isInteger(Number(v)) && Number(v) > 0 && Number(v) <= 1000 ? Number(v) : NaN);
@@ -1386,7 +1386,7 @@ export async function consultarAtributosSaga(categoriaId) {
       descripcion: String(a.Description || "").split("//")[0].trim(),
       min: num(a.MinLength ?? a.MinimumLength),
       max: num(a.MaxLength),
-      opciones: lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && n !== "…"),
+      opciones: lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && !/^(…|\.{2,})$/.test(String(n).trim())),
     }));
     if (!atributos.length) return { error: `SAGA no devolvió atributos para la categoría ${id}.` };
     return { atributos };
