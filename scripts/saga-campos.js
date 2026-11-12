@@ -1,5 +1,5 @@
 // Genera/actualiza data/saga-campos.json: los atributos "extra" de cada categoría primaria de SAGA
-// (solo lectura: GetCategoryAttributes). Usa las credenciales de .env.dev, igual que saga-probar.
+// (solo lectura: GetCategoryAttributes). Usa las credenciales de .env.development, igual que saga-probar.
 //   npm run saga:campos -- 2945 1332 320     -> agrega o actualiza esas categorías en el catálogo
 //
 // Un atributo es "extra" si no lo cubre ya el formulario (nombre, marca, medidas del paquete, registro

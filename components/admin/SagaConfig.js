@@ -1,11 +1,16 @@
 "use client";
 
-import { useActionState } from "react";
-import { guardarOpcionesSaga, restablecerOpcionesSaga } from "../../app/(admin)/admin/actions";
+import { useActionState, useEffect, useState } from "react";
+import { guardarOpcionesSaga } from "../../app/(admin)/admin/actions";
 import AccionesSaga from "./AccionesSaga";
 import { imagenesRequeridas, IMAGENES_TOPE } from "../../lib/saga-campos";
 import { camposEnlazables, mapaCampos } from "../../lib/atributos-categoria";
 import EquivalenciasSagaBloque from "./EquivalenciasSagaBloque";
+
+const FORM_ID = "form-saga-opciones";
+// Avisa al botón «Guardar» de la barra de pestañas (ConfiguracionForm) del estado del guardado; el resultado se emite desde la
+// propia acción porque al guardar la sección se vuelve a montar con los datos nuevos.
+const emitir = (detalle) => window.dispatchEvent(new CustomEvent("integracion-estado", { detail: { formId: FORM_ID, ...detalle } }));
 
 const aTexto = (arr) => (arr || []).join("\n");
 
@@ -21,26 +26,43 @@ function Lista({ nombre, etiqueta, ayuda, valores, filas = 6 }) {
 
 // Los valores deben ser EXACTAMENTE los de SAGA (mayúsculas, tildes, espacios).
 export default function SagaConfig({ opciones, categoriasWeb = [] }) {
-  const [estado, accion, enviando] = useActionState(guardarOpcionesSaga, {});
+  const [sucio, setSucio] = useState(false);
+  const guardarYAvisar = async (prev, formData) => {
+    emitir({ enviando: true });
+    let r;
+    try {
+      r = await guardarOpcionesSaga(prev, formData);
+    } catch {
+      r = { error: "No se pudo guardar. Inténtalo de nuevo." };
+    }
+    if (r?.ok) setSucio(false);
+    emitir({ enviando: false, resultado: r, ...(r?.ok ? { sinGuardar: false } : {}) });
+    return r;
+  };
+  const [estado, accion] = useActionState(guardarYAvisar, {});
+  useEffect(() => {
+    emitir({ sinGuardar: sucio });
+  }, [sucio]);
   const categoriasTexto = (opciones.categorias || []).map((c) => `${c.id} = ${c.nombre}`).join("\n");
 
   return (
-    <form action={accion} className="form-grid" key={estado?.n || 0} id="form-saga-opciones">
-      {estado?.error && <div className="mensaje-error">{estado.error}</div>}
-      {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
+    <form action={accion} className="form-grid" key={estado?.n || 0} id={FORM_ID} onChange={() => setSucio(true)}>
 
       <AccionesSaga acciones={opciones.acciones} />
 
-      <section className="admin-card form-grid">
-        <h2>Conexión</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>Conexión</summary>
+        <div className="saga-cuerpo form-grid">
         <Lista nombre="urlsBase" etiqueta="URLs base de Seller Center" valores={opciones.urlsBase} filas={3}
           ayuda="Una por línea (https://…). Son las que podrás elegir al registrar una cuenta." />
         <Lista nombre="operadores" etiqueta="Códigos de operador (OperatorCode)" valores={opciones.operadores} filas={3}
           ayuda="Uno por línea (ej. fape para Perú). Son los que podrás elegir al registrar una cuenta; se usan al enviar stock y precio." />
-      </section>
+      </div>
+      </details>
 
-      <section className="admin-card form-grid">
-        <h2>Categorías primarias</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>Categorías primarias</summary>
+        <div className="saga-cuerpo form-grid">
         <div className="campo">
           <label htmlFor="saga-categorias">Categorías de SAGA que se pueden elegir en un producto</label>
           <textarea id="saga-categorias" name="categorias" rows={5} defaultValue={categoriasTexto} />
@@ -49,10 +71,12 @@ export default function SagaConfig({ opciones, categoriasWeb = [] }) {
             categoría final de SAGA (la más específica, sin subcategorías).
           </small>
         </div>
-      </section>
+      </div>
+      </details>
 
-      <section className="admin-card form-grid">
-        <h2>Equivalencias por categoría</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>Equivalencias por categoría</summary>
+        <div className="saga-cuerpo form-grid">
         <small style={{ color: "var(--gris)" }}>
           Cada categoría de SAGA se configura una sola vez, sin repetirla por cada categoría de la web que la usa (se asignan en
           Integraciones → Web). Los <strong>campos generales</strong> aparecen bloqueados con el campo de SAGA con el que hacen match y
@@ -103,18 +127,22 @@ export default function SagaConfig({ opciones, categoriasWeb = [] }) {
             </details>
           );
         })}
-      </section>
+      </div>
+      </details>
 
-      <section className="admin-card form-grid">
-        <h2>Marcas</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>Marcas</summary>
+        <div className="saga-cuerpo form-grid">
         <small style={{ color: "var(--gris)" }}>
           Las marcas y su nombre exacto en cada plataforma (SAGA y las que agregues) se configuran en la pestaña
           <strong>Marcas</strong> de esta misma página de Configuración.
         </small>
-      </section>
+      </div>
+      </details>
 
-      <section className="admin-card form-grid">
-        <h2>Datos del perfume</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>Datos del perfume</summary>
+        <div className="saga-cuerpo form-grid">
         <Lista nombre="aromas" etiqueta="Aromas (FraganciaPerfume)" valores={opciones.aromas} filas={8}
           ayuda="Un aroma por línea. Aparecen como casillas en el formulario de producto." />
         <Lista nombre="cantidades" etiqueta="Medidas del frasco (CantidadPerfumesVariant)" valores={opciones.cantidades} filas={8}
@@ -126,23 +154,9 @@ export default function SagaConfig({ opciones, categoriasWeb = [] }) {
           ayuda="Frasco, Spray, Botella… Se elige en cada producto." />
         <Lista nombre="caracteristicas" etiqueta="Características (opcional en SAGA)" valores={opciones.caracteristicas} filas={8} />
         <Lista nombre="paises" etiqueta="Países de producción (Hecho en)" valores={opciones.paises} filas={8} />
-      </section>
-
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <button type="submit" className="btn-admin solido" disabled={enviando}>
-          {enviando ? "Guardando..." : "Guardar opciones de SAGA"}
-        </button>
-        <button
-          type="submit"
-          className="btn-admin peligro"
-          formAction={restablecerOpcionesSaga}
-          onClick={(e) => {
-            if (!confirm("¿Volver a las listas originales de SAGA? Se perderán los cambios guardados.")) e.preventDefault();
-          }}
-        >
-          Restablecer valores originales
-        </button>
       </div>
+      </details>
+
     </form>
   );
 }

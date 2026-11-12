@@ -2,9 +2,9 @@
  * Carga data/ventas_limpio.csv en la tabla `ventas` (una sola vez).
  *
  * Uso:
- *   npm run ventas:importar:dev            dry-run contra .env.dev
+ *   npm run ventas:importar:dev            dry-run contra .env.development
  *   npm run ventas:importar:dev -- --aplicar
- *   npm run ventas:importar                dry-run contra .env.local
+ *   npm run ventas:importar                dry-run contra .env.production
  *   npm run ventas:importar -- --aplicar [--forzar]
  *
  * Sin --aplicar solo valida y muestra el resumen. Aborta si ya hay filas

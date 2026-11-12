@@ -1,5 +1,5 @@
 // Pruebas de solo lectura contra Seller Center (SAGA).
-// Usa SELLERCENTER_BASE_URL, SELLERCENTER_USER_ID y SELLERCENTER_API_KEY de .env.dev
+// Usa SELLERCENTER_BASE_URL, SELLERCENTER_USER_ID y SELLERCENTER_API_KEY de .env.development
 // (solo para estas consultas; la web usa las cuentas guardadas en Configuración → SAGA).
 //   npm run saga:probar                      -> valida firma y credenciales (GetProducts Limit=1)
 //   npm run saga:probar -- --arbol           -> lista TODAS las categorías con su id

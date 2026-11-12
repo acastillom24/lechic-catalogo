@@ -35,7 +35,7 @@ import { CLAVE as CLAVE_VENTAS } from "../../../lib/ventas-opciones";
 import { IDS as IDS_ATRIBUTOS } from "../../../lib/saga-atributos";
 import { camposDe, IMAGENES_TOPE } from "../../../lib/saga-campos";
 import { guardarSeguimiento } from "../../../lib/reclamos";
-import { credenciales as credencialesSaga, producto as productoSaga } from "../../../lib/sellercenter";
+import { credenciales as credencialesSaga, producto as productoSaga, atributosCategoria as atributosCategoriaSaga } from "../../../lib/sellercenter";
 import { desdeSaga } from "../../../lib/saga-mapeo";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 import {
@@ -938,14 +938,19 @@ export async function guardarIntegracionWeb(prevState, formData) {
       const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean))];
       if (opciones.some((o) => o.length > 100) || opciones.length > 200) throw new Error(`Atributo "${etiqueta}": máximo 200 opciones de hasta 100 caracteres.`);
       if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
-      return { id, etiqueta, tipo, opciones, grupo: esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO };
+      // Largo mínimo/máximo solo para texto libre (opcionales).
+      const largo = (v) => (v === "" || v == null ? null : Number.isInteger(Number(v)) && Number(v) > 0 && Number(v) <= 1000 ? Number(v) : NaN);
+      const min = tipo === "texto" ? largo(a?.min) : null;
+      const max = tipo === "texto" ? largo(a?.max) : null;
+      if (Number.isNaN(min) || Number.isNaN(max)) throw new Error(`Atributo "${etiqueta}": el largo mínimo y máximo deben ser números enteros entre 1 y 1000.`);
+      if (min && max && min > max) throw new Error(`Atributo "${etiqueta}": el largo mínimo no puede ser mayor que el máximo.`);
+      return { id, etiqueta, tipo, opciones, grupo: esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO, ...(min ? { min } : {}), ...(max ? { max } : {}) };
     });
-    // Lo ya guardado no se borra (los productos usan esos atributos) ni cambia de tipo: solo se renombra o amplía sus opciones.
+    // Lo ya guardado no se borra (los productos usan esos atributos); se puede renombrar, cambiar de tipo y ampliar sus opciones.
+    // Los valores de productos que no encajen con el nuevo tipo se ignoran al leerlos (limpiarPropios).
     const op = await getOpcionesSaga();
     for (const previo of op.catalogoWeb || []) {
-      const i = lista.findIndex((a) => a.id === previo.id);
-      if (i < 0) lista.push({ id: previo.id, etiqueta: previo.etiqueta, tipo: previo.tipo, opciones: previo.opciones, grupo: previo.grupo });
-      else lista[i] = { ...lista[i], tipo: previo.tipo };
+      if (!lista.some((a) => a.id === previo.id)) lista.push({ id: previo.id, etiqueta: previo.etiqueta, tipo: previo.tipo, opciones: previo.opciones, grupo: previo.grupo, ...(previo.min ? { min: previo.min } : {}), ...(previo.max ? { max: previo.max } : {}) });
     }
     const activosEnviados = crudo.activos && typeof crudo.activos === "object" && !Array.isArray(crudo.activos) ? crudo.activos : {};
     const catalogo = {};
@@ -1353,6 +1358,38 @@ export async function traerDatosSaga(alias, sku) {
     const raw = await productoSaga(credencialesSaga(cuenta), codigo);
     if (!raw) return { error: `SAGA no tiene el SKU "${codigo}" en la cuenta ${cuenta.nombre}.` };
     return desdeSaga(raw, await getOpcionesSaga(), cuenta);
+  } catch (e) {
+    return { error: `No se pudo consultar SAGA: ${e.message}` };
+  }
+}
+
+/**
+ * Requisitos de los atributos de una categoría de SAGA (solo lectura) para copiarlos al crear un atributo de la web:
+ * tipo equivalente, obligatorio, largo mínimo/máximo, descripción y lista de valores exactos. Usa la primera cuenta activa.
+ */
+export async function consultarAtributosSaga(categoriaId) {
+  const id = String(categoriaId || "").trim();
+  if (!/^\d+$/.test(id)) return { error: "Elige una categoría de SAGA." };
+  const [cuenta] = await query("select * from cuentas_saga where activo and api_key is not null and api_key <> '' order by alias limit 1");
+  if (!cuenta) return { error: "No hay una cuenta SAGA activa con API key (Configuración → Integraciones → SAGA)." };
+  try {
+    const r = await atributosCategoriaSaga(credencialesSaga(cuenta), id);
+    const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+    const TIPOS = { dropdown: "lista", multiselect: "multi", numberfield: "numero", textfield: "texto" };
+    const num = (v) => (Number(v) > 0 ? Number(v) : null);
+    const atributos = lista(r?.Body?.Attribute).map((a) => ({
+      id: a.FeedName,
+      etiqueta: a.Label,
+      tipo: TIPOS[a.InputType] || "texto",
+      obligatorio: a.isMandatory === "1",
+      nivel: a.GroupName === "Variation" ? "variante" : "producto",
+      descripcion: String(a.Description || "").split("//")[0].trim(),
+      min: num(a.MinLength ?? a.MinimumLength),
+      max: num(a.MaxLength),
+      opciones: lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && n !== "…"),
+    }));
+    if (!atributos.length) return { error: `SAGA no devolvió atributos para la categoría ${id}.` };
+    return { atributos };
   } catch (e) {
     return { error: `No se pudo consultar SAGA: ${e.message}` };
   }

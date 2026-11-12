@@ -105,6 +105,23 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
   const subs = extras.integraciones || [];
   const [sub, setSub] = useState("web");
   const [avisoPlat, setAvisoPlat] = useState(null);
+  // Estado de guardado de cada integración (lo emite su formulario): { [formId]: { enviando, sinGuardar } } y aviso flotante.
+  const [guardado, setGuardado] = useState({});
+  const [toast, setToast] = useState(null);
+  useEffect(() => {
+    const alRecibir = (e) => {
+      const { formId, resultado, ...resto } = e.detail || {};
+      setGuardado((p) => ({ ...p, [formId]: { ...p[formId], ...resto } }));
+      if (resultado?.ok || resultado?.error) setToast(resultado);
+    };
+    window.addEventListener("integracion-estado", alRecibir);
+    return () => window.removeEventListener("integracion-estado", alRecibir);
+  }, []);
+  useEffect(() => {
+    if (!toast?.ok) return;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
   const elegirSub = (id) => {
     setSub(id);
     window.history.replaceState(null, "", `#integraciones#${id}`);
@@ -415,11 +432,22 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
             form={subs.find((x) => x.id === sub).formId}
             className="btn-admin solido pestana-guardar"
             title="Guardar los cambios de esta pestaña"
+            disabled={!!guardado[subs.find((x) => x.id === sub).formId]?.enviando}
           >
-            Guardar
+            {guardado[subs.find((x) => x.id === sub).formId]?.enviando
+              ? "Guardando…"
+              : guardado[subs.find((x) => x.id === sub).formId]?.sinGuardar
+                ? "Guardar ●"
+                : "Guardar"}
           </button>
         )}
       </nav>
+      {toast && (
+        <div className={`toast-integracion ${toast.ok ? "ok" : "error"}`} role={toast.ok ? "status" : "alert"}>
+          <span>{toast.ok || toast.error}</span>
+          <button type="button" onClick={() => setToast(null)} aria-label="Cerrar aviso">×</button>
+        </div>
+      )}
       {avisoPlat?.error && <div className="mensaje-error">{avisoPlat.error}</div>}
       {avisoPlat?.ok && <div className="mensaje-ok">{avisoPlat.ok}</div>}
       {subs.map((s) => (

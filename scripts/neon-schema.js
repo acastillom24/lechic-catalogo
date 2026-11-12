@@ -6,7 +6,7 @@ const { Client } = require("pg");
 
 async function main() {
   const url = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL;
-  if (!url) throw new Error("Falta DIRECT_DATABASE_URL en .env.local");
+  if (!url) throw new Error("Falta DIRECT_DATABASE_URL en .env.production");
   const sql = fs.readFileSync(path.join(__dirname, "..", "neon", "schema.sql"), "utf8");
   const client = new Client({ connectionString: url });
   await client.connect();

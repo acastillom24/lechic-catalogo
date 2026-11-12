@@ -108,8 +108,9 @@ export default function CuentasSaga({ cuentas = [], opciones }) {
   const editando = cuentas.find((c) => c.alias === abierto);
 
   return (
-    <section className="admin-card form-grid">
-      <h2>Cuentas de SAGA</h2>
+    <details className="admin-card saga-seccion pf-sub">
+      <summary>Cuentas de SAGA</summary>
+      <div className="saga-cuerpo form-grid">
       {cuentas.length === 0 && <small style={{ color: "var(--gris)" }}>Aún no hay cuentas. Agrega la primera.</small>}
 
       {cuentas.map((c) => (
@@ -143,6 +144,7 @@ export default function CuentasSaga({ cuentas = [], opciones }) {
       <small style={{ color: "var(--gris)" }}>
         La API key se guarda en la base de datos y solo la usa el servidor: nunca se muestra de nuevo.
       </small>
-    </section>
+    </div>
+    </details>
   );
 }

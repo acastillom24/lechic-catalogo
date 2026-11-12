@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { guardarIntegracionWeb } from "../../app/(admin)/admin/actions";
 import { idDeEtiqueta } from "../../lib/atributos-categoria";
 import { permiteVariantesWeb } from "../../lib/equivalencias";
 import { GRUPOS, CAMPOS_WEB, CATEGORIAS_PERFUME } from "../../lib/campos-web";
 import SelectMulti from "./SelectMulti";
+import ConsultaSagaAtributo from "./ConsultaSagaAtributo";
 
 const TIPOS = [
   ["multi", "Varias opciones"],
@@ -13,6 +14,22 @@ const TIPOS = [
   ["texto", "Texto libre"],
   ["numero", "Número"],
 ];
+const FORM_ID = "form-integracion-web";
+// Avisa al botón «Guardar» de la barra de pestañas (ConfiguracionForm) del estado del guardado. El resultado se emite desde la
+// propia acción porque, al guardar, este componente se vuelve a montar con los datos nuevos y perdería su propio estado.
+const emitir = (detalle) => window.dispatchEvent(new CustomEvent("integracion-estado", { detail: { formId: FORM_ID, ...detalle } }));
+async function guardarYAvisar(prev, formData) {
+  emitir({ enviando: true });
+  try {
+    const r = await guardarIntegracionWeb(prev, formData);
+    emitir({ enviando: false, resultado: r });
+    return r;
+  } catch {
+    const r = { error: "No se pudo guardar. Inténtalo de nuevo." };
+    emitir({ enviando: false, resultado: r });
+    return r;
+  }
+}
 const ETIQUETA_TIPO = Object.fromEntries(TIPOS.map(([v, t]) => [v, t.toLowerCase()]));
 const sinOpciones = (t) => t === "texto" || t === "numero";
 const nuevoTmp = () => `nuevo_${Math.random().toString(36).slice(2, 8)}`;
@@ -29,12 +46,12 @@ const idDe = (a) => a.id || idDeEtiqueta(a.etiqueta);
  *     solo entre los atributos visibles de la categoría; allí se avisa de lo que falta.
  */
 export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], categoriasSaga = [], equivalencias, catalogo = [], porCategoria = {} }) {
-  const [estado, accion, enviando] = useActionState(guardarIntegracionWeb, {});
+  const [estado, accion, enviando] = useActionState(guardarYAvisar, {});
   const [cats, setCats] = useState(() => structuredClone(equivalencias?.categorias || {}));
   const [config, setConfig] = useState(() => structuredClone(equivalencias?.configCategorias || {}));
   // Los campos generales son fijos: se reenvía tal cual lo que hubiera guardado (compatibilidad).
   const fijos = equivalencias?.fijos || {};
-  const [datos, setDatos] = useState(() => catalogo.map((a) => ({ ...a, opcionesTexto: (a.opciones || []).join("\n") })));
+  const [datos, setDatos] = useState(() => catalogo.map((a) => ({ ...a, tipoInicial: a.tipo, min: a.min ? String(a.min) : "", max: a.max ? String(a.max) : "", opcionesTexto: (a.opciones || []).join("\n") })));
   // Atributos visibles por categoría web: { slug: [clave del atributo] }.
   const [activos, setActivos] = useState(() => Object.fromEntries(Object.entries(porCategoria).map(([s, l]) => [s, l.map((a) => a.id)])));
   const [slug, setSlug] = useState(categoriasWeb[0]?.slug || "");
@@ -73,11 +90,10 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
     if (en.length && !window.confirm(`«${a.etiqueta || "Atributo"}» está enlazado con SAGA en esta categoría (${en.join("; ")}). Al ocultarlo, esos campos dejan de usarse. ¿Ocultarlo?`)) return;
     mostrar(slug, clave(a), marcar);
   };
-  // Atributo nuevo en un apartado: queda visible en la categoría que estás viendo. Solo los aún no guardados se pueden quitar.
+  // Atributo nuevo en un apartado: no queda visible en ninguna categoría (se marca después donde haga falta). Solo los aún no guardados se pueden quitar.
   const agregar = (grupo) => {
-    const nuevo = { id: "", tmp: nuevoTmp(), etiqueta: "", tipo: "texto", opciones: [], opcionesTexto: "", grupo };
+    const nuevo = { id: "", tmp: nuevoTmp(), etiqueta: "", tipo: "texto", opciones: [], opcionesTexto: "", min: "", max: "", grupo };
     setDatos((p) => [...p, nuevo]);
-    mostrar(slug, clave(nuevo), true);
   };
   const quitarNuevo = (a) => {
     setDatos((p) => p.filter((x) => clave(x) !== clave(a)));
@@ -90,26 +106,38 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
       etiqueta: a.etiqueta,
       tipo: a.tipo,
       grupo: a.grupo,
+      min: a.tipo === "texto" ? a.min : "",
+      max: a.tipo === "texto" ? a.max : "",
       opciones: sinOpciones(a.tipo) ? [] : a.opcionesTexto.split("\n").map((x) => x.trim()).filter(Boolean),
     })),
     activos: Object.fromEntries(Object.entries(activos).map(([s, ks]) => [s, datos.filter((a) => ks.includes(clave(a))).map(idDe)])),
   });
 
+  // Cambios sin guardar: tras guardar la página se vuelve a montar con lo guardado, así que basta comparar con el primer estado.
+  const base = useRef(null);
+  if (base.current === null) base.current = json;
+  const sinGuardar = json !== base.current;
+  useEffect(() => {
+    emitir({ sinGuardar });
+  }, [sinGuardar]);
+
   const principales = (g) => CAMPOS_WEB.filter((c) => c.grupo === g.id);
   const propios = (g) => datos.filter((a) => a.grupo === g.id);
 
   return (
-    <form action={accion} className="form-grid" id="form-integracion-web">
-      {estado?.error && <div className="mensaje-error">{estado.error}</div>}
-      {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
+    <form action={accion} className="form-grid" id={FORM_ID}>
       <input type="hidden" name="atributosJson" value={json} />
       <input type="hidden" name="categoriasJson" value={JSON.stringify(cats)} />
       <input type="hidden" name="enlacesJson" value={JSON.stringify(equivalencias?.atributos || {})} />
       <input type="hidden" name="fijosJson" value={JSON.stringify(fijos)} />
       <input type="hidden" name="configCategoriasJson" value={JSON.stringify(config)} />
 
-      <section className="admin-card form-grid">
-        <h2>Categorías de la web</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>
+          Categorías de la web
+          <em>{categoriasWeb.length} categorías</em>
+        </summary>
+        <div className="saga-cuerpo form-grid">
         <small style={{ color: "var(--gris)" }}>
           La web manda. Aquí decides, por categoría, si permite <strong>variantes</strong> y con qué categorías de cada plataforma
           equivale (pueden ser varias). Al crear un producto, la categoría de la plataforma solo ofrece estas equivalentes.
@@ -155,10 +183,15 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
             </tbody>
           </table>
         </div>
-      </section>
+        </div>
+      </details>
 
-      <section className="admin-card form-grid">
-        <h2>Atributos de la web</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>
+          Atributos de la web
+          <em>{CAMPOS_WEB.length} principales · {datos.length} adicionales</em>
+        </summary>
+        <div className="saga-cuerpo form-grid">
         <small style={{ color: "var(--gris)" }}>
           Están agrupados como en el formulario de producto. Los <strong>principales</strong> vienen con la web y no se modifican. En
           «Clasificación», «Perfil del producto», «Detalles» y «Paquete» puedes <strong>crear atributos</strong> y cambiar su nombre;
@@ -200,12 +233,14 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
                               <input value={a.etiqueta} maxLength={60} onChange={(e) => cambiar(k, { etiqueta: e.target.value })} placeholder="Nombre en la web (ej. Acabado)" aria-label="Nombre del atributo" />
                             </td>
                             <td>
-                              {nuevo ? (
-                                <select value={a.tipo} onChange={(e) => cambiar(k, { tipo: e.target.value })} aria-label="Tipo">
-                                  {TIPOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
-                                </select>
-                              ) : (
-                                ETIQUETA_TIPO[a.tipo] || a.tipo
+                              <select value={a.tipo} onChange={(e) => cambiar(k, { tipo: e.target.value })} aria-label="Tipo">
+                                {TIPOS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                              </select>
+                              {!nuevo && a.tipo !== a.tipoInicial && (
+                                <small style={{ display: "block", color: "#b26a00" }}>
+                                  ⚠ Era «{ETIQUETA_TIPO[a.tipoInicial]}». Los valores de productos que no encajen con el nuevo tipo se ignorarán
+                                  {enlacesDe(slug, a.id).length ? "; está enlazado con SAGA, revisa Integraciones → SAGA" : ""}.
+                                </small>
                               )}
                             </td>
                             <td>
@@ -216,16 +251,37 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
                               )}
                             </td>
                           </tr>,
-                          !sinOpciones(a.tipo) && (
-                            <tr key={`${k}-op`} className="pf-eq-propio-extra">
-                              <td colSpan={3}>
-                                <div className="campo">
-                                  <label>Opciones de «{a.etiqueta || "atributo"}» <em>una por línea</em></label>
-                                  <textarea rows={3} value={a.opcionesTexto} onChange={(e) => cambiar(k, { opcionesTexto: e.target.value })} />
-                                </div>
-                              </td>
-                            </tr>
-                          ),
+                          <tr key={`${k}-op`} className="pf-eq-propio-extra">
+                            <td colSpan={3}>
+                              <div className="form-grid">
+                                {a.tipo === "texto" && (
+                                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                                    <div className="campo">
+                                      <label>Largo mínimo <em>caracteres, opcional</em></label>
+                                      <input type="number" min={1} max={1000} value={a.min} onChange={(e) => cambiar(k, { min: e.target.value })} style={{ maxWidth: 140 }} />
+                                    </div>
+                                    <div className="campo">
+                                      <label>Largo máximo <em>caracteres, opcional</em></label>
+                                      <input type="number" min={1} max={1000} value={a.max} onChange={(e) => cambiar(k, { max: e.target.value })} style={{ maxWidth: 140 }} />
+                                    </div>
+                                  </div>
+                                )}
+                                {!sinOpciones(a.tipo) && (
+                                  <div className="campo">
+                                    <label>Opciones de «{a.etiqueta || "atributo"}» <em>una por línea</em></label>
+                                    <textarea rows={3} value={a.opcionesTexto} onChange={(e) => cambiar(k, { opcionesTexto: e.target.value })} />
+                                  </div>
+                                )}
+                                <ConsultaSagaAtributo
+                                  categoriasSaga={categoriasSaga}
+                                  etiquetaActual={a.etiqueta}
+                                  onAplicar={({ opciones, etiqueta, ...resto }) =>
+                                    cambiar(k, { ...resto, opcionesTexto: opciones.join("\n"), ...(etiqueta ? { etiqueta: etiqueta.slice(0, 60) } : {}) })
+                                  }
+                                />
+                              </div>
+                            </td>
+                          </tr>,
                         ];
                       })}
                     </tbody>
@@ -240,10 +296,15 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
             </details>
           );
         })}
-      </section>
+        </div>
+      </details>
 
-      <section className="admin-card form-grid">
-        <h2>Atributos visibles por categoría</h2>
+      <details className="admin-card saga-seccion pf-sub">
+        <summary>
+          Atributos visibles por categoría
+          <em>{categoriasWeb.find((c) => c.slug === slug)?.nombre || ""}</em>
+        </summary>
+        <div className="saga-cuerpo form-grid">
         <small style={{ color: "var(--gris)" }}>
           Elige una categoría y marca los atributos de la web que se ven en sus productos. Los principales vienen fijos. Si un atributo
           no está visible aquí, no podrás elegirlo como equivalencia en <strong>Integraciones → SAGA</strong>.
@@ -263,7 +324,7 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
           const lista = g.atributos ? propios(g) : [];
           if (!fijosG.length && !lista.length) return null;
           return (
-            <details className="saga-seccion pf-sub" key={g.id} open>
+            <details className="saga-seccion pf-sub" key={g.id}>
               <summary>
                 {g.nombre}
                 <em>{fijosG.length + lista.filter((a) => visibleEn(slug, a)).length} visibles</em>
@@ -290,11 +351,9 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
             </details>
           );
         })}
-      </section>
+        </div>
+      </details>
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <button type="submit" className="btn-admin solido" disabled={enviando}>{enviando ? "Guardando..." : "Guardar integración con la web"}</button>
-      </div>
     </form>
   );
 }

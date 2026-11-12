@@ -90,8 +90,12 @@ export default function EquivalenciasSagaBloque({ cat, webs, campos, enlacesPorW
             {campos.map((campo) => {
               const valor = sel[campo.id] || "";
               const usadosPorOtros = new Set(Object.entries(sel).filter(([k, v]) => k !== campo.id && v).map(([, v]) => v));
-              const libres = atributos.filter((a) => compatible(a, campo) && !usadosPorOtros.has(a.id));
+              // Se ofrecen todos los atributos libres (compatibles primero); los de otro tipo se marcan con aviso.
+              const libres = atributos
+                .filter((a) => !usadosPorOtros.has(a.id))
+                .sort((a, b) => Number(compatible(b, campo)) - Number(compatible(a, campo)));
               const elegido = atributos.find((a) => a.id === valor);
+              const incompatible = elegido && !compatible(elegido, campo);
               const faltaEn = elegido ? webs.filter((w) => !elegido.en.includes(w.nombre)).map((w) => w.nombre) : [];
               return (
                 <tr key={campo.id} className={campo.obligatorio && !valor ? "pf-eq-falta" : undefined}>
@@ -112,16 +116,21 @@ export default function EquivalenciasSagaBloque({ cat, webs, campos, enlacesPorW
                       <option value="">— No usar —</option>
                       {libres.map((a) => (
                         <option key={a.id} value={a.id}>
-                          {a.etiqueta}{a.en.length < webs.length ? ` (solo en ${a.en.join(", ")})` : ""}
+                          {compatible(a, campo) ? "" : "⚠ "}{a.etiqueta} ({ETIQUETA_TIPO[a.tipo] || a.tipo}){a.en.length < webs.length ? ` · solo en ${a.en.join(", ")}` : ""}
                         </option>
                       ))}
                     </select>
+                    {incompatible && (
+                      <small style={{ display: "block", color: "#b26a00" }}>
+                        ⚠ «{elegido.etiqueta}» es de tipo {ETIQUETA_TIPO[elegido.tipo] || elegido.tipo} y este campo de SAGA es {ETIQUETA_TIPO[campo.tipo] || campo.tipo}: se puede guardar, pero los valores que no encajen (p. ej. opciones fuera de la lista de SAGA) no se enviarán.
+                      </small>
+                    )}
                     {faltaEn.length > 0 && (
                       <small style={{ display: "block", color: "var(--gris)" }}>No está visible en {faltaEn.join(", ")}: ahí no se usará.</small>
                     )}
                     {!valor && libres.length === 0 && (
                       <small style={{ display: "block", color: campo.obligatorio ? "#b3261e" : "var(--gris)" }}>
-                        {campo.obligatorio ? "⚠ Obligatorio: " : ""}no hay atributos visibles y libres de este tipo en las categorías de la web. Es necesario crearlo o mostrarlo en Integraciones → Web.
+                        {campo.obligatorio ? "⚠ Obligatorio: " : ""}no hay atributos visibles y libres en las categorías de la web. Es necesario crearlo o mostrarlo en Integraciones → Web.
                       </small>
                     )}
                   </td>

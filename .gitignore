@@ -4,7 +4,8 @@ out/
 .DS_Store
 *.log
 .env*.local
-.env.dev
+.env.development
+.env.production
 .vercel
 *.xlsx
 *.csv

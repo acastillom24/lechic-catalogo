@@ -59,6 +59,7 @@ export default function CamposExtra({ campos, valores, onChange, prefijo = "extr
               type={c.tipo === "numero" ? "number" : "text"}
               step={c.tipo === "numero" ? "any" : undefined}
               maxLength={c.max || undefined}
+              minLength={c.min || undefined}
               placeholder={hereda && textoH(c.id) ? `General: ${textoH(c.id)}` : undefined}
               value={valor ?? ""}
               onChange={(e) => poner(c.id, e.target.value)}
