@@ -15,3 +15,5 @@ out/
 neon/reportes/
 public/data
 public/imagenes/productos
+# Documentación interna que no debe publicarse
+docs-privado/

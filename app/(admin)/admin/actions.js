@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { drenarCola } from "../../../lib/saga-cola";
@@ -12,7 +12,10 @@ import {
   DURACION_MS,
   passwordCorrecta,
   crearValorSesion,
+  cerrarSesionServidor,
+  rutaPanelSegura,
 } from "../../../lib/auth";
+import { comprobar, registrarFallo, limpiar, ipDe } from "../../../lib/login-limite";
 import { query, transaction } from "../../../lib/db";
 import { slugify } from "../../../lib/slug";
 import { getMarcas, getPestanas } from "../../../lib/data";
@@ -63,17 +66,29 @@ import {
 
 export async function iniciarSesion(prevState, formData) {
   const password = (formData.get("password") || "").toString();
-  const redirectTo = (formData.get("redirect") || "/admin").toString();
+  // Solo se vuelve a una ruta interna del panel (nunca a una URL externa).
+  const redirectTo = rutaPanelSegura((formData.get("redirect") || "/admin").toString());
+
+  // Límite de intentos: por IP (5 fallos en 15 min) y global (el panel tiene una sola contraseña, así que
+  // quien rote de IP también topa con el límite global).
+  const ip = ipDe(await headers());
+  const claves = [{ clave: `ip:${ip}`, max: 5 }, { clave: "global", max: 40 }];
+  const limite = await comprobar("admin", claves);
+  if (limite.bloqueado) {
+    return { error: `Demasiados intentos fallidos. Vuelve a intentarlo en ${limite.minutos} minuto(s).` };
+  }
 
   let correcta;
   try {
-    correcta = passwordCorrecta(password);
-  } catch (err) {
-    return { error: err.message };
+    correcta = await passwordCorrecta(password);
+  } catch {
+    return { error: "No se pudo iniciar sesión. Avisa al administrador del sitio." };
   }
   if (!correcta) {
+    await registrarFallo("admin", claves.map((c) => c.clave));
     return { error: "Contraseña incorrecta." };
   }
+  await limpiar("admin", `ip:${ip}`);
 
   const valor = await crearValorSesion();
   const cookieStore = await cookies();
@@ -85,11 +100,12 @@ export async function iniciarSesion(prevState, formData) {
     maxAge: Math.floor(DURACION_MS / 1000),
   });
 
-  redirect(redirectTo.startsWith("/") ? redirectTo : "/admin");
+  redirect(redirectTo);
 }
 
 export async function cerrarSesion() {
   const cookieStore = await cookies();
+  await cerrarSesionServidor(cookieStore.get(NOMBRE_COOKIE)?.value); // revoca la sesión también en el servidor
   cookieStore.delete(NOMBRE_COOKIE);
   redirect("/admin/login");
 }

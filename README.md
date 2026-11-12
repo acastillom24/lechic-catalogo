@@ -17,7 +17,7 @@ para dar de alta un producto.
 3. Entra a [vercel.com](https://vercel.com) e inicia sesión con GitHub.
 4. **Add New → Project** → elige el repositorio.
 5. En **Environment Variables**, agrega las variables del paso 2.
-6. **Deploy**. En 1–2 minutos tienes tu URL (ej: `lechic.vercel.app`).
+6. **Deploy**. En 1–2 minutos tienes tu URL.
 
 A partir de ahí, **cada vez que hagas `git push`, Vercel actualiza el
 código del sitio automáticamente** — pero los productos ya no viven en el
@@ -178,59 +178,10 @@ cantidad, la variante sigue usando solo el interruptor «hay stock»),
 
 #### Integración con facturación (opcional)
 
-Un sistema de facturación puede descontar stock al emitir y devolverlo al
-anular. Los sistemas siguen siendo independientes: solo se comunican por este
-endpoint firmado. Ver el lado de facturación en el README de
-`facturacion_sunat`.
-
-`POST /api/inventario/movimientos`
-
-| Cabecera | Valor |
-|---|---|
-| `X-Timestamp` | segundos Unix (se rechaza si difiere más de 5 min) |
-| `X-Signature` | `sha256=` + HMAC-SHA256 hex de `"{timestamp}.{cuerpo crudo}"` con `INVENTARIO_WEBHOOK_SECRET` |
-
-```json
-{
-  "evento": "emitido",            // "emitido" | "anulado" | "prueba"
-  "empresa": "mi-empresa",
-  "comprobante": { "id": "uuid", "tipo_doc": "03", "serie": "B001", "correlativo": "25" },
-  "items": [ { "codigo": "SKU-001", "cantidad": 2 } ]
-}
-```
-
-- `emitido` → **salida** por cada `codigo` (= `sku`). Puede dejar el stock
-  negativo: la venta ya ocurrió y queda visible en las alertas.
-- `anulado` → **devolución**, solo si existe la salida del mismo comprobante.
-- `prueba` → valida URL y firma sin tocar stock.
-- Códigos repetidos en un mismo envío se suman. `tipo_doc` puede ser `01`,
-  `03` o `NV` (nota de venta).
-- **Idempotente**: cada ítem usa la clave
-  `facturacion:{empresa}:{comprobante.id}:{evento}:{codigo}`; reenviar el
-  mismo evento no vuelve a mover el stock.
-- Respuestas: `200 {"resultados":[{"codigo","estado"}]}` con estado `ok`,
-  `duplicado`, `sin_control` (variante sin control de cantidad),
-  `no_encontrada` (sku inexistente), `sin_salida_previa` (devolución sin
-  salida previa); `400` cuerpo inválido (máx. 200 ítems); `401` firma o
-  timestamp inválidos; `413` cuerpo de más de 256 KB; `503` sin secreto
-  configurado; `500` error de BD (el emisor reintenta).
-
-Ejemplo firmado con `curl`:
-
-```bash
-SECRETO="el-mismo-valor-de-INVENTARIO_WEBHOOK_SECRET"
-CUERPO='{"evento":"prueba","empresa":"mi-empresa","comprobante":{"id":"prueba","tipo_doc":"","serie":"","correlativo":""},"items":[]}'
-TS=$(date +%s)
-FIRMA=$(printf '%s.%s' "$TS" "$CUERPO" | openssl dgst -sha256 -hmac "$SECRETO" -hex | sed 's/^.* //')
-curl -X POST https://tusitio.com/api/inventario/movimientos \
-  -H "content-type: application/json" -H "x-timestamp: $TS" \
-  -H "x-signature: sha256=$FIRMA" -d "$CUERPO"
-```
-
-**Para activarlo**: define `INVENTARIO_WEBHOOK_SECRET` (un valor largo y
-aleatorio, distinto en develop y en producción) en `.env.local` y en las
-variables de Vercel, y aplica el esquema (`npm run neon:schema`; en develop
-`npm run neon:schema:dev`). Sin el secreto, el endpoint responde 503.
+El inventario puede recibir movimientos de un sistema de facturación mediante un
+endpoint firmado. Se activa con una variable de entorno (ver `.env.local.example`);
+sin ella, el endpoint permanece cerrado. La documentación del contrato está en la
+documentación interna del proyecto.
 
 ---
 
@@ -311,8 +262,8 @@ npm run dev:dev  # Next.js cargando .env.dev en vez de .env.local
 
 ## 🔐 Notas de seguridad
 
-- `/admin` usa **una sola contraseña compartida** (`ADMIN_PASSWORD`),
-  pensada para un equipo pequeño de confianza, no para multiusuario.
+- El panel está protegido con contraseña y sesión revocable; usa un valor largo y
+  único, y cámbialo si sospechas que se filtró.
 - `DATABASE_URL` y `CLOUDINARY_API_SECRET` dan acceso total: solo se usan
   en el servidor (nunca llegan al navegador) y nunca deben subirse al repo (`.env.local` ya está en `.gitignore`).
 - Las imágenes se suben a Cloudinary con URL **pública** (para

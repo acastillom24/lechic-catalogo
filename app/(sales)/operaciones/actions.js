@@ -1,10 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { drenarCola } from "../../../lib/saga-cola";
+import { comprobar, registrarFallo, limpiar, ipDe } from "../../../lib/login-limite";
 
 import {
   NOMBRE_COOKIE_VENTAS,
@@ -51,13 +52,26 @@ export async function iniciarSesionVentas(prevState, formData) {
   const usuario = (formData.get("usuario") || "").toString();
   const password = (formData.get("password") || "").toString();
 
+  // Límite de intentos: por IP (10 en 15 min) y por usuario+IP (5), para frenar adivinar contraseñas.
+  const ip = ipDe(await headers());
+  const claves = [{ clave: `ip:${ip}`, max: 10 }, { clave: `u:${usuario.trim().toLowerCase().slice(0, 60)}|${ip}`, max: 5 }];
+  const limite = await comprobar("ventas", claves);
+  if (limite.bloqueado) {
+    return { error: `Demasiados intentos fallidos. Vuelve a intentarlo en ${limite.minutos} minuto(s).` };
+  }
+
   let u;
   try {
     u = await autenticarUsuarioVentas(usuario, password);
   } catch (err) {
-    return { error: `No se pudo iniciar sesión: ${err.message}` };
+    console.error("[ventas] login:", err.message); // el detalle solo va al log del servidor
+    return { error: "No se pudo iniciar sesión. Inténtalo de nuevo en unos minutos." };
   }
-  if (!u) return { error: "Usuario o contraseña incorrectos." };
+  if (!u) {
+    await registrarFallo("ventas", claves.map((c) => c.clave));
+    return { error: "Usuario o contraseña incorrectos." };
+  }
+  await limpiar("ventas", claves[1].clave);
 
   const store = await cookies();
   store.set(NOMBRE_COOKIE_VENTAS, await crearValorSesionVentas(u.id), {

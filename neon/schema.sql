@@ -536,3 +536,20 @@ create table if not exists reclamos (
 create index if not exists reclamos_created_idx on reclamos (created_at desc);
 create index if not exists reclamos_pendientes_idx on reclamos (fecha_limite) where estado <> 'atendido';
 create index if not exists reclamos_ip_idx on reclamos (ip_hash, created_at desc);
+
+-- Seguridad del login: sesiones del panel /admin que se pueden revocar (cerrar sesión las invalida en el servidor)
+-- y contador de intentos fallidos de login por ámbito (admin / ventas) y clave (IP, usuario o global).
+create table if not exists sesiones_admin (
+  id      text primary key,
+  creada  timestamptz not null default now(),
+  expira  timestamptz not null
+);
+create index if not exists sesiones_admin_expira_idx on sesiones_admin (expira);
+
+create table if not exists login_intentos (
+  ambito    text not null,
+  clave     text not null,
+  intentos  int  not null default 0,
+  desde     timestamptz not null default now(),
+  primary key (ambito, clave)
+);
