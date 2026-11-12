@@ -8,13 +8,13 @@ import { slugify } from "../../lib/slug";
  * Marcas del producto = las que se envían a SAGA. Independientes de la pestaña donde se muestra el
  * producto en la web: cada marca solo sugiere una pestaña por defecto (editable en cada producto).
  */
-export default function MarcasConfig({ marcas, pestanas }) {
+export default function MarcasConfig({ marcas, pestanas, plataformas = [{ id: "saga", nombre: "SAGA" }] }) {
   const [estado, accion, enviando] = useActionState(guardarMarcasConfig, {});
   const [filas, setFilas] = useState(() => marcas.map((m) => ({ ...m, existente: true })));
 
   const cambiar = (i, parche) => setFilas((f) => f.map((x, j) => (j === i ? { ...x, ...parche } : x)));
   const agregar = () =>
-    setFilas((f) => [...f, { slug: "", nombre: "", nombreSaga: "", pestanaDefault: pestanas[0]?.slug || "", existente: false }]);
+    setFilas((f) => [...f, { slug: "", nombre: "", nombreSaga: "", nombres: {}, pestanaDefault: pestanas[0]?.slug || "", existente: false }]);
   const quitar = (i) => setFilas((f) => f.filter((_, j) => j !== i));
   const mover = (i, d) =>
     setFilas((f) => {
@@ -36,7 +36,11 @@ export default function MarcasConfig({ marcas, pestanas }) {
     setAviso(r);
   }
 
-  const envio = filas.map(({ slug, nombre, nombreSaga, pestanaDefault }) => ({ slug, nombre, nombreSaga, pestanaDefault }));
+  // Nombre exacto por plataforma: SAGA en `nombreSaga` y las demás en `nombres[<plataforma>]`.
+  const nombreEn = (m, plat) => (plat === "saga" ? m.nombreSaga : m.nombres?.[plat]) || "";
+  const ponerNombre = (i, plat, valor) =>
+    cambiar(i, plat === "saga" ? { nombreSaga: valor } : { nombres: { ...(filas[i].nombres || {}), [plat]: valor } });
+  const envio = filas.map(({ slug, nombre, nombreSaga, nombres, pestanaDefault }) => ({ slug, nombre, nombreSaga, nombres: nombres || {}, pestanaDefault }));
 
   return (
     <form action={accion} className="form-grid">
@@ -49,9 +53,9 @@ export default function MarcasConfig({ marcas, pestanas }) {
       <section className="admin-card form-grid">
         <h2>Marcas</h2>
         <small style={{ color: "var(--gris)" }}>
-          La marca es la que se envía a SAGA, y no tiene por qué coincidir con la pestaña donde se muestra el producto. El
-          <strong> nombre en SAGA</strong> debe ser exacto (mayúsculas, tildes y espacios); una marca sin nombre en SAGA no se
-          puede enviar. Cópialo tal como aparece en SAGA. La <strong>pestaña por defecto</strong>{" "}
+          La marca es la de la web y no tiene por qué coincidir con la pestaña donde se muestra el producto. Cada plataforma tiene su propio
+          <strong> nombre exacto</strong> (mayúsculas, tildes y espacios); una marca sin nombre en una plataforma no se
+          puede enviar a ella. Cópialo tal como aparece allí. Las plataformas se agregan en Integraciones. La <strong>pestaña por defecto</strong>{" "}
           se autoselecciona al elegir la marca en un producto, pero se puede cambiar.
         </small>
 
@@ -86,10 +90,12 @@ export default function MarcasConfig({ marcas, pestanas }) {
                 )}
               </div>
             </div>
-            <div className="campo">
-              <label>Nombre exacto en SAGA</label>
-              <input value={m.nombreSaga} onChange={(e) => cambiar(i, { nombreSaga: e.target.value })} placeholder="(sin configurar)" />
-            </div>
+            {plataformas.map((pl) => (
+              <div className="campo" key={pl.id}>
+                <label>Nombre exacto en {pl.nombre}</label>
+                <input value={nombreEn(m, pl.id)} onChange={(e) => ponerNombre(i, pl.id, e.target.value)} placeholder="(sin configurar)" />
+              </div>
+            ))}
             <div className="campo">
               <label>Pestaña por defecto</label>
               <select value={m.pestanaDefault} onChange={(e) => cambiar(i, { pestanaDefault: e.target.value })}>

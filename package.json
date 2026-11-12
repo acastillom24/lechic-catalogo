@@ -10,6 +10,8 @@
     "lint": "next lint",
     "neon:schema": "node --env-file=.env.local scripts/neon-schema.js",
     "neon:schema:dev": "node --env-file=.env.dev scripts/neon-schema.js",
+    "neon:aromas": "node --env-file=.env.local scripts/migrar-aromas.js",
+    "neon:aromas:dev": "node --env-file=.env.dev scripts/migrar-aromas.js",
     "saga:probar": "node --env-file=.env.dev scripts/saga-probar.js",
     "saga:campos": "node --env-file=.env.dev scripts/saga-campos.js",
     "saga:sku": "node --env-file=.env.dev scripts/saga-sku.js",

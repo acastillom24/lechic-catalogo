@@ -4,7 +4,7 @@ import { requerirUsuarioVentas } from "../actions";
 
 /** Marco de las integraciones del panel: título y una pestaña por plataforma (solo ve lo suyo). */
 export default async function IntegracionesOperacionesLayout({ children }) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   return (
     <>
       <SalesCabecera usuario={usuario} activa="integraciones" />

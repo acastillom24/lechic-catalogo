@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 import { getMarcas, getPestanas, getProducto, getVariantesParaPack } from "../../../../../lib/data";
-import { getCuentasActivas, getSincronizacionesProducto, getPreciosCanalProducto } from "../../../../../lib/saga-sync";
+import { getCuentasActivas, getSincronizacionesProducto, getPreciosCanalProducto, getPaquetesCuentaProducto, getCategoriasCuentaProducto } from "../../../../../lib/saga-sync";
 import { getOpcionesSaga } from "../../../../../lib/saga-opciones";
 import ProductoForm from "../../../../../components/admin/ProductoForm";
 import EliminarProductoBoton from "../../../../../components/admin/EliminarProductoBoton";
 
 export const metadata = { title: "Editar producto · Panel Le Chic" };
+// Las imágenes se envían a SAGA tras guardar (~2 minutos): necesita más tiempo que una página normal.
+export const maxDuration = 300;
 
 export default async function EditarProductoPage({ params }) {
   const { id } = await params;
@@ -32,13 +34,16 @@ export default async function EditarProductoPage({ params }) {
     };
   }
 
+  const paquetesCuenta = await getPaquetesCuentaProducto(producto.id);
+  const categoriasCuenta = await getCategoriasCuentaProducto(producto.id);
+
   return (
     <div className="form-grid">
       <div className="admin-titulo-fila">
         <h1 className="admin-titulo">Editar producto</h1>
         <EliminarProductoBoton id={producto.id} nombre={producto.nombre} />
       </div>
-      <ProductoForm modo="editar" marcas={marcas} pestanas={pestanas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
+      <ProductoForm modo="editar" marcas={marcas} pestanas={pestanas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} paquetesCuenta={paquetesCuenta} categoriasCuenta={categoriasCuenta} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
     </div>
   );
 }

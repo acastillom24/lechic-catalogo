@@ -9,8 +9,9 @@ import { registrarMovimientoVentas } from "../../app/(sales)/operaciones/actions
 const vacio = <span style={{ color: "var(--gris)" }}>—</span>;
 
 /** Tabla de productos de /operaciones: edición y movimientos de stock (sin eliminar ni costos). */
-export default function TablaProductosVentas({ filas }) {
+export default function TablaProductosVentas({ filas, mostrarSistemas = false }) {
   const [abierta, setAbierta] = useState(null);
+  const columnas = mostrarSistemas ? 10 : 9;
 
   return (
     <div className="admin-card" style={{ padding: 0, overflowX: "auto" }}>
@@ -22,6 +23,7 @@ export default function TablaProductosVentas({ filas }) {
             <th>Variante</th>
             <th>SKU</th>
             <th>Marca</th>
+            {mostrarSistemas && <th>Sistemas</th>}
             <th>Stock</th>
             <th>Mín.</th>
             <th>Precio</th>
@@ -54,6 +56,29 @@ export default function TablaProductosVentas({ filas }) {
                     {v.marca}
                     {v.pestana && v.pestana !== v.marca ? <small style={{ color: "var(--gris)" }}> → {v.pestana}</small> : null}
                   </td>
+                  {mostrarSistemas && (
+                    <td>
+                      {(v.sync || []).length === 0
+                        ? vacio
+                        : v.sync.map((x) => (
+                            <span
+                              key={x.cuenta}
+                              title={x.error || `SAGA (${x.cuenta}): ${x.estado}${x.origen === "vinculado" ? ` · vinculado (${x.accion || "vincular"})` : ""}`}
+                              style={{
+                                display: "inline-block",
+                                padding: "1px 8px",
+                                marginRight: 4,
+                                borderRadius: 10,
+                                fontSize: ".75rem",
+                                color: "#fff",
+                                background: x.estado === "publicado" ? "#2e7d32" : x.estado === "error" ? "#c62828" : "#ef8f00",
+                              }}
+                            >
+                              SAGA{v.sync.length > 1 || x.cuenta !== "principal" ? ` · ${x.cuenta}` : ""}{x.origen === "vinculado" ? " · vinculado" : ""}
+                            </span>
+                          ))}
+                    </td>
+                  )}
                   <td>
                     {controlada ? (
                       <strong>
@@ -97,7 +122,7 @@ export default function TablaProductosVentas({ filas }) {
                 </tr>
                 {abierta === v.id && (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={columnas}>
                       <MovimientoForm varianteId={v.id} accionMovimiento={registrarMovimientoVentas} />
                     </td>
                   </tr>
@@ -107,7 +132,7 @@ export default function TablaProductosVentas({ filas }) {
           })}
           {filas.length === 0 && (
             <tr>
-              <td colSpan={9} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
+              <td colSpan={columnas} style={{ textAlign: "center", padding: 32, color: "var(--gris)" }}>
                 No hay productos que coincidan.
               </td>
             </tr>

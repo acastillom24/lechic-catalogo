@@ -3,27 +3,27 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import ProductCard from "./ProductCard";
+import { prepararIndice, buscarEnIndice } from "../lib/busqueda";
 
 export default function BrandView({ marca, productos, conteo }) {
   const [categoriaActiva, setCategoriaActiva] = useState("todas");
   const [busqueda, setBusqueda] = useState("");
 
+  // Búsqueda sin tildes ni mayúsculas, con palabras en cualquier orden y tolerante a errores de tipeo (lib/busqueda.js).
+  const indice = useMemo(
+    () => prepararIndice(productos, (p) => [marca.nombre, marca.categorias.find((c) => c.slug === p.categoria)?.nombre]),
+    [productos, marca]
+  );
+
   const filtrados = useMemo(() => {
-    let lista = productos;
+    const q = busqueda.trim();
+    // Con texto, los resultados vienen ordenados por relevancia; sin texto, en el orden del catálogo.
+    let lista = q ? buscarEnIndice(indice, q) : productos;
     if (categoriaActiva !== "todas") {
       lista = lista.filter((p) => p.categoria === categoriaActiva);
     }
-    const q = busqueda.trim().toLowerCase();
-    if (q) {
-      lista = lista.filter(
-        (p) =>
-          p.nombre.toLowerCase().includes(q) ||
-          (p.descripcion || "").toLowerCase().includes(q) ||
-          p.variantes.some((v) => v.nombre.toLowerCase().includes(q))
-      );
-    }
     return lista;
-  }, [productos, categoriaActiva, busqueda]);
+  }, [productos, indice, categoriaActiva, busqueda]);
 
   return (
     <>
@@ -43,7 +43,7 @@ export default function BrandView({ marca, productos, conteo }) {
         <div className="buscador">
           <input
             type="search"
-            placeholder="Buscar producto o aroma..."
+            placeholder="Buscar producto, marca o aroma…"
             value={busqueda}
             onChange={(e) => setBusqueda(e.target.value)}
             aria-label="Buscar en el catálogo"

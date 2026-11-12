@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { drenarCola } from "../../../lib/saga-cola";
 
 import {
   NOMBRE_COOKIE_VENTAS,
@@ -19,26 +21,30 @@ import {
   actualizarVenta,
   eliminarVentaPropia,
 } from "../../../lib/ventas";
-import {
-  normalizarTelefono,
-  parsearMonto,
-  validarVenta,
-  ESTADOS,
-  TELEFONO_SIN_DATO,
-} from "../../../lib/ventas-core";
-import { getOpcionesVentas } from "../../../lib/ventas-opciones";
+import { getPermisosUsuario, rutaInicial } from "../../../lib/ventas-permisos";
+import { TELEFONO_SIN_DATO } from "../../../lib/ventas-core";
+import { ventaDesdeForm, valoresDeForm } from "../../../lib/ventas-form";
 import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 import { query } from "../../../lib/db";
-import { sincronizarStockVariante, reintentarStockPendiente, refrescarPendientes } from "../../../lib/saga-sync";
+import {
+  sincronizarStockVariante, reintentarStockPendiente,
+  consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
+} from "../../../lib/saga-sync";
 
-/** Usuario de la sesión actual, revalidado contra la BD (o redirige al login). */
-export async function requerirUsuarioVentas() {
+/**
+ * Usuario de la sesión actual, revalidado contra la BD (o redirige al login). Trae sus `permisos` (Configuración → Equipo).
+ * Con `vista` ("ventas" | "productos" | "integraciones") además exige tenerla: si no, lo manda a la primera vista permitida
+ * o, sin ninguna, a la página de sin acceso.
+ */
+export async function requerirUsuarioVentas(vista) {
   const store = await cookies();
   const uid = await leerSesionVentas(store.get(NOMBRE_COOKIE_VENTAS)?.value);
-  const usuario = uid ? await getUsuarioVentasActivo(uid) : null;
-  if (!usuario) redirect("/operaciones/login");
-  return usuario;
+  const base = uid ? await getUsuarioVentasActivo(uid) : null;
+  if (!base) redirect("/operaciones/login");
+  const permisos = await getPermisosUsuario(base.id);
+  if (vista && !permisos[vista]) redirect(rutaInicial(permisos) || "/operaciones/sin-acceso");
+  return { ...base, permisos };
 }
 
 export async function iniciarSesionVentas(prevState, formData) {
@@ -70,60 +76,21 @@ export async function cerrarSesionVentas() {
   redirect("/operaciones/login");
 }
 
-const texto = (fd, k, max = 200) => (fd.get(k) || "").toString().trim().slice(0, max);
-
 export async function registrarVenta(prevState, formData) {
   const r = await guardarVenta(formData);
   // Si falla, se devuelven los valores para no perder lo que se escribió.
-  if (r.error) r.valores = Object.fromEntries([...formData.entries()].map(([k, v]) => [k, String(v)]));
+  if (r.error) r.valores = valoresDeForm(formData);
   return r;
 }
 
 /** Crea una venta, o la actualiza si el formulario trae un `id` (edición). */
 async function guardarVenta(formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("ventas");
   const id = Number(formData.get("id")) || null;
-  const op = await getOpcionesVentas();
 
-  const tel = normalizarTelefono(texto(formData, "telefono") || TELEFONO_SIN_DATO);
-  if (tel.rechazado) {
-    return {
-      error:
-        "Teléfono inválido: no puede tener los 9 dígitos iguales. Si no se tiene el número, usa 999999999.",
-    };
-  }
-
-  const monto = parsearMonto(texto(formData, "monto"));
-  const adelanto = parsearMonto(texto(formData, "adelanto")) ?? 0;
-  if (monto === null) return { error: "Ingresa el monto." };
-
-  // El estado lo elige el usuario (el adelanto puede ser 0 y pagarse después).
-  const estadoForm = texto(formData, "estado");
-  const estado = ESTADOS.includes(estadoForm) ? estadoForm : "pendiente";
-
-  const venta = {
-    fecha: texto(formData, "fecha"),
-    telefono: tel.telefono,
-    cliente_ref: tel.ref,
-    categoria: texto(formData, "categoria"),
-    monto,
-    adelanto,
-    estado,
-    destino: texto(formData, "destino") || null,
-    courier: texto(formData, "courier").toUpperCase() || null,
-    tipo_cliente: texto(formData, "tipo_cliente") || null,
-    metodo_pago: texto(formData, "metodo_pago").toUpperCase() || null,
-    comprobante: texto(formData, "comprobante", 40) || null,
-    notas: texto(formData, "notas", 500) || null,
-    distrito: texto(formData, "distrito", 80) || null,
-    cliente_nombre: texto(formData, "cliente_nombre", 120) || null,
-  };
-
-  if (!op.categorias.includes(venta.categoria)) return { error: "Elige una categoría." };
-  if (venta.destino && !op.destinos.includes(venta.destino)) return { error: "Destino inválido." };
-  if (venta.tipo_cliente && !op.tiposCliente.includes(venta.tipo_cliente)) return { error: "Tipo de cliente inválido." };
-  const error = validarVenta(venta, op);
+  const { venta, error } = await ventaDesdeForm(formData);
   if (error) return { error };
+  const { monto, estado } = venta;
 
   try {
     // Si no eligió tipo de cliente, se deduce por el historial del teléfono.
@@ -157,14 +124,14 @@ async function guardarVenta(formData) {
 }
 
 export async function eliminarVentaDelDia(id) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("ventas");
   await eliminarVentaPropia(Number(id), usuario.id);
   revalidatePath("/operaciones");
 }
 
 /** Alta de producto desde /operaciones. Solo crea: nunca modifica productos existentes. */
 export async function crearProductoVentas(prevState, formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const r = await guardarProductoDesdeForm(formData, { soloCrear: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
   redirect("/operaciones/productos?creado=1");
@@ -175,7 +142,7 @@ export async function crearProductoVentas(prevState, formData) {
  * ni variantes, y conserva costo y stock mínimo (ver guardarProductoDesdeForm).
  */
 export async function editarProductoVentas(prevState, formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   const r = await guardarProductoDesdeForm(formData, { restringido: true, usuarioPanel: usuario.usuario });
   if (r.error) return r;
   redirect("/operaciones/productos?guardado=1");
@@ -183,7 +150,7 @@ export async function editarProductoVentas(prevState, formData) {
 
 /** Movimiento de stock desde /operaciones (entrada, salida o conteo); queda el usuario en el historial. */
 export async function registrarMovimientoVentas(prevState, formData) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("productos");
   return registrarMovimientoDesdeForm(formData, `ventas:${usuario.usuario}`);
 }
 
@@ -191,7 +158,7 @@ export async function registrarMovimientoVentas(prevState, formData) {
 
 /** Reintenta el aviso de stock de una variante/cuenta, solo si la fila es del usuario. */
 export async function reintentarStockSagaVentas(varianteId, alias) {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   const [fila] = await query(
     "select 1 from sincronizaciones where variante_id = $1 and sistema = 'saga' and cuenta_alias = $2 and usuario_panel = $3",
     [Number(varianteId), String(alias || ""), usuario.usuario]
@@ -202,15 +169,41 @@ export async function reintentarStockSagaVentas(varianteId, alias) {
 
 /** Reintenta ahora todos los avisos de stock pendientes del usuario. */
 export async function reintentarTodoStockSagaVentas() {
-  const usuario = await requerirUsuarioVentas();
+  const usuario = await requerirUsuarioVentas("integraciones");
   await reintentarStockPendiente({ forzar: true, limite: 50, usuario: usuario.usuario });
   revalidatePath("/operaciones/integraciones/saga");
 }
 
-/** Consulta a SAGA el estado de los envíos del usuario y reintenta sus avisos de stock fallidos. */
-export async function actualizarEstadoSagaVentas() {
-  const usuario = await requerirUsuarioVentas();
-  await reintentarStockPendiente({ forzar: true, usuario: usuario.usuario });
-  await refrescarPendientes(null, { usuario: usuario.usuario });
+// Acciones sobre filas elegidas: el servidor las limita siempre a las del usuario de la sesión.
+
+/** Consulta a SAGA el estado de las filas elegidas ("varianteId|alias") del usuario. */
+export async function consultarEstadoSagaVentas(claves) {
+  const usuario = await requerirUsuarioVentas("integraciones");
+  const n = await consultarSeleccion(claves, { usuario: usuario.usuario });
+  after(() => drenarCola()); // continúa lo que haya quedado en cola o por avanzar
   revalidatePath("/operaciones/integraciones/saga");
+  return { mensaje: `Se consultó el estado de ${n} envío(s) en SAGA.` };
+}
+
+/** Aplica una acción de vinculación a las filas elegidas del usuario. */
+export async function aplicarAccionSagaVentas(claves, modo) {
+  const usuario = await requerirUsuarioVentas("integraciones");
+  const resultados = await aplicarAccionSeleccion(claves, String(modo || ""), { usuario: usuario.usuario });
+  after(() => drenarCola());
+  revalidatePath("/operaciones/integraciones/saga");
+  return { mensaje: resultados.length ? resumirResultados(resultados) : "No hay filas para aplicar." };
+}
+
+/** Cambia el tipo de vinculación de las filas elegidas del usuario; con `enviarAhora` también las envía. */
+export async function cambiarAccionSagaVentas(claves, accion, enviarAhora = false) {
+  const usuario = await requerirUsuarioVentas("integraciones");
+  try {
+    const n = await cambiarAccionSeleccion(claves, String(accion || ""), { usuario: usuario.usuario });
+    const resultados = enviarAhora && n ? await aplicarAccionSeleccion(claves, String(accion), { usuario: usuario.usuario }) : [];
+    if (resultados.length) after(() => drenarCola());
+    revalidatePath("/operaciones/integraciones/saga");
+    return { mensaje: `Tipo de vinculación cambiado en ${n} fila(s).${resultados.length ? ` Envío: ${resumirResultados(resultados)}` : ""}` };
+  } catch (e) {
+    return { mensaje: e.message };
+  }
 }

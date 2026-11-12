@@ -254,12 +254,13 @@ alter table productos add column if not exists saga_categoria     text;  -- id d
 alter table productos add column if not exists modelo             text;
 alter table productos add column if not exists tipo_perfume       text;
 alter table productos add column if not exists genero             text;
-alter table productos drop column if exists notas_aromaticas;  -- reemplazada por los aromas de cada variante
+-- (Antes aquí se eliminaba una columna `notas_aromaticas` del producto, de una versión muy antigua. Ya no: ese nombre es ahora el de las notas aromáticas.)
 alter table productos add column if not exists caracteristicas    text;
 alter table productos add column if not exists condicion          text not null default 'Nuevo';
 
 alter table productos add column if not exists sku_padre text;  -- ParentSku en SAGA; solo se usa si usar_sku_padre
 alter table productos add column if not exists usar_sku_padre boolean not null default false;  -- sin marcar: cada variante es un producto suelto en SAGA
+alter table productos add column if not exists sku_padre_web text;  -- SKU padre de la web (siempre editable); sku_padre es el que se envió a SAGA
 -- Paquete: un solo juego de medidas por producto.
 alter table productos add column if not exists contenido_paquete text;
 alter table productos add column if not exists paquete_ancho     numeric;
@@ -272,13 +273,36 @@ alter table productos add column if not exists formato_belleza text not null def
 -- Campos extra por categoría primaria (ver lib/saga-campos.js): { FeedName: valor }.
 alter table productos add column if not exists saga_extras jsonb not null default '{}'::jsonb;  -- campos por producto
 alter table variantes add column if not exists saga_extras jsonb not null default '{}'::jsonb;  -- campos por variante (color, variante…)
+-- Valores GENERALES del producto para datos que se piden por variante: { registro_sanitario, variante_extras: {FeedName: valor} }.
+-- Cada variante hereda estos valores mientras no tenga uno propio (variantes.registro_sanitario / saga_extras).
+alter table productos add column if not exists atributos jsonb not null default '{}'::jsonb;
 alter table variantes add column if not exists codigo_barras text;
 alter table variantes add column if not exists volumen       text;  -- medida del frasco, ej. "50 ML"
 -- Datos de SAGA por variante.
 alter table variantes add column if not exists registro_sanitario text;
 alter table variantes add column if not exists descripcion        text;    -- si está vacía se usa la del producto
 alter table variantes add column if not exists cantidad_empaque   text;    -- CantidadContenidaEnElEmpaque, ej. "100ML"
-alter table variantes add column if not exists aromas_saga        text[] not null default '{}';  -- FraganciaPerfume (lista de SAGA)
+-- Nombres de la web: «notas_aromaticas» y «fragancia_perfume». Antes se llamaban notas_saga y aromas_saga (o, en un paso intermedio,
+-- notas y fragancia): si existen con un nombre antiguo se renombran conservando sus datos. Idempotente.
+do $$
+declare t text; v text[];
+begin
+  foreach t in array array['variantes', 'productos'] loop
+    foreach v slice 1 in array array[array['notas_saga', 'notas_aromaticas'], array['notas', 'notas_aromaticas'], array['aromas_saga', 'fragancia_perfume'], array['fragancia', 'fragancia_perfume']] loop
+      if exists (select 1 from information_schema.columns where table_schema = current_schema() and table_name = t and column_name = v[1])
+         and not exists (select 1 from information_schema.columns where table_schema = current_schema() and table_name = t and column_name = v[2]) then
+        execute format('alter table %I rename column %I to %I', t, v[1], v[2]);
+      end if;
+    end loop;
+  end loop;
+end $$;
+
+alter table variantes add column if not exists fragancia_perfume        text[] not null default '{}';  -- fragancia (FraganciaPerfume en SAGA)
+alter table variantes add column if not exists notas_aromaticas         text;    -- notas aromáticas (se muestran en la web; NotasAromaticas en SAGA)
+-- Varias imágenes por variante (la primera es la portada y también va en `imagen`, que se mantiene para la web, el CSV y el inventario).
+alter table variantes add column if not exists imagenes text[] not null default '{}';
+update variantes set imagenes = array[imagen] where imagen is not null and imagen <> '' and cardinality(imagenes) = 0;
+alter table variantes add column if not exists saga_combinar_nombre boolean not null default true;  -- true: SAGA recibe «producto + variante»; false: solo el nombre del producto
 
 -- Migraciones desde versiones anteriores de este esquema (idempotentes).
 do $$
@@ -317,6 +341,52 @@ begin
   end if;
 end $$;
 
+-- Atributos a nivel de PRODUCTO: la variante hereda los del producto y solo guarda lo que personaliza.
+-- Medida, cantidad en el empaque, fragancia y notas pasan a existir también en el producto.
+alter table productos add column if not exists volumen          text;
+alter table productos add column if not exists cantidad_empaque text;
+alter table productos add column if not exists fragancia_perfume      text[] not null default '{}';
+alter table productos add column if not exists notas_aromaticas       text;
+-- Personalizados de la variante que no tienen columna propia (modelo, país, condición, paquete, extras de producto…):
+-- solo las claves presentes se personalizan; el resto usa lo del producto. Ver lib/atributos-efectivos.js.
+alter table variantes add column if not exists atributos jsonb not null default '{}'::jsonb;
+
+-- Productos con UNA sola variante: sus datos de SAGA pasan al producto y la variante queda heredando (idempotente).
+-- Los productos con varias variantes conservan sus valores como personalizados de cada variante.
+with unica as (
+  select producto_id, min(id) as vid from variantes group by producto_id having count(*) = 1
+)
+update productos p set
+  volumen          = coalesce(p.volumen, nullif(v.volumen, '')),
+  cantidad_empaque = coalesce(p.cantidad_empaque, nullif(v.cantidad_empaque, '')),
+  fragancia_perfume      = case when cardinality(p.fragancia_perfume) = 0 then v.fragancia_perfume else p.fragancia_perfume end,
+  notas_aromaticas       = coalesce(p.notas_aromaticas, nullif(v.notas_aromaticas, '')),
+  atributos        = jsonb_set(
+                       jsonb_set(
+                         p.atributos,
+                         '{registro_sanitario}',
+                         to_jsonb(coalesce(nullif(p.atributos->>'registro_sanitario', ''), nullif(v.registro_sanitario, ''), '')),
+                         true
+                       ),
+                       '{variante_extras}',
+                       v.saga_extras || coalesce(p.atributos->'variante_extras', '{}'::jsonb),
+                       true
+                     )
+from unica u join variantes v on v.id = u.vid
+where p.id = u.producto_id;
+
+-- La variante única deja vacío lo que quedó igual que en el producto (así hereda).
+update variantes v set
+  volumen          = case when v.volumen = p.volumen then null else v.volumen end,
+  cantidad_empaque = case when v.cantidad_empaque = p.cantidad_empaque then null else v.cantidad_empaque end,
+  fragancia_perfume      = case when v.fragancia_perfume = p.fragancia_perfume then '{}' else v.fragancia_perfume end,
+  notas_aromaticas       = case when v.notas_aromaticas = p.notas_aromaticas then null else v.notas_aromaticas end,
+  registro_sanitario = case when v.registro_sanitario = p.atributos->>'registro_sanitario' then null else v.registro_sanitario end,
+  saga_extras      = case when v.saga_extras <@ coalesce(p.atributos->'variante_extras', '{}'::jsonb) then '{}'::jsonb else v.saga_extras end
+from productos p
+where p.id = v.producto_id
+  and (select count(*) from variantes x where x.producto_id = p.id) = 1;
+
 -- Las fechas de oferta pasan a ser por canal (tabla precios_canal).
 alter table variantes drop column if exists oferta_inicio;
 alter table variantes drop column if exists oferta_fin;
@@ -344,6 +414,18 @@ create table if not exists sincronizaciones (
 
 -- Usuario del panel /operaciones que originó (o tocó por última vez) la fila; null = admin o automático.
 alter table sincronizaciones add column if not exists usuario_panel text;
+
+-- Revisión de contenido de SAGA (QC): motivos por los que un producto creado no se publica, su categoría
+-- (contenido, precio, multimedia, compliance, configuración, otros) y el puntaje de contenido.
+alter table sincronizaciones add column if not exists revision_categoria text;
+alter table sincronizaciones add column if not exists revision_motivos jsonb;
+alter table sincronizaciones add column if not exists revision_puntaje integer;
+alter table sincronizaciones add column if not exists revision_fecha timestamptz;
+
+-- Cola de envíos: SAGA permite 1 feed cada 2 minutos por cuenta; lo que no cabe espera aquí (acción a repetir y hora).
+alter table sincronizaciones add column if not exists cola_modo text;
+alter table sincronizaciones add column if not exists proximo_envio timestamptz;
+alter table sincronizaciones add column if not exists cola_intentos integer;
 
 -- Cola de reintentos del stock: si avisar a SAGA falla, la fila queda marcada y se reintenta sola.
 alter table sincronizaciones add column if not exists stock_pendiente boolean     not null default false;
@@ -381,6 +463,30 @@ create table if not exists precios_canal (
   oferta_inicio date,
   oferta_fin    date,
   primary key (variante_id, sistema, cuenta_alias)
+);
+
+-- Paquete propio de un producto en una cuenta/plataforma. Sin fila = se usa el paquete general del producto.
+create table if not exists paquete_plataforma (
+  producto_id      text    not null references productos(id) on delete cascade on update cascade,
+  sistema          text    not null default 'saga',
+  cuenta_alias     text    not null references cuentas_saga(alias) on update cascade on delete cascade,
+  contenido_paquete text,
+  paquete_ancho    numeric,
+  paquete_largo    numeric,
+  paquete_alto     numeric,
+  paquete_peso     numeric,
+  primary key (producto_id, sistema, cuenta_alias)
+);
+
+-- Categoría primaria propia de un producto en una cuenta/plataforma, con sus campos extra. Sin fila = se usa la general del producto.
+create table if not exists categoria_plataforma (
+  producto_id      text    not null references productos(id) on delete cascade on update cascade,
+  sistema          text    not null default 'saga',
+  cuenta_alias     text    not null references cuentas_saga(alias) on update cascade on delete cascade,
+  saga_categoria   text    not null,
+  saga_extras      jsonb   not null default '{}'::jsonb,  -- campos extra por producto de esa categoría
+  variante_extras  jsonb   not null default '{}'::jsonb,  -- campos extra generales para las variantes de esa categoría
+  primary key (producto_id, sistema, cuenta_alias)
 );
 
 -- ============================================================

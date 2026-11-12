@@ -10,12 +10,13 @@ import { IconoCerrar } from "../admin/Iconos";
  * Formulario de captura y edición de ventas.
  *  - Nueva: tras guardar se reinicia con los valores por defecto.
  *  - Edición (`venta`): al guardar vuelve a la lista (`volverHref`).
+ * `accion` permite usar otra server action (el panel admin pasa la suya); por defecto, la de /operaciones.
  * Si hay un error se conservan los datos escritos.
  * El estado (pendiente/cerrada) lo elige el usuario; el adelanto puede ser 0.
  */
-export default function VentaForm({ hoy, defaults, opciones, venta, volverHref }) {
+export default function VentaForm({ hoy, defaults, opciones, venta, volverHref, accion: accionGuardar }) {
   const router = useRouter();
-  const [estado, accion, enviando] = useActionState(registrarVenta, {});
+  const [estado, accion, enviando] = useActionState(accionGuardar || registrarVenta, {});
   const v = estado?.valores;
   const editando = Boolean(venta);
 

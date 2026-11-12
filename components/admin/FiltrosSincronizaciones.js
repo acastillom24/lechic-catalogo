@@ -9,7 +9,7 @@ import { IconoBuscar, IconoFiltro, IconoCerrar } from "./Iconos";
  * buscador por producto o SKU, selector de cuenta y, si llega `usuarios`, de usuario del panel;
  * debajo, chips con los filtros activos para quitarlos. Los enlaces de los chips llegan calculados.
  */
-export default function FiltrosSincronizaciones({ action, estado, filtros, cuentas, usuarios = null, chips }) {
+export default function FiltrosSincronizaciones({ action, estado, filtros, cuentas, usuarios = null, acciones = null, chips }) {
   const formRef = useRef(null);
   const enviar = () => formRef.current?.requestSubmit();
 
@@ -31,7 +31,7 @@ export default function FiltrosSincronizaciones({ action, estado, filtros, cuent
     <div className="form-grid" style={{ gap: 10 }}>
       <form ref={formRef} method="get" action={action} className="admin-barra">
         {estado !== "error" && <input type="hidden" name="estado" value={estado} />}
-        <div className="admin-barra-buscar">
+        <div className="admin-barra-buscar ancha">
           <IconoBuscar size={18} />
           <input type="search" name="q" defaultValue={filtros.q || ""} placeholder="Buscar por producto o SKU..." />
           <span className="admin-barra-sep" aria-hidden="true" />
@@ -45,6 +45,14 @@ export default function FiltrosSincronizaciones({ action, estado, filtros, cuent
                 [["__admin", "Admin / automático"], ...usuarios.map((u) => [u.usuario, u.usuario])],
                 filtros.usuario
               )}
+            </>
+          )}
+          {acciones && (
+            <>
+              <span className="admin-barra-sep" aria-hidden="true" />
+              {selector("accion", "Vinculación", acciones, filtros.accion)}
+              <span className="admin-barra-sep" aria-hidden="true" />
+              {selector("origen", "Origen", [["creado", "Creado desde la web"], ["vinculado", "Vinculado a SAGA"]], filtros.origen)}
             </>
           )}
         </div>
