@@ -213,10 +213,10 @@ export default function TablaSincronizacionesSaga({
                     ) : esSinPublicar ? (
                       <td style={{ maxWidth: 380 }}>
                         <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", fontSize: ".82rem", wordBreak: "break-word" }}>
-                          {(f.venta_detalle?.items || []).map((it) => (
+                          {(f.venta_detalle?.items || []).filter((it) => it.estado !== "sin_dato").map((it) => (
                             <li key={it.clave}>
                               <span className={it.estado === "pendiente" ? "chip-saga aviso" : "chip-saga"}>
-                                {it.estado === "listo" ? "Listo" : it.estado === "pendiente" ? "Pendiente" : "Sin dato"}
+                                {it.estado === "listo" ? "Listo" : "Pendiente"}
                               </span>{" "}
                               <strong>{it.etiqueta}</strong>
                               {it.detalle && <span style={{ color: "var(--gris)" }}> · {it.detalle}</span>}
