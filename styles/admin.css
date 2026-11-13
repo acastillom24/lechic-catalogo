@@ -1135,3 +1135,16 @@ input.pf-id-bloqueado, input.pf-id-bloqueado:focus { background: #f3f1ef; color:
 /* Fila de filtros por columna de la tabla de productos */
 .admin-tabla .fila-filtros th { padding: 4px 6px; font-weight: normal; background: var(--fondo, transparent); }
 .admin-tabla .fila-filtros select + select { margin-top: 4px; }
+
+/* Selector de categoría primaria (paso 2): ocupa todo el ancho para que no se corte el nombre. */
+.pf-paso input[role="combobox"] {
+  width: 100%;
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  padding: 12px 14px;
+  border: 1px solid var(--linea);
+  border-radius: var(--radio);
+  background: #fff;
+  color: var(--tinta);
+  text-overflow: ellipsis;
+}
