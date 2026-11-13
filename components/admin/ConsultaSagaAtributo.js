@@ -56,12 +56,12 @@ export default function ConsultaSagaAtributo({ categoriasSaga = [], etiquetaActu
     const tipo = libre ? "texto" : a.tipo;
     onAplicar({
       tipo,
-      opciones: a.opciones,
+      opciones: a.truncada ? [...a.opciones, "…"] : a.opciones, // «…» = lista abierta: acepta valores libres
       min: tipo === "texto" && a.min ? String(a.min) : "",
       max: tipo === "texto" && a.max ? String(a.max) : "",
       etiqueta: etiquetaActual.trim() ? undefined : a.etiqueta,
     });
-    setAviso(`Requisitos de «${a.etiqueta}» aplicados (tipo, opciones y largos). Revisa y guarda.`);
+    setAviso(`Requisitos de «${a.etiqueta}» aplicados (tipo, opciones y largos)${a.truncada ? "; la lista queda abierta (acepta valores libres)" : ""}. Revisa y guarda.`);
   };
 
   return (
@@ -99,10 +99,15 @@ export default function ConsultaSagaAtributo({ categoriasSaga = [], etiquetaActu
             <small>
               {ETIQUETA_TIPO[a.tipo]} · {a.obligatorio ? "obligatorio" : "opcional"} · {a.nivel === "variante" ? "por variante" : "por producto"}
               {a.tipo === "texto" && (a.min || a.max) ? ` · largo ${a.min ? `mín. ${a.min}` : ""}${a.min && a.max ? " / " : ""}${a.max ? `máx. ${a.max}` : ""} caracteres` : ""}
-              {a.opciones.length ? ` · ${a.opciones.length} opciones` : ""}
+              {a.opciones.length ? ` · ${a.opciones.length} opciones${a.truncada ? " (lista parcial)" : ""}` : ""}
             </small>
             {a.descripcion && <small style={{ color: "var(--gris)" }}>{a.descripcion}</small>}
-            {(a.tipo === "lista" || a.tipo === "multi") && a.opciones.length > 0 && (
+            {(a.tipo === "lista" || a.tipo === "multi") && a.opciones.length > 0 && a.truncada && (
+              <div style={AMARILLO} role="note">
+                ⚠ Lista parcial ({a.opciones.length} valores): SAGA la devuelve cortada con «…», así que también acepta otros valores que no aparecen aquí. Los listados son los confirmados; si necesitas otro, agrégalo a las opciones del atributo (escrito tal como lo pide SAGA).
+              </div>
+            )}
+            {(a.tipo === "lista" || a.tipo === "multi") && a.opciones.length > 0 && !a.truncada && (
               <div style={AMARILLO} role="note">
                 ⚠ Valores permitidos ({a.opciones.length}): SAGA solo acepta {a.tipo === "multi" ? "opciones de esta lista (se envían separadas por coma)" : "uno de estos valores"}, escritos EXACTAMENTE así (mayúsculas, tildes y espacios). Cualquier otro valor se rechaza o se omite.
               </div>

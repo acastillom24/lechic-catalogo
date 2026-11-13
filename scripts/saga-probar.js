@@ -6,6 +6,9 @@
 //   npm run saga:probar -- --arbol perfum    -> solo las que contengan "perfum" (en cualquier nivel de la ruta)
 //   npm run saga:probar -- <idCategoria>     -> atributos de esa categoría (GetCategoryAttributes)
 //   npm run saga:probar -- --marcas yanbal   -> marcas de SAGA (filtro opcional)
+// Opcional: poner antes un alias de cuenta (Configuración → SAGA) para usar sus credenciales en vez de las del .env:
+//   npm run saga:probar -- principal 492
+//   npm run saga:probar -- principal --arbol perfum
 const sc = require("../lib/sellercenter");
 
 const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
@@ -24,13 +27,28 @@ function aplanar(nodos, ruta = [], salida = []) {
 }
 
 async function main() {
-  const [arg, filtro] = process.argv.slice(2);
-  const cred = sc.credenciales({
+  let args = process.argv.slice(2);
+  // Si el primer argumento no es una opción (--x) ni un id numérico, es el alias de una cuenta guardada.
+  let alias = null;
+  if (args[0] && !args[0].startsWith("--") && !/^\d+$/.test(args[0])) alias = args.shift().toLowerCase();
+  const [arg, filtro] = args;
+
+  let datos = {
     alias: "env",
     user_id: process.env.SELLERCENTER_USER_ID,
     api_key: process.env.SELLERCENTER_API_KEY,
     base_url: process.env.SELLERCENTER_BASE_URL,
-  });
+  };
+  if (alias) {
+    const { query } = require("../lib/db");
+    const [cuenta] = await query("select * from cuentas_saga where alias = $1", [alias]);
+    if (!cuenta) {
+      const todas = await query("select alias from cuentas_saga order by alias");
+      throw new Error(`No existe la cuenta "${alias}". Disponibles: ${todas.map((c) => c.alias).join(", ") || "(ninguna)"}`);
+    }
+    datos = cuenta;
+  }
+  const cred = sc.credenciales(datos);
   console.log(`Usuario ${cred.userId} · ${cred.base}`);
 
   if (arg === "--arbol") {

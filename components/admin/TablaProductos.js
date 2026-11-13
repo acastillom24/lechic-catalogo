@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { eliminarProductos, actualizarEstadoSaga } from "../../app/(admin)/admin/actions";
+import { NIVELES, nivelDe } from "../../lib/stock-niveles";
 import ImportarCsvForm from "./ImportarCsvForm";
 import MovimientoForm from "./MovimientoForm";
 import {
@@ -20,6 +21,7 @@ import {
   IconoCerrar,
 } from "./Iconos";
 
+const INFO_NIVEL = Object.fromEntries(NIVELES.map((n) => [n.id, n]));
 const vacio = <span style={{ color: "var(--gris)" }}>—</span>;
 
 function precio(v) {
@@ -41,21 +43,17 @@ function precio(v) {
  * Tabla unificada de productos (una fila por variante) con selección,
  * eliminar, exportar e importar CSV. Los datos llegan ya cargados del servidor.
  */
-const ETIQUETAS_FILTRO = {
-  todas: "Todas",
-  alertas: "Stock bajo",
-  sin_control: "Sin control de cantidad",
-};
-
 export default function TablaProductos({
   filas,
-  q,
-  filtro,
   total,
   hrefNuevo,
   alertas = 0,
   hrefAlertas,
-  hrefSinFiltro,
+  configStock,
+  columnas = {},
+  marcas = [],
+  cuentas = [],
+  hrefLimpiarColumnas,
 }) {
   const [seleccion, setSeleccion] = useState(() => new Set());
   const [importando, setImportando] = useState(false);
@@ -107,6 +105,25 @@ export default function TablaProductos({
     if (!confirm(msg)) e.preventDefault();
   }
 
+  const nColumnas = Object.keys(columnas).length;
+  // Una fila de filtros bajo la cabecera; se envía por GET junto con la búsqueda y el filtro de stock actuales.
+  const FORM_COLUMNAS = "filtros-columnas";
+  const corto = { width: "100%", minWidth: 0, padding: "4px 6px", fontSize: ".8rem" };
+  const rango = { width: "50%", minWidth: 0, padding: "4px 6px", fontSize: ".8rem" };
+  const texto = (k, ph) => <input form={FORM_COLUMNAS} type="search" name={`c_${k}`} defaultValue={columnas[k] || ""} placeholder={ph} aria-label={`Filtrar por ${ph}`} style={corto} />;
+  const lista = (k, ph, opciones) => (
+    <select form={FORM_COLUMNAS} name={`c_${k}`} defaultValue={columnas[k] || ""} aria-label={`Filtrar por ${ph}`} style={corto} onChange={(e) => e.currentTarget.form.requestSubmit()}>
+      <option value="">{ph}</option>
+      {opciones.map(([v, e]) => <option key={v} value={v}>{e}</option>)}
+    </select>
+  );
+  const desdeHasta = (k, paso) => (
+    <div style={{ display: "flex", gap: 4 }}>
+      <input form={FORM_COLUMNAS} type="number" step={paso} min="0" name={`c_${k}_d`} defaultValue={columnas[`${k}_d`] || ""} placeholder="Desde" aria-label={`${k} desde`} style={rango} />
+      <input form={FORM_COLUMNAS} type="number" step={paso} min="0" name={`c_${k}_h`} defaultValue={columnas[`${k}_h`] || ""} placeholder="Hasta" aria-label={`${k} hasta`} style={rango} />
+    </div>
+  );
+
   const cerrarMenu = () => {
     if (menuRef.current) menuRef.current.open = false;
   };
@@ -114,39 +131,18 @@ export default function TablaProductos({
   return (
     <div className="form-grid">
       <div className="admin-barra">
-        <form method="get" action="/admin" className="admin-barra-buscar">
-          <IconoBuscar size={18} />
-          <input type="search" name="q" defaultValue={q} placeholder="Buscar por producto, variante o SKU..." />
-          <span className="admin-barra-sep" aria-hidden="true" />
-          <label className="admin-filtro" title="Filtrar">
-            <IconoFiltro size={16} />
-            <select
-              name="filtro"
-              defaultValue={filtro}
-              aria-label="Filtrar"
-              onChange={(e) => e.currentTarget.form.requestSubmit()}
-            >
-              {Object.entries(ETIQUETAS_FILTRO).map(([k, etiqueta]) => (
-                <option key={k} value={k}>
-                  {etiqueta}
-                </option>
-              ))}
-            </select>
-          </label>
-        </form>
-
-        {filtro !== "todas" && (
-          <Link href={hrefSinFiltro} className="chip-filtro" title="Quitar filtro">
-            {ETIQUETAS_FILTRO[filtro]} <IconoCerrar size={14} />
+        {nColumnas > 0 && (
+          <Link href={hrefLimpiarColumnas} className="chip-filtro" title="Quitar los filtros de columna">
+            {nColumnas} filtro{nColumnas === 1 ? "" : "s"} de columna <IconoCerrar size={14} />
           </Link>
         )}
 
-        {alertas > 0 && filtro !== "alertas" && (
+        {alertas > 0 && columnas.stock !== "alertas" && (
           <Link
             href={hrefAlertas}
             className="btn-campana"
-            title={`${alertas} variante(s) con stock bajo o agotado`}
-            aria-label={`${alertas} variantes con stock bajo o agotado`}
+            title={`${alertas} variante(s) en alerta de stock (ver niveles en Configuración → Inventario)`}
+            aria-label={`${alertas} variantes en alerta de stock`}
           >
             <IconoCampana size={20} />
             <span className="badge-campana">{alertas}</span>
@@ -162,8 +158,7 @@ export default function TablaProductos({
 
           <form method="post" action="/admin/exportar" onSubmit={cerrarMenu}>
             <input type="hidden" name="ids" value={[...seleccion].join(",")} />
-            <input type="hidden" name="q" value={q} />
-            <input type="hidden" name="filtro" value={filtro} />
+            {Object.entries(columnas).map(([k, v]) => <input key={k} type="hidden" name={`c_${k}`} value={v} />)}
             <details className="admin-menu" ref={menuRef}>
               <summary className="btn-ico-texto">
                 <IconoExportar /> Exportar
@@ -173,7 +168,7 @@ export default function TablaProductos({
                   Seleccionados ({seleccion.size})
                 </button>
                 <button type="submit" name="alcance" value="filtrados">
-                  Resultados de esta búsqueda ({total})
+                  Resultados filtrados ({total})
                 </button>
                 <button type="submit" name="alcance" value="todo">
                   Todo el catálogo
@@ -247,18 +242,39 @@ export default function TablaProductos({
               <th>Precio</th>
               <th></th>
             </tr>
+            <tr className="fila-filtros">
+              <th colSpan={2}>
+                <form id={FORM_COLUMNAS} method="get" action="/admin" style={{ display: "none" }}>
+                </form>
+                <button type="submit" form={FORM_COLUMNAS} className="btn-ico" title="Aplicar filtros de columna" aria-label="Aplicar filtros de columna">
+                  <IconoFiltro size={16} />
+                </button>
+              </th>
+              <th>{texto("producto", "Producto")}</th>
+              <th>{texto("variante", "Variante")}</th>
+              <th>{texto("sku", "SKU")}</th>
+              <th>{lista("marca", "Todas", marcas.map((m) => [m, m]))}</th>
+              <th>
+                {lista("sistema", "Todos", [["sin", "Sin SAGA"], ["publicado", "Publicado"], ["pendiente", "Pendiente"], ["error", "Con error"], ["vinculado", "Vinculado"]])}
+                {cuentas.length > 1 && lista("cuenta", "Cuenta", cuentas.map((c) => [c, c]))}
+              </th>
+              <th>{lista("stock", "Todos", [["alertas", "En alerta"], ...NIVELES.map((n) => [n.id, n.nombre])])}</th>
+              <th>{desdeHasta("min", "1")}</th>
+              <th>{desdeHasta("precio", "0.01")}</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
             {filas.map((v) => {
               const controlada = v.stock_actual !== null;
-              const bajo = controlada && v.stock_actual <= v.stock_minimo;
+              const nivel = nivelDe(v, configStock);
               const marcada = seleccion.has(v.id);
               return (
                 <FilaProducto
                   key={v.id}
                   v={v}
                   controlada={controlada}
-                  bajo={bajo}
+                  nivel={nivel}
                   marcada={marcada}
                   abierta={moviendo === v.id}
                   onAlternar={() => alternar(v.id)}
@@ -280,7 +296,7 @@ export default function TablaProductos({
   );
 }
 
-function FilaProducto({ v, controlada, bajo, marcada, abierta, onAlternar, onMover }) {
+function FilaProducto({ v, controlada, nivel, marcada, abierta, onAlternar, onMover }) {
   return (
     <>
       <tr className={marcada ? "fila-marcada" : undefined}>
@@ -333,20 +349,8 @@ function FilaProducto({ v, controlada, bajo, marcada, abierta, onAlternar, onMov
               ))}
         </td>
         <td>
-          {controlada ? (
-            <strong>
-              {v.stock_actual}{" "}
-              {Number(v.stock_actual) <= 0 ? (
-                <span className="pill agotado">Agotado</span>
-              ) : (
-                bajo && <span className="pill agotado">Bajo</span>
-              )}
-            </strong>
-          ) : v.stock ? (
-            <span style={{ color: "var(--gris)" }}>Disponible (sin control)</span>
-          ) : (
-            <span className="pill agotado">Agotado</span>
-          )}
+          {controlada && <strong>{v.stock_actual} </strong>}
+          <span className="pill" style={{ background: INFO_NIVEL[nivel].color, color: "#fff" }}>{INFO_NIVEL[nivel].nombre}</span>
         </td>
         <td>{controlada ? v.stock_minimo : vacio}</td>
         <td>{precio(v)}</td>

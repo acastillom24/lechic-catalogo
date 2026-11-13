@@ -1,4 +1,4 @@
-import { getVariantesParaExportar } from "../../../../lib/inventario";
+import { getVariantesParaExportar, leerFiltrosColumnas } from "../../../../lib/inventario";
 import { variantesACsv, plantillaCsv } from "../../../../lib/csv";
 
 /**
@@ -6,7 +6,7 @@ import { variantesACsv, plantillaCsv } from "../../../../lib/csv";
  * Protegido por proxy.js (/admin/:path*).
  *
  *   alcance=seleccion  -> solo las variantes en `ids` (separadas por coma)
- *   alcance=filtrados  -> lo que coincide con `q` y `filtro`
+ *   alcance=filtrados  -> lo que coincide con `q`, `filtro` y los filtros de columna `c_*`
  *   alcance=todo       -> todo el catálogo
  *   alcance=plantilla  -> solo los encabezados
  *
@@ -42,7 +42,7 @@ async function exportar(datos) {
     opciones = { ids };
   } else if (alcance === "filtrados") {
     const filtro = FILTROS.includes(datos.filtro) ? datos.filtro : "todas";
-    opciones = { q: String(datos.q || "").trim(), filtro };
+    opciones = { q: String(datos.q || "").trim(), filtro, columnas: leerFiltrosColumnas(datos) };
   } else if (alcance !== "todo") {
     return new Response("Alcance inválido.", { status: 400 });
   }

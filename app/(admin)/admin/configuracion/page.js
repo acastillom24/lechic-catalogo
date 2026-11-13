@@ -5,6 +5,8 @@ import { getOpcionesVentas } from "../../../../lib/ventas-opciones";
 import { getConfigMarcas } from "../../../../lib/marcas-config";
 import MarcasConfig from "../../../../components/admin/MarcasConfig";
 import PestanasConfig from "../../../../components/admin/PestanasConfig";
+import StockConfig from "../../../../components/admin/StockConfig";
+import { getConfigStock } from "../../../../lib/stock-config";
 import VentasConfig from "../../../../components/admin/VentasConfig";
 import { listarUsuariosVentas } from "../../../../lib/ventas";
 import { getPermisosGuardados, permisosDe } from "../../../../lib/ventas-permisos";
@@ -20,7 +22,7 @@ export const metadata = { title: "Configuración · Panel Le Chic" };
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
-  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas, cfgMarcas, permisosGuardados] = await Promise.all([
+  const [config, usuarios, colaboradores, opcionesSaga, cuentasSaga, opcionesVentas, cfgMarcas, permisosGuardados, configStock] = await Promise.all([
     getConfigSitio(),
     listarUsuariosVentas(),
     listarColaboradores(),
@@ -29,6 +31,7 @@ export default async function ConfiguracionPage() {
     getOpcionesVentas(),
     getConfigMarcas(),
     getPermisosGuardados(),
+    getConfigStock(),
   ]);
   const categoriasWeb = cfgMarcas.categorias.map(({ slug, nombre }) => ({ slug, nombre }));
   // Las subpestañas Web y SAGA editan las mismas equivalencias: al cambiar lo guardado se vuelven a montar con los datos nuevos.
@@ -52,6 +55,7 @@ export default async function ConfiguracionPage() {
             </>
           ),
           ventas: <VentasConfig opciones={opcionesVentas} />,
+          inventario: <StockConfig config={configStock} />,
           // Integraciones: lo que hay que configurar para conectar la web con cada plataforma (Web, SAGA y las que se agreguen).
           integraciones: [
             {

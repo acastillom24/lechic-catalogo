@@ -1131,3 +1131,7 @@ input.pf-id-bloqueado, input.pf-id-bloqueado:focus { background: #f3f1ef; color:
 .toast-integracion.ok { background: #e6f4ea; color: #1e5b2f; border: 1px solid #b7dcc2; }
 .toast-integracion.error { background: #fdecea; color: #8a1c14; border: 1px solid #f3b8b3; }
 .toast-integracion button { margin-left: auto; border: 0; background: transparent; color: inherit; font-size: 1.2rem; cursor: pointer; line-height: 1; }
+
+/* Fila de filtros por columna de la tabla de productos */
+.admin-tabla .fila-filtros th { padding: 4px 6px; font-weight: normal; background: var(--fondo, transparent); }
+.admin-tabla .fila-filtros select + select { margin-top: 4px; }

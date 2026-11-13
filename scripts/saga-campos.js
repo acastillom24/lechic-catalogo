@@ -29,6 +29,7 @@ function convertir(respuesta) {
     .filter((a) => GRUPOS[a.GroupName] && !CUBIERTOS.has(a.FeedName))
     .map((a) => {
       const opciones = lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && n !== "…"); // SAGA mete una opción "…" de relleno al final de listas largas
+      const abierta = lista(a.Options?.Option).some((o) => o.Name === "…"); // lista parcial: SAGA también acepta otros valores
       const max = Number(a.MaxLength);
       return {
         id: a.FeedName,
@@ -37,6 +38,7 @@ function convertir(respuesta) {
         nivel: GRUPOS[a.GroupName],
         obligatorio: a.isMandatory === "1",
         ...(opciones.length ? { opciones } : {}),
+        ...(opciones.length && abierta ? { abierta: true } : {}),
         ...(max > 0 ? { max } : {}),
       };
     });
@@ -70,7 +72,11 @@ async function main() {
   console.log(`Guardado en data/saga-campos.json`);
 }
 
-main().catch((e) => {
-  console.error("Error:", e.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((e) => {
+    console.error("Error:", e.message);
+    process.exit(1);
+  });
+}
+
+module.exports = { convertir };
