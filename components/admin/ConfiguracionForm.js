@@ -51,6 +51,7 @@ const PESTANAS = [
   ["equipo", "Equipo"],
   ["integraciones", "Integraciones"],
   ["ventas", "Ventas"],
+  ["inventario", "Inventario"],
 ];
 const GRUPO_SECCION = {
   "Identidad y contacto": "general",
@@ -100,7 +101,7 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
     setPestana(id);
     window.history.replaceState(null, "", id === "integraciones" ? `#integraciones#${sub}` : `#${id}`);
   };
-  const esSitio = !["marcas", "pestanasweb", "equipo", "integraciones", "ventas"].includes(pestana);
+  const esSitio = !["marcas", "pestanasweb", "equipo", "integraciones", "ventas", "inventario"].includes(pestana);
   // Integraciones: subpestañas Web, SAGA y las plataformas que se agreguen (hash #integraciones#saga).
   const subs = extras.integraciones || [];
   const [sub, setSub] = useState("web");
@@ -409,6 +410,7 @@ export default function ConfiguracionForm({ inicial, extras = {} }) {
     <div className="form-grid" hidden={pestana !== "marcas"}>{extras.marcas}</div>
     <div className="form-grid" hidden={pestana !== "pestanasweb"}>{extras.pestanasweb}</div>
     <div className="form-grid" hidden={pestana !== "equipo"}>{extras.equipo}</div>
+    <div className="form-grid" hidden={pestana !== "inventario"}>{extras.inventario}</div>
     <div className="form-grid" hidden={pestana !== "integraciones"}>
       <nav className="pestanas pestanas-sub" role="tablist" aria-label="Integraciones">
         {subs.map((s) => (

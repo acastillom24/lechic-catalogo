@@ -5,6 +5,8 @@ import { cookies, headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { drenarCola } from "../../../lib/saga-cola";
+import { normalizar, CLAVES_UMBRAL, IDS } from "../../../lib/stock-niveles";
+import { esMarca, conMarca } from "../../../lib/lista-abierta";
 import Papa from "papaparse";
 
 import {
@@ -935,9 +937,12 @@ export async function guardarIntegracionWeb(prevState, formData) {
       if (!id || ids.has(id)) throw new Error(`El atributo "${etiqueta}" está repetido.`);
       ids.add(id);
       const sinOpciones = tipo === "texto" || tipo === "numero";
-      const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter((o) => o && !/^(…|\.{2,})$/.test(o)))];
-      if (opciones.some((o) => o.length > 100) || opciones.length > 1000) throw new Error(`Atributo "${etiqueta}": máximo 1000 opciones de hasta 100 caracteres.`);
-      if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
+      const crudas = sinOpciones ? [] : (Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean);
+      // «…» no es un valor: marca la lista como abierta (acepta valores libres además de los listados).
+      const reales = [...new Set(crudas.filter((o) => !esMarca(o)))];
+      const opciones = sinOpciones ? [] : conMarca(reales, crudas.some(esMarca));
+      if (reales.some((o) => o.length > 100) || reales.length > 1000) throw new Error(`Atributo "${etiqueta}": máximo 1000 opciones de hasta 100 caracteres.`);
+      if (!sinOpciones && !reales.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
       // Largo mínimo/máximo solo para texto libre (opcionales).
       const largo = (v) => (v === "" || v == null ? null : Number.isInteger(Number(v)) && Number(v) > 0 && Number(v) <= 1000 ? Number(v) : NaN);
       const min = tipo === "texto" ? largo(a?.min) : null;
@@ -1377,6 +1382,7 @@ export async function consultarAtributosSaga(categoriaId) {
     const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
     const TIPOS = { dropdown: "lista", multiselect: "multi", numberfield: "numero", textfield: "texto" };
     const num = (v) => (Number(v) > 0 ? Number(v) : null);
+    const relleno = (n) => /^(…|\.{2,})$/.test(String(n ?? "").trim());
     const atributos = lista(r?.Body?.Attribute).map((a) => ({
       id: a.FeedName,
       etiqueta: a.Label,
@@ -1386,7 +1392,9 @@ export async function consultarAtributosSaga(categoriaId) {
       descripcion: String(a.Description || "").split("//")[0].trim(),
       min: num(a.MinLength ?? a.MinimumLength),
       max: num(a.MaxLength),
-      opciones: lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && !/^(…|\.{2,})$/.test(String(n).trim())),
+      opciones: lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && !relleno(n)),
+      // SAGA corta las listas largas con una opción "…": la lista es parcial y también acepta valores que no aparecen.
+      truncada: lista(a.Options?.Option).some((o) => relleno(o.Name)),
     }));
     if (!atributos.length) return { error: `SAGA no devolvió atributos para la categoría ${id}.` };
     return { atributos };
@@ -1478,4 +1486,41 @@ export async function guardarSeguimientoReclamo(prevState, formData) {
   } catch (err) {
     return { error: err.message || "No se pudo guardar." };
   }
+}
+
+
+// ---------------------------------------------------------------
+//  Niveles de stock (Configuración → Inventario)
+// ---------------------------------------------------------------
+//  Se guardan en `configuracion` (clave "stock_niveles"): umbrales en unidades y niveles que avisan en la campana.
+
+export async function guardarNivelesStock(prevState, formData) {
+  const umbrales = {};
+  for (const k of CLAVES_UMBRAL) umbrales[k] = Number(String(formData.get(`umbral_${k}`) ?? "").trim());
+  let previo = 0;
+  for (const k of CLAVES_UMBRAL) {
+    if (!Number.isInteger(umbrales[k]) || umbrales[k] < 1) return { error: "Los límites deben ser números enteros de 1 en adelante." };
+    if (umbrales[k] <= previo) return { error: "Cada límite debe ser mayor que el anterior (Muy bajo < Bajo < Normal < Alto)." };
+    previo = umbrales[k];
+  }
+  const alertas = IDS.filter((id) => formData.get(`alerta_${id}`) === "on");
+  const valor = normalizar({ umbrales, alertas });
+  try {
+    await query(
+      `insert into configuracion (clave, valor) values ('stock_niveles', $1::jsonb)
+       on conflict (clave) do update set valor = excluded.valor, updated_at = now()`,
+      [JSON.stringify(valor)]
+    );
+  } catch (err) {
+    return { error: "No se pudo guardar la configuración de inventario." };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin");
+  return { ok: "Niveles de stock guardados.", n: Date.now() };
+}
+
+export async function restablecerNivelesStock() {
+  await query("delete from configuracion where clave = 'stock_niveles'");
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin");
 }

@@ -603,6 +603,301 @@
    ]
   }
  ],
+ "492": [
+  {
+   "id": "InstruccionesDeUso",
+   "etiqueta": "Instrucciones de uso",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "ProteccionUv",
+   "etiqueta": "Proteccion uv",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Amplio Espectro",
+    "UVA",
+    "UVB"
+   ]
+  },
+  {
+   "id": "Hipoalergenico",
+   "etiqueta": "Hipoalergénico",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "No",
+    "Sí"
+   ]
+  },
+  {
+   "id": "ResistenteAlAgua",
+   "etiqueta": "Resistente al agua",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Muy resistente al agua",
+    "No",
+    "Resistente al agua",
+    "Resistente al agua (40 minutos)",
+    "Resistente al agua (80 minutos)"
+   ]
+  },
+  {
+   "id": "SellerWarrantyInMonths",
+   "etiqueta": "Garantía del proveedor en meses",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "1",
+    "2",
+    "3",
+    "6",
+    "9",
+    "12",
+    "15",
+    "18",
+    "24",
+    "34",
+    "48",
+    "60",
+    "72",
+    "84",
+    "96",
+    "108",
+    "120"
+   ]
+  },
+  {
+   "id": "CantidadContenidaEnElEmpaque",
+   "etiqueta": "Cantidad contenida en el empaque",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "Caracteristicas",
+   "etiqueta": "Características",
+   "tipo": "multi",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Alivio del dolor",
+    "Antiinflamatorio",
+    "Antioxidante",
+    "Antiséptico",
+    "Blanqueador dental",
+    "Brillo",
+    "Cicatrizante",
+    "Con color",
+    "Con fragancia",
+    "Crecimiento",
+    "Cuidado del cuero cabelludo",
+    "Degradado suave",
+    "Dermatológicamente probado",
+    "Despigmentante",
+    "Detox",
+    "Duradero",
+    "Exfoliantes",
+    "Fijación",
+    "Fortalecedor",
+    "Hipoalergénico",
+    "Humectante",
+    "Larga duración",
+    "Libre de parabenos",
+    "Ligero",
+    "Luminosidad",
+    "Matificante",
+    "Natural",
+    "No comedogénico",
+    "No probado en animales",
+    "Orgánico",
+    "Perfumado",
+    "Protección del calor",
+    "Protección del color",
+    "Protección UV",
+    "Relajante muscular",
+    "Refrescante",
+    "Resistencia al agua",
+    "Sin alcohol",
+    "Sin azúcar",
+    "Sin colorantes",
+    "Sin enjuague",
+    "Sin flúor",
+    "Sin fragancia",
+    "Sin gluten",
+    "Sin lactosa",
+    "Sin siliconas",
+    "Sin sulfatos",
+    "Suavidad",
+    "Temporizador",
+    "Terapeútico",
+    "reafirmante",
+    "Ultrasónico",
+    "Vegano",
+    "Volumen"
+   ]
+  },
+  {
+   "id": "FactorSolar",
+   "etiqueta": "Factor solar",
+   "tipo": "numero",
+   "nivel": "producto",
+   "obligatorio": true,
+   "max": 172
+  },
+  {
+   "id": "FormaFarmaceutica",
+   "etiqueta": "Forma farmacéutica",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Aceite",
+    "Ampolla",
+    "Barra",
+    "Bruma",
+    "Cápsula",
+    "Colirio",
+    "Comprimido",
+    "Crema",
+    "Efervescente",
+    "Emulsión",
+    "Enjuague Bucal",
+    "Espuma",
+    "Gel",
+    "Gotas",
+    "Granulado",
+    "Inhalador",
+    "Inyectable",
+    "Jalea",
+    "Jarabe",
+    "Líquido",
+    "Loción",
+    "Óvulos",
+    "Parche",
+    "Pastilla",
+    "Polvo",
+    "Pomada",
+    "Supositorio",
+    "Roll-on",
+    "Sérum",
+    "Solución",
+    "Solución oral",
+    "Spray",
+    "Suspensión",
+    "Toallita",
+    "Ungüento"
+   ]
+  },
+  {
+   "id": "FormatoBelleza",
+   "etiqueta": "Formato belleza",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Aerosol",
+    "Ampolla",
+    "Blister",
+    "Botella",
+    "Caja",
+    "Cartucho",
+    "Crayon",
+    "Doypack",
+    "Estuche",
+    "Frasco",
+    "Gotero",
+    "Lápiz",
+    "Lata",
+    "Paquete",
+    "Roll-on",
+    "Sachet",
+    "Set",
+    "Stick",
+    "Sobre",
+    "Spray",
+    "Tableta",
+    "Tarro",
+    "Tubo"
+   ]
+  },
+  {
+   "id": "PesoDelProducto",
+   "etiqueta": "Peso del producto",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "PublicoRecomendado",
+   "etiqueta": "Público recomendado",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Adultos",
+    "Bebés",
+    "Deportistas",
+    "Infantil",
+    "Juvenil",
+    "Todas las edades"
+   ]
+  },
+  {
+   "id": "TipoDePiel",
+   "etiqueta": "Tipo de piel",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": true,
+   "opciones": [
+    "Grasa",
+    "Mixta",
+    "Normal",
+    "Seca",
+    "Sensible",
+    "Todo tipo de piel"
+   ]
+  },
+  {
+   "id": "UsoTratamientosDePiel",
+   "etiqueta": "Zona de aplicación",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": true,
+   "opciones": [
+    "Brazos",
+    "Caderas",
+    "Contorno de ojos",
+    "Cuello",
+    "Cuero cabelludo",
+    "Corporal",
+    "Espalda",
+    "Facial y Corporal",
+    "Gluteos",
+    "Hombros",
+    "Labios",
+    "Manos",
+    "Pecho",
+    "Pestañas",
+    "Piernas",
+    "Pies",
+    "Rodillas",
+    "facial",
+    "Uñas",
+    "Zona íntima"
+   ]
+  }
+ ],
  "669": [
   {
    "id": "InstruccionesDeUso",
@@ -2117,6 +2412,102 @@
    ]
   }
  ],
+ "1787": [
+  {
+   "id": "SellerWarrantyInMonths",
+   "etiqueta": "Garantía del proveedor en meses",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "1",
+    "2",
+    "3",
+    "6",
+    "9",
+    "12",
+    "15",
+    "18",
+    "24",
+    "34",
+    "48",
+    "60",
+    "72",
+    "84",
+    "96",
+    "108",
+    "120"
+   ]
+  },
+  {
+   "id": "CantidadContenidaEnElEmpaque",
+   "etiqueta": "Cantidad contenida en el empaque",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "FormaFarmaceutica",
+   "etiqueta": "Forma farmacéutica",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Aceite",
+    "Ampolla",
+    "Barra",
+    "Bruma",
+    "Cápsula",
+    "Colirio",
+    "Comprimido",
+    "Crema",
+    "Efervescente",
+    "Emulsión",
+    "Enjuague Bucal",
+    "Espuma",
+    "Gel",
+    "Gotas",
+    "Granulado",
+    "Inhalador",
+    "Inyectable",
+    "Jalea",
+    "Jarabe",
+    "Líquido",
+    "Loción",
+    "Óvulos",
+    "Parche",
+    "Pastilla",
+    "Polvo",
+    "Pomada",
+    "Supositorio",
+    "Roll-on",
+    "Sérum",
+    "Solución",
+    "Solución oral",
+    "Spray",
+    "Suspensión",
+    "Toallita",
+    "Ungüento"
+   ]
+  },
+  {
+   "id": "PesoDelProducto",
+   "etiqueta": "Peso del producto",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "Variation",
+   "etiqueta": "Variante",
+   "tipo": "texto",
+   "nivel": "variante",
+   "obligatorio": true,
+   "max": 127
+  }
+ ],
  "1937": [
   {
    "id": "InstruccionesDeUso",
@@ -2903,6 +3294,77 @@
     "facial",
     "Uñas",
     "Zona íntima"
+   ]
+  },
+  {
+   "id": "Variation",
+   "etiqueta": "Variante",
+   "tipo": "texto",
+   "nivel": "variante",
+   "obligatorio": true,
+   "max": 127
+  }
+ ],
+ "2289": [
+  {
+   "id": "NombreDelFabricanteOImportador",
+   "etiqueta": "Nombre del fabricante o importador",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "CuidadoDelProducto",
+   "etiqueta": "Cuidado",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "RecomendacionesDeUso",
+   "etiqueta": "Recomendaciones de uso",
+   "tipo": "texto",
+   "nivel": "producto",
+   "obligatorio": false,
+   "max": 172
+  },
+  {
+   "id": "ModoDeFabricacion",
+   "etiqueta": "Modo de fabricación",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "Artesanal",
+    "Industrial"
+   ]
+  },
+  {
+   "id": "SellerWarrantyInMonths",
+   "etiqueta": "Garantía del proveedor en meses",
+   "tipo": "lista",
+   "nivel": "producto",
+   "obligatorio": false,
+   "opciones": [
+    "1",
+    "2",
+    "3",
+    "6",
+    "9",
+    "12",
+    "15",
+    "18",
+    "24",
+    "34",
+    "48",
+    "60",
+    "72",
+    "84",
+    "96",
+    "108",
+    "120"
    ]
   },
   {

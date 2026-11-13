@@ -229,6 +229,18 @@ export default function TablaSincronizacionesSaga({
                             </span>
                           </div>
                         )}
+                        {esPendiente && f.imagen_pendiente && (
+                          <div style={{ marginBottom: 4 }}>
+                            <span className="chip-saga aviso" title="SAGA solo acepta las imágenes cuando el producto ya existe y con 2 minutos entre envíos. Se envían solas; «Consultar estado» las envía al momento.">
+                              Imágenes por enviar{f.imagenes_web ? ` (${f.imagenes_web} en la web)` : ""}
+                            </span>
+                          </div>
+                        )}
+                        {esPendiente && !f.imagen_pendiente && f.imagen_feed_id && !f.revision_fecha && (
+                          <div style={{ marginBottom: 4 }}>
+                            <span className="chip-saga">Imágenes enviadas · esperando a SAGA</span>
+                          </div>
+                        )}
                         {esPendiente && (f.revision_categoria || f.revision_puntaje !== null) && (
                           <div style={{ marginBottom: 4 }}>
                             {f.revision_categoria && <span className="chip-saga aviso">{nombreCategoria(f.revision_categoria)}</span>}{" "}

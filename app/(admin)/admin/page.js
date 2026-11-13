@@ -1,5 +1,7 @@
 import { after } from "next/server";
-import { getInventario, getMovimientos, getAlertasStock } from "../../../lib/inventario";
+import { getInventario, getMovimientos, getAlertasStock, leerFiltrosColumnas } from "../../../lib/inventario";
+import { query } from "../../../lib/db";
+import { getConfigStock } from "../../../lib/stock-config";
 import { reintentarStockPendiente } from "../../../lib/saga-sync";
 import { drenarCola } from "../../../lib/saga-cola";
 import Link from "next/link";
@@ -9,12 +11,6 @@ import Paginacion from "../../../components/admin/Paginacion";
 export const metadata = { title: "Productos · Panel Le Chic" };
 export const dynamic = "force-dynamic";
 
-const FILTROS = [
-  ["todas", "Todas"],
-  ["alertas", "Stock bajo"],
-  ["sin_control", "Sin control de cantidad"],
-];
-
 export default async function AdminProductosPage({ searchParams }) {
   const params = await searchParams;
   // Al abrir el panel se reintentan, sin demorar la página, los avisos de stock a SAGA que fallaron.
@@ -22,29 +18,33 @@ export default async function AdminProductosPage({ searchParams }) {
     await reintentarStockPendiente();
     await drenarCola(); // envíos que SAGA dejó en espera por su límite de 1 feed cada 2 minutos
   });
-  const q = typeof params?.q === "string" ? params.q.trim() : "";
-  const filtro = FILTROS.some(([k]) => k === params?.filtro) ? params.filtro : "todas";
   const guardado = params?.guardado === "1";
   const eliminado = params?.eliminado === "1";
   const eliminados = Number(params?.eliminados) || 0;
   const historialId = Number(params?.historial) || null;
 
+  const columnas = leerFiltrosColumnas(params);
+
   const porPagina = 30;
   const paginaPedida = Math.max(1, parseInt(params?.pagina, 10) || 1);
-  let { variantes, total } = await getInventario({ q, filtro, pagina: paginaPedida, porPagina });
+  let { variantes, total } = await getInventario({ columnas, pagina: paginaPedida, porPagina });
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
   const pagina = Math.min(paginaPedida, totalPaginas);
   if (pagina !== paginaPedida) {
-    ({ variantes } = await getInventario({ q, filtro, pagina, porPagina }));
+    ({ variantes } = await getInventario({ columnas, pagina, porPagina }));
   }
-  const [alertas, movimientos] = await Promise.all([
+  const [alertas, movimientos, marcas, cuentas, configStock] = await Promise.all([
     getAlertasStock(),
     historialId ? getMovimientos(historialId, 30) : Promise.resolve([]),
+    query("select distinct marca from productos where marca is not null and marca <> '' order by marca"),
+    query("select alias from cuentas_saga order by alias"),
+    getConfigStock(),
   ]);
 
   const href = (extra = {}) => {
     const sp = new URLSearchParams();
-    const val = { q, filtro: filtro !== "todas" ? filtro : "", pagina: "", historial: "", ...extra };
+    const delasColumnas = Object.fromEntries(Object.entries(columnas).map(([k, v]) => [`c_${k}`, v]));
+    const val = { ...delasColumnas, pagina: "", historial: "", ...extra };
     for (const [k, v] of Object.entries(val)) if (v) sp.set(k, String(v));
     const s = sp.toString();
     return s ? `/admin?${s}` : "/admin";
@@ -119,13 +119,15 @@ export default async function AdminProductosPage({ searchParams }) {
 
       <TablaProductos
         filas={filas}
-        q={q}
-        filtro={filtro}
         total={total}
         hrefNuevo="/admin/productos/nuevo"
         alertas={alertas.length}
-        hrefAlertas={href({ filtro: "alertas" })}
-        hrefSinFiltro={href({ filtro: "" })}
+        hrefAlertas={href({ c_stock: "alertas" })}
+        configStock={configStock}
+        columnas={columnas}
+        marcas={marcas.map((m) => m.marca)}
+        cuentas={cuentas.map((c) => c.alias)}
+        hrefLimpiarColumnas={href(Object.fromEntries(Object.keys(columnas).map((k) => [`c_${k}`, ""])))}
       />
 
       <Paginacion
