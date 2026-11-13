@@ -446,6 +446,8 @@ alter table sincronizaciones add constraint sincronizaciones_origen_check check 
 -- Imagen principal: SAGA solo la acepta cuando el producto ya existe, así que se envía al terminar el feed de creación.
 alter table sincronizaciones add column if not exists imagen_pendiente boolean not null default false;
 alter table sincronizaciones add column if not exists imagen_feed_id   text;
+-- Veces que se reenviaron solas las imágenes de un alta porque SAGA quedó con menos de las que tiene la web (máx. 1 por envío).
+alter table sincronizaciones add column if not exists imagen_reintentos int not null default 0;
 
 -- Acción con la que se sincroniza la variante en la cuenta: "crear" (alta desde la web) o el id de una acción
 -- configurable (vincular, vincular_tecnicos, vincular_todo, actualizar o propias). Una variante creada pasa

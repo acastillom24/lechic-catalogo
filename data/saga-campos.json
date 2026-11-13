@@ -897,6 +897,16 @@
     "Uñas",
     "Zona íntima"
    ]
+  },
+  {
+   "id": "CantidadProductosPielVariant",
+   "etiqueta": "Cantidad productos piel",
+   "tipo": "lista",
+   "nivel": "variante",
+   "obligatorio": true,
+   "opciones": [
+    "…"
+   ]
   }
  ],
  "669": [
