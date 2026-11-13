@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { drenarCola } from "../../../lib/saga-cola";
 import { normalizar, CLAVES_UMBRAL, IDS } from "../../../lib/stock-niveles";
-import { esMarca, conMarca } from "../../../lib/lista-abierta";
 import Papa from "papaparse";
 
 import {
@@ -937,12 +936,10 @@ export async function guardarIntegracionWeb(prevState, formData) {
       if (!id || ids.has(id)) throw new Error(`El atributo "${etiqueta}" está repetido.`);
       ids.add(id);
       const sinOpciones = tipo === "texto" || tipo === "numero";
-      const crudas = sinOpciones ? [] : (Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean);
-      // «…» no es un valor: marca la lista como abierta (acepta valores libres además de los listados).
-      const reales = [...new Set(crudas.filter((o) => !esMarca(o)))];
-      const opciones = sinOpciones ? [] : conMarca(reales, crudas.some(esMarca));
-      if (reales.some((o) => o.length > 100) || reales.length > 1000) throw new Error(`Atributo "${etiqueta}": máximo 1000 opciones de hasta 100 caracteres.`);
-      if (!sinOpciones && !reales.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
+      // «…» es una opción como cualquier otra: SAGA lo guarda como valor, así que se conserva y se envía tal cual.
+      const opciones = sinOpciones ? [] : [...new Set((Array.isArray(a.opciones) ? a.opciones : []).map((o) => String(o).trim()).filter(Boolean))];
+      if (opciones.some((o) => o.length > 100) || opciones.length > 1000) throw new Error(`Atributo "${etiqueta}": máximo 1000 opciones de hasta 100 caracteres.`);
+      if (!sinOpciones && !opciones.length) throw new Error(`Atributo "${etiqueta}": agrega al menos una opción.`);
       // Largo mínimo/máximo solo para texto libre (opcionales).
       const largo = (v) => (v === "" || v == null ? null : Number.isInteger(Number(v)) && Number(v) > 0 && Number(v) <= 1000 ? Number(v) : NaN);
       const min = tipo === "texto" ? largo(a?.min) : null;
@@ -1382,7 +1379,6 @@ export async function consultarAtributosSaga(categoriaId) {
     const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
     const TIPOS = { dropdown: "lista", multiselect: "multi", numberfield: "numero", textfield: "texto" };
     const num = (v) => (Number(v) > 0 ? Number(v) : null);
-    const relleno = (n) => /^(…|\.{2,})$/.test(String(n ?? "").trim());
     const atributos = lista(r?.Body?.Attribute).map((a) => ({
       id: a.FeedName,
       etiqueta: a.Label,
@@ -1392,9 +1388,8 @@ export async function consultarAtributosSaga(categoriaId) {
       descripcion: String(a.Description || "").split("//")[0].trim(),
       min: num(a.MinLength ?? a.MinimumLength),
       max: num(a.MaxLength),
-      opciones: lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && !relleno(n)),
-      // SAGA corta las listas largas con una opción "…": la lista es parcial y también acepta valores que no aparecen.
-      truncada: lista(a.Options?.Option).some((o) => relleno(o.Name)),
+      // "…" también es una opción válida (SAGA lo guarda como valor): se incluye.
+      opciones: lista(a.Options?.Option).map((o) => o.Name).filter(Boolean),
     }));
     if (!atributos.length) return { error: `SAGA no devolvió atributos para la categoría ${id}.` };
     return { atributos };

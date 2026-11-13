@@ -355,8 +355,11 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   function agregarVariante() {
     setVariantes((prev) => {
       // Al pasar de una a varias, la primera necesita un nombre para distinguirla (se puede cambiar).
-      const base = prev.length === 1 && !prev[0].nombre.trim() ? [{ ...prev[0], nombre: "Variante 1" }] : prev;
-      return [...base, { ...nuevaVariante(), abierta: true }];
+      const base = prev.length === 1 && (!prev[0].nombre.trim() || prev[0].nombre.trim() === "Único") ? [{ ...prev[0], nombre: "Variante 1" }] : prev;
+      // La nueva también sale con nombre (se puede cambiar): «Variante N», sin repetir uno existente.
+      let n = base.length + 1;
+      while (base.some((x) => x.nombre.trim().toLowerCase() === `variante ${n}`)) n++;
+      return [...base, { ...nuevaVariante(), nombre: `Variante ${n}`, abierta: true }];
     });
     // La sección «Variantes» se muestra al tener más de una: se deja abierta para ver la nueva.
     setTimeout(() => {
@@ -366,7 +369,15 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   }
 
   function quitarVariante(i) {
-    setVariantes((prev) => (prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev));
+    const v = variantes[i];
+    // Una variante ya guardada se elimina al guardar el producto, con su historial de stock: se pide confirmación.
+    if (v?.id && !confirm(`Quitar «${v.nombre.trim() || "Sin nombre"}»: se eliminará al guardar, junto con su historial de stock y su vínculo con SAGA.\n\nSi solo quieres ocultarla del sitio, cancela y desmarca «Activa».\n\n¿Quitarla?`)) return;
+    setVariantes((prev) => {
+      if (prev.length <= 1) return prev;
+      const quedan = prev.filter((_, idx) => idx !== i);
+      // Al quedar una sola, el producto vuelve a ser simple: su única variante se llama «Único» (el nombre ya no se muestra).
+      return quedan.length === 1 ? [{ ...quedan[0], nombre: "Único" }] : quedan;
+    });
   }
 
   function alCambiarNombreProducto(valor) {
@@ -459,7 +470,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       condicion: saga.condicion, caracteristicas: saga.caracteristicas, contenido_paquete: saga.contenidoPaquete,
       paquete_ancho: num(saga.paqueteAncho), paquete_largo: num(saga.paqueteLargo),
       paquete_alto: num(saga.paqueteAlto), paquete_peso: num(saga.paquetePeso),
-      usar_sku_padre: permiteVar && saga.usarSkuPadre,
+      usar_sku_padre: permiteVar && !sinVariantes && saga.usarSkuPadre,
       volumen: saga.volumen || null, cantidad_empaque: saga.cantidadEmpaque || null,
       fragancia_perfume: saga.fraganciaPerfume, notas_aromaticas: saga.notasAromaticas || null, saga_extras: saga.extras,
       atributos: { registro_sanitario: atributos.registroSanitario, variante_extras: atributos.varianteExtras, propios: atributos.propios },
@@ -488,14 +499,28 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       : conPaquete;
     const eq = extrasConPropios(opcionesSaga, categoria, pCuenta.saga_categoria, pCuenta.atributos.propios, pCuenta.saga_extras, pCuenta.atributos.variante_extras);
     const p = { ...pCuenta, saga_extras: eq.extras, atributos: { ...pCuenta.atributos, variante_extras: eq.varianteExtras } };
-    return validarProducto(p, heredarVariante(p.atributos, ef.v), opcionesSaga);
+    return validarProducto(p, { ...heredarVariante(p.atributos, ef.v), es_unica: sinVariantes }, opcionesSaga);
   }
   // Cada cuenta puede tener sus propios precios: se valida por cuenta. Lo que falta en todas se lista una vez.
+  // Con una acción de vincular/actualizar solo importan los datos que ESA acción envía (los vacíos no viajan).
+  const MAPA_FALTANTE = [
+    [/^Nombre/, "nombre"], [/^Descripción/, "descripcion"], [/^Imagen/, "imagen"], [/^Precio/, "precio"],
+    [/^Registro sanitario/, "registro_sanitario"], [/^Ancho del paquete/, "paquete_ancho"], [/^Largo del paquete/, "paquete_largo"],
+    [/^Alto del paquete/, "paquete_alto"], [/^Peso del paquete/, "paquete_peso"], [/^Contenido del paquete/, "paquete_contenido"],
+    [/^Modelo/, "modelo"], [/^País de producción/, "pais"], [/^Condición/, "condicion"],
+  ];
+  const faltantesDeAccion = (v, a) => {
+    const modo = accionDe(v, a);
+    if (modo === "crear") return faltantesSaga(v, a);
+    const envia = (opcionesSaga.acciones || []).find((x) => x.id === modo)?.atributos;
+    if (!envia) return []; // ninguna / desvincular / acción desconocida: no envía datos
+    return faltantesSaga(v, a).filter((t) => MAPA_FALTANTE.some(([re, id]) => re.test(t) && envia.includes(id)));
+  };
   function faltantesPorCuenta(v) {
-    // Solo se exige todo en las cuentas donde se va a crear; vincular no envía datos.
-    const aliases = cuentasMarcadas.filter((a) => accionDe(v, a) === "crear");
+    // Crear exige todo; las acciones de vincular, solo lo que envían.
+    const aliases = cuentasMarcadas.filter((a) => accionDe(v, a) === "crear" || (opcionesSaga.acciones || []).some((x) => x.id === accionDe(v, a)));
     if (!aliases.length) return { comunes: [], propios: [], total: 0 };
-    const porCuenta = aliases.map((a) => ({ alias: a, items: faltantesSaga(v, a) }));
+    const porCuenta = aliases.map((a) => ({ alias: a, items: faltantesDeAccion(v, a) }));
     const comunes = porCuenta[0].items.filter((f) => porCuenta.every((c) => c.items.includes(f)));
     const propios = porCuenta
       .map((c) => ({ alias: c.alias, items: c.items.filter((f) => !comunes.includes(f)) }))
@@ -540,7 +565,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   const estadoSagaChip = cuentasMarcadas.length > 0 && (
     <span className={variantesIncompletas ? "chip-saga aviso" : "chip-saga ok"}>
       {variantesIncompletas
-        ? `SAGA: ${variantesIncompletas} variante${variantesIncompletas === 1 ? "" : "s"} con datos pendientes`
+        ? sinVariantes
+          ? `SAGA: faltan ${faltantesPorVariante[0].total} dato${faltantesPorVariante[0].total === 1 ? "" : "s"} del producto`
+          : `SAGA: ${variantesIncompletas} variante${variantesIncompletas === 1 ? "" : "s"} con datos pendientes`
         : "SAGA: listo para enviar"}
     </span>
   );
@@ -1267,7 +1294,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
               </div>
 
               {/* 4. SKU padre */}
-              <div className={permiteVar ? "pf-paso" : "pf-paso pf-paso-apagado"}>
+              <div className={permiteVar && !sinVariantes ? "pf-paso" : "pf-paso pf-paso-apagado"}>
                 <div className="pf-paso-cab">
                   <span className="pf-paso-n">4</span>
                   <div>
@@ -1275,7 +1302,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                     <small>
                       {!permiteVar
                         ? "No disponible: esta categoría no maneja variantes (se activa en Configuración → SAGA)."
-                        : skuPadreBloqueado
+                        : sinVariantes && !skuPadreBloqueado
+                          ? "Se activa al agregar una segunda variante: con una sola, todo va a nivel de producto y no hace falta."
+                          : skuPadreBloqueado
                           ? "Ya se envió a SAGA: no se puede cambiar."
                           : "Agrupa las variantes en una sola ficha de SAGA. Sin marcar, cada variante es un producto suelto."}
                     </small>
@@ -1285,13 +1314,13 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                   <input
                     type="checkbox"
                     name="usarSkuPadre"
-                    checked={permiteVar && saga.usarSkuPadre}
-                    disabled={skuPadreBloqueado || !permiteVar}
+                    checked={permiteVar && !sinVariantes && saga.usarSkuPadre}
+                    disabled={skuPadreBloqueado || !permiteVar || sinVariantes}
                     onChange={(e) => cambiarSaga({ usarSkuPadre: e.target.checked })}
                   />
                   Usar SKU padre
                 </label>
-                {permiteVar && saga.usarSkuPadre && (
+                {permiteVar && !sinVariantes && saga.usarSkuPadre && (
                   <div className="campo">
                     <small>
                       SKU padre en SAGA: <strong>{(skuPadreBloqueado ? producto?.saga?.skuPadre || producto?.id : saga.skuPadre) || id || "(id del producto)"}</strong>

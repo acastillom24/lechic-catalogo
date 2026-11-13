@@ -1,7 +1,6 @@
 "use client";
 
 import SelectMulti from "./SelectMulti";
-import { esAbierta, opcionesReales } from "../../lib/lista-abierta";
 
 /**
  * Campos extra de la categoría SAGA elegida (ver lib/saga-campos.js). `campos` ya viene filtrado por nivel;
@@ -19,8 +18,7 @@ export default function CamposExtra({ campos, valores, onChange, prefijo = "extr
       {campos.map((c) => {
         const valor = valores?.[c.id];
         const idCampo = `${prefijo}-${c.id}`;
-        const opciones = [...new Set(opcionesReales(c))];
-        const abierta = esAbierta(c); // lista abierta: además de la lista se acepta un valor libre
+        const opciones = [...new Set(c.opciones || [])];
         const etiqueta = (
           <>
             {c.etiqueta} {c.obligatorio && <em>obligatorio</em>}
@@ -33,28 +31,8 @@ export default function CamposExtra({ campos, valores, onChange, prefijo = "extr
           return (
             <div className="campo" key={c.id}>
               <label>{etiqueta}</label>
-              <SelectMulti valor={marcados} opciones={opciones} onChange={(v) => poner(c.id, v)} placeholder="Elegir…" libre={abierta} />
+              <SelectMulti valor={marcados} opciones={opciones} onChange={(v) => poner(c.id, v)} placeholder="Elegir…" />
               {hereda && marcados.length === 0 && textoH(c.id) && <small>General: {textoH(c.id)}</small>}
-            </div>
-          );
-        }
-
-        if (c.tipo === "lista" && abierta) {
-          const idLista = `${idCampo}-lista`;
-          return (
-            <div className="campo" key={c.id}>
-              <label htmlFor={idCampo}>{etiqueta}</label>
-              <input
-                id={idCampo}
-                list={idLista}
-                maxLength={100}
-                autoComplete="off"
-                placeholder={hereda && textoH(c.id) ? `General: ${textoH(c.id)}` : "Elige de la lista o escribe otro valor"}
-                value={valor ?? ""}
-                onChange={(e) => poner(c.id, e.target.value)}
-              />
-              <datalist id={idLista}>{opciones.map((o) => <option key={o} value={o} />)}</datalist>
-              <small style={{ color: "var(--gris)" }}>Lista abierta: SAGA acepta también valores que no aparecen aquí.</small>
             </div>
           );
         }

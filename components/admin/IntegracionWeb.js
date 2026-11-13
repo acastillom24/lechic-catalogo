@@ -270,7 +270,6 @@ export default function IntegracionWeb({ categoriasWeb = [], plataformas = [], c
                                   <div className="campo">
                                     <label>Opciones de «{a.etiqueta || "atributo"}» <em>una por línea</em></label>
                                     <textarea rows={3} value={a.opcionesTexto} onChange={(e) => cambiar(k, { opcionesTexto: e.target.value })} />
-                                    <small style={{ color: "var(--gris)" }}>Si agregas una línea con «…», la lista queda abierta: en el producto también se podrá escribir otro valor (SAGA lo acepta).</small>
                                   </div>
                                 )}
                                 <ConsultaSagaAtributo

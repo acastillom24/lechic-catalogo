@@ -599,7 +599,8 @@
     "Chocolate anaranjado",
     "Chocolate oscuro",
     "Chocolate",
-    "Burdeo"
+    "Burdeo",
+    "…"
    ]
   }
  ],
@@ -1841,7 +1842,8 @@
     "8.5 GR",
     "9 GR",
     "9.5 GR",
-    "10 GR"
+    "10 GR",
+    "…"
    ]
   },
   {
@@ -2127,7 +2129,8 @@
     "Chocolate medio",
     "Vino tinto",
     "Chocolate",
-    "Chocolate intenso"
+    "Chocolate intenso",
+    "…"
    ]
   }
  ],
@@ -2408,7 +2411,8 @@
     "237 ML",
     "240 ML",
     "244 ML",
-    "250 ML"
+    "250 ML",
+    "…"
    ]
   }
  ],
@@ -4014,7 +4018,8 @@
     "Chocolate",
     "Negro profundo",
     "Azul",
-    "Negro"
+    "Negro",
+    "…"
    ]
   }
  ],
@@ -4874,7 +4879,8 @@
     "2 LT",
     "3 LT",
     "3.8 LT",
-    "5 LT"
+    "5 LT",
+    "…"
    ]
   }
  ]
