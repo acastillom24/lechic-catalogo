@@ -28,8 +28,7 @@ function convertir(respuesta) {
   return atributos
     .filter((a) => GRUPOS[a.GroupName] && !CUBIERTOS.has(a.FeedName))
     .map((a) => {
-      const opciones = lista(a.Options?.Option).map((o) => o.Name).filter((n) => n && n !== "…"); // SAGA mete una opción "…" de relleno al final de listas largas
-      const abierta = lista(a.Options?.Option).some((o) => o.Name === "…"); // lista parcial: SAGA también acepta otros valores
+      const opciones = lista(a.Options?.Option).map((o) => o.Name).filter(Boolean); // SAGA agrega "…" al final de listas largas y lo guarda como valor: se conserva como opción
       const max = Number(a.MaxLength);
       return {
         id: a.FeedName,
@@ -38,7 +37,6 @@ function convertir(respuesta) {
         nivel: GRUPOS[a.GroupName],
         obligatorio: a.isMandatory === "1",
         ...(opciones.length ? { opciones } : {}),
-        ...(opciones.length && abierta ? { abierta: true } : {}),
         ...(max > 0 ? { max } : {}),
       };
     });
