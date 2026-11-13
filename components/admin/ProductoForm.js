@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { guardarProducto, traerDatosSaga } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
 import { LIMITES, CALIDAD, GENERO_POR_CATEGORIA, validarProducto, advertenciasSaga } from "../../lib/saga-mapeo";
-import { esCategoriaGeneral, heredarVariante, imagenesRequeridas, IMAGENES_TOPE } from "../../lib/saga-campos";
+import { esCategoriaGeneral, camposDe, heredarVariante, imagenesRequeridas, IMAGENES_TOPE } from "../../lib/saga-campos";
 import ImagenesVariante from "./ImagenesVariante";
 import SelectBuscador from "./SelectBuscador";
 import CamposExtra from "./CamposExtra";
@@ -188,6 +188,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
 
   // Categoría sin variantes: el producto es una sola ficha (si ya tenía varias de antes, se siguen mostrando todas).
   const sinVariantes = variantes.length <= 1;
+  // El paso «SKU padre» solo aplica con 2 o más variantes en una categoría que las admita.
+  const verSkuPadre = permiteVar && !sinVariantes;
   const nomV = (v) => (sinVariantes && !v.nombre.trim() ? "Único" : v.nombre);
   // Sin variantes la descripción es una sola (la del producto): la de la variante solo existe cuando hay varias.
   const attrsDe = (v) => (sinVariantes ? {} : v.attrs || {});
@@ -528,6 +530,27 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     return { comunes, propios, total: comunes.length + propios.reduce((n, c) => n + c.items.length, 0) };
   }
   const nombreCuenta = (alias) => cuentasSaga.find((c) => c.alias === alias)?.nombre || alias;
+  // Aviso por campo: un dato obligatorio de SAGA que falta porque NO está enlazado a ningún atributo web
+  // (Configuración → Integraciones → Web). Distinto de "enlazado pero vacío": ahí solo hay que llenar el atributo.
+  const camposSinEnlace = (f) => {
+    if (!conSaga) return [];
+    const faltan = new Set([...f.comunes, ...f.propios.flatMap((c) => c.items)]);
+    const cats = new Set(cuentasMarcadas.map((a) => String((catCuenta[a]?.personalizar && catCuenta[a].sagaCategoria) || saga.sagaCategoria || "")).filter(Boolean));
+    const salida = [];
+    salida.cats = [];
+    for (const c of cats) {
+      const enlazados = new Set(Object.keys(mapaCampos(opcionesSaga.equivalencias, categoria, "saga", c)));
+      for (const campo of camposDe(c)) {
+        if (campo.obligatorio && faltan.has(campo.etiqueta) && !enlazados.has(campo.id) && !salida.includes(campo.etiqueta)) {
+          salida.push(campo.etiqueta);
+          if (!salida.cats.includes(c)) salida.cats.push(c);
+        }
+      }
+    }
+    return salida;
+  };
+  // Nombre de la(s) categoría(s) primaria(s) de SAGA elegidas en el paso 2, tal como se ven en el selector.
+  const nombresCategoriaSaga = (ids) => ids.map((id) => { const c = (opcionesSaga.categorias || []).find((x) => String(x.id) === String(id)); return c ? `${c.id} - ${c.nombre}` : id; }).join(" / ");
   const faltantesPorVariante = variantes.map(faltantesPorCuenta);
   const variantesIncompletas = faltantesPorVariante.filter((f) => f.total).length;
 
@@ -642,16 +665,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                     )}
                   </summary>
                   <div className="form-grid saga-cuerpo">
-                    {faltantesPorVariante[i].total > 0 && (
-                      <ul className="saga-faltantes">
-                        {faltantesPorVariante[i].comunes.map((f) => <li key={f}>{f}</li>)}
-                        {faltantesPorVariante[i].propios.map((c) => (
-                          <li key={c.alias}>
-                            <strong>En {nombreCuenta(c.alias)}:</strong> {c.items.join("; ")}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    {listaFaltantes(i)}
 
                     <div className="campo">
                       {!solo && (
@@ -883,14 +897,22 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   // Lo que falta para publicar una variante (comunes a las cuentas y propio de cada una).
   const listaFaltantes = (i) =>
     faltantesPorVariante[i].total > 0 && (
-      <ul className="saga-faltantes">
-        {faltantesPorVariante[i].comunes.map((f) => <li key={f}>{f}</li>)}
-        {faltantesPorVariante[i].propios.map((c) => (
-          <li key={c.alias}>
-            <strong>En {nombreCuenta(c.alias)}:</strong> {c.items.join("; ")}
-          </li>
-        ))}
-      </ul>
+      <>
+        <ul className="saga-faltantes">
+          {faltantesPorVariante[i].comunes.map((f) => <li key={f}>{f}</li>)}
+          {faltantesPorVariante[i].propios.map((c) => (
+            <li key={c.alias}>
+              <strong>En {nombreCuenta(c.alias)}:</strong> {c.items.join("; ")}
+            </li>
+          ))}
+        </ul>
+        {camposSinEnlace(faltantesPorVariante[i]).length > 0 && (
+          <p className="saga-faltantes" style={{ margin: 0 }}>
+            <strong>Sin enlazar a un atributo:</strong> {camposSinEnlace(faltantesPorVariante[i]).join(", ")}, ningún atributo de «{nombreCategoriaWeb}» alimenta ese campo de SAGA.
+            Enlázalos en Configuración → Integraciones → Equivalencias por categoría → {nombresCategoriaSaga(camposSinEnlace(faltantesPorVariante[i]).cats)}
+          </p>
+        )}
+      </>
     );
 
   // Las secciones principales arrancan abiertas y todo lo de adentro minimizado. Al navegar o fallar la validación del navegador se abren las secciones que contienen el campo.
@@ -1220,10 +1242,73 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 </div>
               </div>
 
-              {/* 2. Tipo de vinculación o creación */}
+              {/* 2. Categoría primaria */}
               <div className="pf-paso">
                 <div className="pf-paso-cab">
                   <span className="pf-paso-n">2</span>
+                  <div>
+                    <label htmlFor="sagaCategoria"><strong>Categoría primaria</strong> <em>obligatorio</em></label>
+                    <small>
+                      Solo las categorías de SAGA equivalentes a «{nombreCategoriaWeb}». Define qué atributos se piden y se envían.
+                    </small>
+                  </div>
+                </div>
+                <SelectBuscador
+                  id="sagaCategoria"
+                  name="sagaCategoria"
+                  valor={saga.sagaCategoria}
+                  onChange={(v) => cambiarSaga({ sagaCategoria: v })}
+                  opciones={categoriasSagaOpc.map((c) => ({ valor: c.id, etiqueta: `${c.id} — ${c.nombre}` }))}
+                  placeholder={categoriasSagaOpc.length ? "Elegir categoría de SAGA…" : "Sin equivalencias para esta categoría"}
+                />
+                {idsEquivalentes.length === 0 && (
+                  <small style={{ color: "#9a6700" }}>
+                    ⚠ La categoría «{nombreCategoriaWeb}» aún no tiene equivalencia en SAGA. Asígnala en Configuración → Integraciones → Web.
+                  </small>
+                )}
+              </div>
+
+              {/* 3. SKU padre: solo con 2 o más variantes */}
+              {verSkuPadre && (
+                <div className="pf-paso">
+                  <div className="pf-paso-cab">
+                    <span className="pf-paso-n">3</span>
+                    <div>
+                      <strong>SKU padre</strong>
+                      <small>
+                        {skuPadreBloqueado
+                          ? "Ya se envió a SAGA: aquí no cambia. Para agrupar SKU ya creados usa la acción «Actualizar» con el atributo «SKU padre» (pruébalo antes con SKU de prueba)."
+                          : "Agrupa las variantes en una sola ficha de SAGA. Sin marcar, cada variante es un producto suelto."}
+                      </small>
+                    </div>
+                  </div>
+                  <label className="campo-check">
+                    <input
+                      type="checkbox"
+                      name="usarSkuPadre"
+                      checked={saga.usarSkuPadre}
+                      disabled={skuPadreBloqueado}
+                      onChange={(e) => cambiarSaga({ usarSkuPadre: e.target.checked })}
+                    />
+                    Usar SKU padre
+                  </label>
+                  {saga.usarSkuPadre && (
+                    <div className="campo">
+                      <small>
+                        SKU padre en SAGA: <strong>{(skuPadreBloqueado ? producto?.saga?.skuPadre || producto?.id : saga.skuPadre) || id || "(id del producto)"}</strong>
+                        {skuPadreBloqueado
+                          ? " — ya se envió: no cambia aunque edites el de la web."
+                          : " — sale del SKU padre de Identificación. Queda guardado en el primer envío y se reutiliza al agregar variantes."}
+                      </small>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Acciones por cuenta (paso 3 o 4) */}
+              <div className="pf-paso">
+                <div className="pf-paso-cab">
+                  <span className="pf-paso-n">{verSkuPadre ? 4 : 3}</span>
                   <div>
                     <strong>¿Qué quieres hacer en cada cuenta?</strong>
                     <small>Crear un producto nuevo en SAGA o vincular/actualizar uno que ya existe con ese SKU.</small>
@@ -1265,71 +1350,6 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                   </div>
                 )}
                 {sinVariantes && cuentasMarcadas.length > 0 && listaFaltantes(0)}
-              </div>
-
-              {/* 3. Categoría primaria */}
-              <div className="pf-paso">
-                <div className="pf-paso-cab">
-                  <span className="pf-paso-n">3</span>
-                  <div>
-                    <label htmlFor="sagaCategoria"><strong>Categoría primaria</strong> <em>obligatorio</em></label>
-                    <small>
-                      Solo las categorías de SAGA equivalentes a «{nombreCategoriaWeb}». Define qué atributos se piden y se envían.
-                    </small>
-                  </div>
-                </div>
-                <SelectBuscador
-                  id="sagaCategoria"
-                  name="sagaCategoria"
-                  valor={saga.sagaCategoria}
-                  onChange={(v) => cambiarSaga({ sagaCategoria: v })}
-                  opciones={categoriasSagaOpc.map((c) => ({ valor: c.id, etiqueta: `${c.id} — ${c.nombre}` }))}
-                  placeholder={categoriasSagaOpc.length ? "Elegir categoría de SAGA…" : "Sin equivalencias para esta categoría"}
-                />
-                {idsEquivalentes.length === 0 && (
-                  <small style={{ color: "#9a6700" }}>
-                    ⚠ La categoría «{nombreCategoriaWeb}» aún no tiene equivalencia en SAGA. Asígnala en Configuración → Integraciones → Web.
-                  </small>
-                )}
-              </div>
-
-              {/* 4. SKU padre */}
-              <div className={permiteVar && !sinVariantes ? "pf-paso" : "pf-paso pf-paso-apagado"}>
-                <div className="pf-paso-cab">
-                  <span className="pf-paso-n">4</span>
-                  <div>
-                    <strong>SKU padre</strong>
-                    <small>
-                      {!permiteVar
-                        ? "No disponible: esta categoría no maneja variantes (se activa en Configuración → SAGA)."
-                        : sinVariantes && !skuPadreBloqueado
-                          ? "Se activa al agregar una segunda variante: con una sola, todo va a nivel de producto y no hace falta."
-                          : skuPadreBloqueado
-                          ? "Ya se envió a SAGA: no se puede cambiar."
-                          : "Agrupa las variantes en una sola ficha de SAGA. Sin marcar, cada variante es un producto suelto."}
-                    </small>
-                  </div>
-                </div>
-                <label className="campo-check">
-                  <input
-                    type="checkbox"
-                    name="usarSkuPadre"
-                    checked={permiteVar && !sinVariantes && saga.usarSkuPadre}
-                    disabled={skuPadreBloqueado || !permiteVar || sinVariantes}
-                    onChange={(e) => cambiarSaga({ usarSkuPadre: e.target.checked })}
-                  />
-                  Usar SKU padre
-                </label>
-                {permiteVar && !sinVariantes && saga.usarSkuPadre && (
-                  <div className="campo">
-                    <small>
-                      SKU padre en SAGA: <strong>{(skuPadreBloqueado ? producto?.saga?.skuPadre || producto?.id : saga.skuPadre) || id || "(id del producto)"}</strong>
-                      {skuPadreBloqueado
-                        ? " — ya se envió: no cambia aunque edites el de la web."
-                        : " — sale del SKU padre de Identificación. Queda guardado en el primer envío y se reutiliza al agregar variantes."}
-                    </small>
-                  </div>
-                )}
               </div>
             </div>
           </details>
