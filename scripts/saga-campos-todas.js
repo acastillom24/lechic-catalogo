@@ -97,7 +97,7 @@ async function main() {
     let atributos;
     for (let intento = 1; intento <= 2; intento++) {
       try {
-        atributos = convertir(await sc.atributosCategoria(cred, h.id));
+        atributos = convertir(await sc.atributosCategoria(cred, h.id), h.id);
         break;
       } catch (e) {
         if (intento === 2) {

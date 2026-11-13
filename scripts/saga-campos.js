@@ -23,9 +23,20 @@ const TIPOS = { dropdown: "lista", multiselect: "multi", numberfield: "numero", 
 
 const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
 
-function convertir(respuesta) {
+// Atributos que SAGA exige o lleva en los productos de una categoría pero NO declara en GetCategoryAttributes. Se agregan
+// siempre al regenerar esa categoría (si la API algún día los declara, gana lo que devuelva la API).
+//   492 (protección solar): CantidadProductosPielVariant es una variación de primer nivel; los productos reales de la
+//   categoría la llevan con la opción "…" (el valor que SAGA añade al final de sus listas). Sin ella el alta falla con
+//   «Variation attributes section is missing» / [UNEX].
+const EXTRAS_OCULTOS = {
+  492: [
+    { id: "CantidadProductosPielVariant", etiqueta: "Cantidad productos piel", tipo: "lista", nivel: "variante", obligatorio: true, opciones: ["…"] },
+  ],
+};
+
+function convertir(respuesta, categoriaId) {
   const atributos = lista(respuesta?.Body?.Attribute);
-  return atributos
+  const convertidos = atributos
     .filter((a) => GRUPOS[a.GroupName] && !CUBIERTOS.has(a.FeedName))
     .map((a) => {
       const opciones = lista(a.Options?.Option).map((o) => o.Name).filter(Boolean); // SAGA agrega "…" al final de listas largas y lo guarda como valor: se conserva como opción
@@ -40,6 +51,9 @@ function convertir(respuesta) {
         ...(max > 0 ? { max } : {}),
       };
     });
+  if (!convertidos.length) return convertidos; // sin respuesta de SAGA no se inventa nada
+  const ocultos = (EXTRAS_OCULTOS[categoriaId] || []).filter((o) => !convertidos.some((c) => c.id === o.id));
+  return [...convertidos, ...ocultos];
 }
 
 async function main() {
@@ -56,7 +70,7 @@ async function main() {
   });
   const actual = fs.existsSync(ARCHIVO) ? JSON.parse(fs.readFileSync(ARCHIVO, "utf8")) : {};
   for (const id of ids) {
-    const atributos = convertir(await sc.atributosCategoria(cred, id));
+    const atributos = convertir(await sc.atributosCategoria(cred, id), id);
     if (!atributos.length) {
       console.error(`Categoría ${id}: SAGA no devolvió atributos (¿id correcto? ¿es una categoría hoja ★?). No se guarda.`);
       continue;
