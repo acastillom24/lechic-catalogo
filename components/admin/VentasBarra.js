@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { IconoBuscar, IconoCerrar, IconoExportar } from "./Iconos";
+import useBarraFija from "./useBarraFija";
 
 /**
  * Barra del reporte de ventas, simple:
@@ -13,6 +14,8 @@ import { IconoBuscar, IconoCerrar, IconoExportar } from "./Iconos";
  */
 export default function VentasBarra({ ocultos = {}, q, chips, hrefCsv, hrefExcel, accion = "/admin/ventas" }) {
   const menu = useRef(null);
+  const barra = useRef(null);
+  useBarraFija(barra);
 
   // El menú Exportar se cierra al hacer clic fuera o con Escape.
   useEffect(() => {
@@ -29,7 +32,7 @@ export default function VentasBarra({ ocultos = {}, q, chips, hrefCsv, hrefExcel
   }, []);
 
   return (
-    <div className="form-grid" style={{ gap: 10 }}>
+    <div ref={barra} className="form-grid barra-fija" style={{ gap: 10 }}>
       <form method="get" action={accion} className="admin-barra ventas-barra">
         {Object.entries(ocultos).map(([k, v]) => (
           <input key={k} type="hidden" name={k} value={v} />

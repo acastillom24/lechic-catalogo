@@ -1,14 +1,13 @@
 import { getVariantesParaExportar, leerFiltrosColumnas } from "../../../../lib/inventario";
-import { variantesACsv, plantillaCsv } from "../../../../lib/csv";
+import writeExcelFile from "write-excel-file/node";
+import { ENCABEZADOS, variantesACsv, variantesAFilas } from "../../../../lib/csv";
 
 /**
- * Exporta el catálogo a CSV (mismo formato que acepta "Importar CSV").
- * Protegido por proxy.js (/admin/:path*).
+ * Exporta el catálogo a CSV o Excel (formato=csv | xlsx). Protegido por proxy.js (/admin/:path*).
  *
  *   alcance=seleccion  -> solo las variantes en `ids` (separadas por coma)
  *   alcance=filtrados  -> lo que coincide con `q`, `filtro` y los filtros de columna `c_*`
  *   alcance=todo       -> todo el catálogo
- *   alcance=plantilla  -> solo los encabezados
  *
  * Se usa POST para selecciones grandes (la lista de ids no cabe en una URL).
  */
@@ -16,21 +15,41 @@ export const dynamic = "force-dynamic";
 
 const FILTROS = ["todas", "alertas", "sin_control"];
 
-function respuestaCsv(texto, nombre) {
-  return new Response(texto, {
+const MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const COLUMNAS_NUMERO = new Set(["precio", "precio_oferta", "stock_cantidad", "stock_minimo", "costo"]);
+const COLUMNAS_ANCHAS = { descripcion: 40, nombre_producto: 30, nombre_variante: 22, imagen: 30 };
+
+function respuesta(cuerpo, tipo, nombre) {
+  return new Response(cuerpo, {
     headers: {
-      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Type": tipo,
       "Content-Disposition": `attachment; filename="${nombre}"`,
       "Cache-Control": "no-store",
     },
   });
 }
 
+async function excel(variantes) {
+  const cabecera = ENCABEZADOS.map((h) => ({ value: h, fontWeight: "bold", backgroundColor: "#F3E6E8" }));
+  const filas = variantesAFilas(variantes).map((fila) =>
+    fila.map((valor, i) => {
+      if (COLUMNAS_NUMERO.has(ENCABEZADOS[i]) && valor !== "" && Number.isFinite(Number(valor))) {
+        return { value: Number(valor), type: Number };
+      }
+      return { value: String(valor ?? ""), type: String };
+    })
+  );
+  return writeExcelFile([cabecera, ...filas], {
+    columns: ENCABEZADOS.map((h) => ({ width: COLUMNAS_ANCHAS[h] || 16 })),
+    sheet: "Productos",
+  }).toBuffer();
+}
+
 async function exportar(datos) {
   const alcance = String(datos.alcance || "todo");
   const hoy = new Date().toISOString().slice(0, 10);
 
-  if (alcance === "plantilla") return respuestaCsv(plantillaCsv(), "plantilla-productos.csv");
+  const formato = datos.formato === "xlsx" ? "xlsx" : "csv";
 
   let opciones = {};
   if (alcance === "seleccion") {
@@ -48,7 +67,9 @@ async function exportar(datos) {
   }
 
   const variantes = await getVariantesParaExportar(opciones);
-  return respuestaCsv(variantesACsv(variantes), `productos-${alcance}-${hoy}.csv`);
+  const nombre = `productos-${alcance}-${hoy}`;
+  if (formato === "xlsx") return respuesta(await excel(variantes), MIME_XLSX, `${nombre}.xlsx`);
+  return respuesta(variantesACsv(variantes), "text/csv; charset=utf-8", `${nombre}.csv`);
 }
 
 export async function GET(request) {

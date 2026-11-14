@@ -6,7 +6,6 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { drenarCola } from "../../../lib/saga-cola";
 import { normalizar, CLAVES_UMBRAL, IDS } from "../../../lib/stock-niveles";
-import Papa from "papaparse";
 
 import {
   NOMBRE_COOKIE,
@@ -21,10 +20,9 @@ import { query, transaction } from "../../../lib/db";
 import { slugify } from "../../../lib/slug";
 import { getMarcas, getPestanas } from "../../../lib/data";
 import { getConfigMarcas } from "../../../lib/marcas-config";
-import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
-import { fijarStock } from "../../../lib/inventario";
+import { guardarProductoDesdeForm } from "../../../lib/productos-guardar";
 import {
-  refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock, eliminarEnSaga,
+  reintentarStockPendiente, sincronizarStockVariante, eliminarEnSaga,
   consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
 } from "../../../lib/saga-sync";
 import { getOpcionesSaga, getBaseIntegracion, IDS_BASE, CLAVE as CLAVE_SAGA_OPCIONES, CLAVE_ATRIBUTOS, CLAVE_CATALOGO, CLAVE_EQUIVALENCIAS } from "../../../lib/saga-opciones";
@@ -38,6 +36,15 @@ import { IMAGENES_TOPE } from "../../../lib/saga-campos";
 import { guardarSeguimiento } from "../../../lib/reclamos";
 import { credenciales as credencialesSaga, producto as productoSaga, productosPorBusqueda as busquedaSaga, atributosCategoria as atributosCategoriaSaga, marcas as marcasSagaApi } from "../../../lib/sellercenter";
 import { desdeSaga } from "../../../lib/saga-mapeo";
+import { cifrar as cifrarCredencial } from "../../../lib/cifrado";
+import {
+  urlBaseValida as urlBaseRipleyValida,
+  credenciales as credencialesMirakl,
+  probarConexion as miraklProbar,
+  jerarquias as miraklJerarquias,
+  atributos as miraklAtributos,
+  listasValores as miraklListas,
+} from "../../../lib/mirakl";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 import {
   crearUsuarioVentas,
@@ -178,278 +185,6 @@ export async function eliminarProductos(ids, alcance = "web") {
   for (const { pestana } of pestanas) revalidatePath(`/marca/${pestana}`);
   revalidatePath("/admin");
   redirect(`/admin?eliminados=${borrados.length}`);
-}
-
-// ============================================================
-//  IMPORTAR CSV (alta/edición masiva)
-// ============================================================
-//  Formato esperado (encabezados exactos, separador de columnas: coma;
-//  para listas dentro de una celda —aromas—, separador "|"):
-//
-//  id_producto,marca,categoria,nombre_producto,descripcion,aromas_producto,
-//  destacado,nombre_variante,precio,precio_oferta,stock,imagen,aromas_variante
-//
-//  - Una fila = una variante. Repite los datos del producto en cada fila
-//    de sus variantes (mismo id_producto).
-//  - Si id_producto viene vacío, se genera a partir de nombre_producto.
-//  - Al reimportar un id_producto, sus variantes se reemplazan por
-//    completo con las filas del CSV (no se acumulan).
-//  - "destacado" y "stock" aceptan: true/false, si/no, 1/0 (vacío = true
-//    para stock, false para destacado).
-//  - "imagen" es opcional: pega ahí una URL si ya tienes la foto subida
-//    en algún lugar. Si la dejas vacía, agrégala luego editando el
-//    producto manualmente desde /admin.
-
-function aBooleano(valor, porDefecto) {
-  const v = (valor ?? "").toString().trim().toLowerCase();
-  if (!v) return porDefecto;
-  return ["true", "1", "si", "sí", "yes"].includes(v);
-}
-
-export async function importarCsv(prevState, formData) {
-  const archivo = formData.get("archivo");
-  if (!archivo || typeof archivo !== "object" || !("size" in archivo) || archivo.size === 0) {
-    return { error: "Selecciona un archivo CSV." };
-  }
-
-  let texto;
-  try {
-    texto = await archivo.text();
-  } catch {
-    return { error: "No se pudo leer el archivo." };
-  }
-
-  const resultado = Papa.parse(texto, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
-  });
-
-  if (resultado.errors?.length) {
-    return {
-      error: `El CSV tiene errores de formato: ${resultado.errors[0].message} (fila ${resultado.errors[0].row + 2}).`,
-    };
-  }
-
-  const filas = resultado.data;
-  if (!filas.length) return { error: "El archivo no tiene filas." };
-
-  const [marcasCfg, pestanasCfg] = await Promise.all([getMarcas(), getPestanas()]);
-
-  // Agrupa filas por producto, preservando el orden de aparición.
-  const productosPorId = new Map();
-  const omitidas = [];
-
-  filas.forEach((fila, i) => {
-    const numeroFila = i + 2; // +1 encabezado, +1 base 1
-    const nombreProducto = (fila.nombre_producto || "").toString().trim();
-    if (!nombreProducto) {
-      omitidas.push(`Fila ${numeroFila}: falta "nombre_producto".`);
-      return;
-    }
-    let marca = (fila.marca || "").toString().trim();
-    let pestana = (fila.pestana || "").toString().trim();
-    const categoria = (fila.categoria || "").toString().trim();
-    // CSV antiguo (sin columna "pestana"): si la "marca" es en realidad una pestaña (ofertas,
-    // importaciones, hogar…), la marca pasa a "otras" y esa pestaña se conserva.
-    if (marca && !marcasCfg.some((m) => m.slug === marca) && !pestana && pestanasCfg.some((p) => p.slug === marca) && marcasCfg.some((m) => m.slug === "otras")) {
-      pestana = marca;
-      marca = "otras";
-    }
-    const marcaCfg = marcasCfg.find((m) => m.slug === marca);
-    if (!marca || !marcaCfg) {
-      omitidas.push(`Fila ${numeroFila}: la marca "${marca}" no existe.`);
-      return;
-    }
-    if (!pestana) pestana = marcaCfg.pestanaDefault;
-    const pestanaCfg = pestanasCfg.find((p) => p.slug === pestana);
-    if (!pestanaCfg) {
-      omitidas.push(`Fila ${numeroFila}: la pestaña "${pestana}" no existe.`);
-      return;
-    }
-    if (!categoria || !pestanaCfg.categorias.some((c) => c.slug === categoria)) {
-      omitidas.push(`Fila ${numeroFila}: la categoría "${categoria}" no está activa en la pestaña "${pestana}".`);
-      return;
-    }
-
-    let id = (fila.id_producto || "").toString().trim();
-    id = id ? slugify(id) : slugify(nombreProducto);
-    if (!id) {
-      omitidas.push(`Fila ${numeroFila}: no se pudo generar un id.`);
-      return;
-    }
-
-    if (!productosPorId.has(id)) {
-      productosPorId.set(id, {
-        id,
-        marca,
-        pestana,
-        categoria,
-        nombre: nombreProducto,
-        descripcion: (fila.descripcion || "").toString().trim(),
-        notas: parseAromas((fila.notas_producto ?? fila.aromas_producto ?? "").toString().replaceAll("|", ",")).join(", ") || null,
-        destacado: aBooleano(fila.destacado, false),
-        variantes: [],
-      });
-    }
-
-    const producto = productosPorId.get(id);
-    const stockCantidad = parseNumero(fila.stock_cantidad);
-    const stockMinimo = parseNumero(fila.stock_minimo) ?? 0;
-    if (
-      (stockCantidad !== null && (!Number.isInteger(stockCantidad) || stockCantidad < 0)) ||
-      !Number.isInteger(stockMinimo) ||
-      stockMinimo < 0
-    ) {
-      omitidas.push(`Fila ${numeroFila}: "stock_cantidad" y "stock_minimo" deben ser enteros desde 0.`);
-      return;
-    }
-    producto.variantes.push({
-      nombre: (fila.nombre_variante || "Único").toString().trim() || "Único",
-      precio: parseNumero(fila.precio),
-      precio_oferta: parseNumero(fila.precio_oferta),
-      stock: aBooleano(fila.stock, true),
-      imagen: (fila.imagen || "").toString().trim() || null,
-      notas: parseAromas((fila.notas_variante ?? fila.aromas_variante ?? "").toString().replaceAll("|", ",")).join(", ") || null,
-      orden: producto.variantes.length,
-      sku: (fila.sku || "").toString().trim() || null,
-      stock_cantidad: stockCantidad,
-      stock_minimo: stockMinimo,
-      costo: parseNumero(fila.costo),
-    });
-  });
-
-  if (productosPorId.size === 0) {
-    return {
-      error: "Ninguna fila pudo procesarse.",
-      detalle: omitidas,
-    };
-  }
-
-  const marcasTocadas = new Set();
-  let ok = 0;
-  const errores = [];
-
-  for (const producto of productosPorId.values()) {
-    const { variantes, ...p } = producto;
-    try {
-      // Estado previo de sus variantes, para avisar a SAGA de lo que se agote, desactive o elimine.
-      const previas = await query(
-        "select id, nombre, sku, stock, stock_actual, stock_minimo, activo from variantes where producto_id = $1",
-        [p.id]
-      );
-      const nombresCsv = new Set(variantes.map((v) => v.nombre));
-      const skusCsv = new Set(variantes.map((v) => v.sku).filter(Boolean));
-      const quitadas = previas.filter((x) => !nombresCsv.has(x.nombre) && !skusCsv.has(x.sku || ""));
-      for (const x of quitadas) await sincronizarStockVariante(Number(x.id), { cero: true }); // antes de que se borren
-      await transaction((t) => [
-        t.query(
-          `insert into productos (id, marca, pestana, categoria, nombre, descripcion, notas_aromaticas, destacado, orden)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-           on conflict (id) do update set marca=excluded.marca, pestana=excluded.pestana, categoria=excluded.categoria,
-             nombre=excluded.nombre, descripcion=excluded.descripcion, notas_aromaticas=excluded.notas_aromaticas,
-             destacado=excluded.destacado, orden=excluded.orden`,
-          [p.id, p.marca, p.pestana, p.categoria, p.nombre, p.descripcion, p.notas, p.destacado, Date.now()]
-        ),
-        // Variantes: se actualizan (por SKU o, sin SKU, por nombre) en vez de
-        // borrar y reinsertar, para conservar stock e historial.
-        ...variantes.flatMap((v) =>
-          v.sku
-            ? [
-                t.query(
-                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, notas_aromaticas, orden,
-                     sku, stock_minimo, costo, activo)
-                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true)
-                   on conflict (sku) where sku is not null do update set
-                     producto_id=excluded.producto_id, nombre=excluded.nombre, precio=excluded.precio,
-                     precio_oferta=excluded.precio_oferta,
-                     stock = case when variantes.stock_actual is null then excluded.stock else variantes.stock end,
-                     imagen=excluded.imagen,
-                     imagenes = case when excluded.imagen is null then '{}'::text[]
-                                     else array[excluded.imagen] || array_remove(variantes.imagenes, excluded.imagen) end,
-                     notas_aromaticas=excluded.notas_aromaticas, orden=excluded.orden,
-                     stock_minimo=excluded.stock_minimo, costo=excluded.costo, activo=true`,
-                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.notas, v.orden,
-                   v.sku, v.stock_minimo, v.costo]
-                ),
-              ]
-            : [
-                t.query(
-                  `update variantes set precio=$3, precio_oferta=$4,
-                     stock = case when stock_actual is null then $5 else stock end,
-                     imagen=$6::text,
-                     imagenes = case when $6::text is null then '{}'::text[] else array[$6::text] || array_remove(imagenes, $6::text) end,
-                     notas_aromaticas=$7, orden=$8, stock_minimo=$9, costo=$10, activo=true
-                   where producto_id = $1 and nombre = $2`,
-                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.notas, v.orden,
-                   v.stock_minimo, v.costo]
-                ),
-                t.query(
-                  `insert into variantes (producto_id, nombre, precio, precio_oferta, stock, imagen, notas_aromaticas, orden,
-                     stock_minimo, costo, activo)
-                   select $1::text, $2::text, $3::numeric, $4::numeric, $5::boolean, $6::text, $7::text, $8::int,
-                          $9::int, $10::numeric, true
-                   where not exists (select 1 from variantes where producto_id = $1 and nombre = $2)`,
-                  [p.id, v.nombre, v.precio, v.precio_oferta, v.stock, v.imagen, v.notas, v.orden,
-                   v.stock_minimo, v.costo]
-                ),
-              ]
-        ),
-        // Variantes que ya no vienen en el CSV: con control de cantidad se
-        // desactivan (conservan historial); sin control se eliminan.
-        t.query(
-          `update variantes set activo = false
-            where producto_id = $1 and stock_actual is not null
-              and not (nombre = any($2::text[]) or coalesce(sku,'') = any($3::text[]))`,
-          [p.id, variantes.map((v) => v.nombre), variantes.map((v) => v.sku || "")]
-        ),
-        t.query(
-          `delete from variantes
-            where producto_id = $1 and stock_actual is null
-              and not (nombre = any($2::text[]) or coalesce(sku,'') = any($3::text[]))`,
-          [p.id, variantes.map((v) => v.nombre), variantes.map((v) => v.sku || "")]
-        ),
-      ]);
-
-      await sincronizarCambiosStock(previas.filter((x) => !quitadas.includes(x)));
-
-      // Cantidades de stock del CSV (columna opcional "stock_cantidad"): se
-      // aplican como ajustes con historial (origen "csv").
-      for (const v of variantes) {
-        if (v.stock_cantidad === null) continue;
-        const [fila] = v.sku
-          ? await query("select id from variantes where sku = $1", [v.sku])
-          : await query("select id from variantes where producto_id = $1 and nombre = $2", [p.id, v.nombre]);
-        if (fila) {
-          await fijarStock({
-            varianteId: Number(fila.id),
-            cantidad: v.stock_cantidad,
-            motivo: "Importación CSV",
-            origen: "csv",
-          });
-        }
-      }
-      ok++;
-      marcasTocadas.add(p.pestana);
-    } catch (err) {
-      errores.push(`${p.id}: ${err.message}`);
-    }
-  }
-
-  revalidatePath("/", "layout");
-
-  revalidatePath("/api/catalogo");
-  for (const marca of marcasTocadas) revalidatePath(`/marca/${marca}`);
-  revalidatePath("/admin");
-
-  return {
-    resumen: {
-      procesados: ok,
-      totalProductos: productosPorId.size,
-      filasOmitidas: omitidas,
-      errores,
-    },
-  };
 }
 
 // ============================================================
@@ -1298,13 +1033,6 @@ export async function restablecerMarcasPestanas() {
 }
 
 /** Consulta a SAGA el estado de todos los envíos pendientes y reintenta ahora los avisos de stock que fallaron (botón de Productos). */
-export async function actualizarEstadoSaga() {
-  await reintentarStockPendiente({ forzar: true });
-  await refrescarPendientes();
-  revalidatePath("/admin");
-  revalidatePath("/admin/integraciones/saga");
-}
-
 /** Consulta a SAGA el estado de las filas elegidas ("varianteId|alias") y guarda los motivos de su revisión. */
 export async function consultarEstadoSagaSeleccion(claves) {
   const n = await consultarSeleccion(claves);
@@ -1394,6 +1122,134 @@ export async function eliminarCuentaSaga(alias) {
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/productos", "layout");
   revalidatePath("/admin");
+}
+
+/**
+ * Crea o edita una cuenta de Ripley (Mirakl): alias, nombre, URL base y API key (se guarda cifrada).
+ * En edición, dejar la API key vacía conserva la guardada.
+ */
+export async function guardarCuentaRipley(prevState, formData) {
+  const original = String(formData.get("alias_original") || "").trim();
+  const nueva = !original;
+  const alias = String(formData.get("alias") || "").trim().toLowerCase();
+  const nombre = String(formData.get("nombre") || "").trim();
+  const apiKey = String(formData.get("api_key") || "").trim();
+  const baseUrl = String(formData.get("base_url") || "").trim().replace(/\/+$/, "");
+  const shopId = String(formData.get("shop_id") || "").trim();
+  const activo = formData.get("activo") === "on";
+
+  if (!/^[a-z0-9_]{2,30}$/.test(alias)) return { error: "Alias: 2 a 30 caracteres, solo minúsculas, números o _." };
+  if (!nombre) return { error: "Escribe un nombre para la cuenta." };
+  if (nombre.length > 80) return { error: "El nombre es demasiado largo." };
+  if (!urlBaseRipleyValida(baseUrl)) return { error: "La URL base debe ser https y de mirakl.net (ej. https://ripleyperu-prod.mirakl.net)." };
+  if (nueva && !apiKey) return { error: "Escribe la API key." };
+  if (apiKey.length > 300) return { error: "La API key es demasiado larga." };
+  if (shopId.length > 40) return { error: "El id de tienda es demasiado largo." };
+
+  let cifrada = null;
+  if (apiKey) {
+    try {
+      cifrada = cifrarCredencial(apiKey);
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
+  try {
+    if (nueva) {
+      await query(
+        "insert into cuentas_ripley (alias, nombre, base_url, api_key_cifrada, shop_id, activo) values ($1,$2,$3,$4,$5,$6)",
+        [alias, nombre, baseUrl, cifrada, shopId || null, activo]
+      );
+    } else {
+      await query(
+        `update cuentas_ripley set alias=$2, nombre=$3, base_url=$4, api_key_cifrada=coalesce($5, api_key_cifrada),
+                shop_id=$6, activo=$7 where alias=$1`,
+        [original, alias, nombre, baseUrl, cifrada, shopId || null, activo]
+      );
+    }
+  } catch (e) {
+    if (e.code === "23505") return { error: `Ya existe una cuenta con el alias "${alias}".` };
+    return { error: `No se pudo guardar: ${e.message}` };
+  }
+  revalidatePath("/admin/integraciones/ripley");
+  return { ok: nueva ? "Cuenta agregada." : "Cuenta guardada.", n: Date.now() };
+}
+
+/** Elimina la cuenta de Ripley (no borra nada en Mirakl). */
+export async function eliminarCuentaRipley(alias) {
+  await query("delete from cuentas_ripley where alias = $1", [String(alias)]);
+  revalidatePath("/admin/integraciones/ripley");
+}
+
+/** Lee una cuenta de Ripley activa y arma sus credenciales; lanza si no existe o falta la key. */
+async function credencialesRipleyDe(alias) {
+  const [c] = await query("select * from cuentas_ripley where alias = $1", [String(alias || "")]);
+  if (!c) throw new Error("Elige una cuenta de Ripley.");
+  return { cuenta: c, cred: credencialesMirakl(c) };
+}
+
+/** Valida la API key y la URL de una cuenta consultando Mirakl (solo lectura). */
+export async function probarCuentaRipley(alias) {
+  try {
+    const { cuenta, cred } = await credencialesRipleyDe(alias);
+    const r = await miraklProbar(cred);
+    return { ok: true, version: r.version, tienda: r.tienda, cuenta: cuenta.nombre };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+/** Árbol de categorías (jerarquías) del operador, aplanado con su ruta. Solo lectura. */
+export async function consultarCategoriasRipley(alias) {
+  try {
+    const { cred } = await credencialesRipleyDe(alias);
+    const nodos = await miraklJerarquias(cred);
+    const porCodigo = new Map(nodos.map((n) => [n.code, n]));
+    const ruta = (n) => (n.parent_code && porCodigo.has(n.parent_code) ? `${ruta(porCodigo.get(n.parent_code))} > ${n.label}` : n.label);
+    const filas = nodos.map((n) => ({ codigo: n.code, ruta: ruta(n), nivel: n.level ?? null }));
+    filas.sort((a, b) => a.ruta.localeCompare(b.ruta, "es"));
+    return { ok: true, filas };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+/** Atributos de catálogo de Ripley; con `jerarquia` solo los de esa categoría. Solo lectura. */
+export async function consultarAtributosRipley(alias, jerarquia) {
+  try {
+    const { cred } = await credencialesRipleyDe(alias);
+    const attrs = await miraklAtributos(cred, { jerarquia: String(jerarquia || "").trim() });
+    const filas = attrs.map((a) => ({
+      codigo: a.code,
+      etiqueta: a.label,
+      tipo: a.type,
+      requerido: !!a.required,
+      variante: !!a.variant,
+      lista: a.type_parameter || null,
+      jerarquia: a.hierarchy_code || null,
+    }));
+    return { ok: true, filas };
+  } catch (e) {
+    return { error: e.message };
+  }
+}
+
+/** Listas de valores de Ripley; con `codigo` trae los valores de esa lista. Solo lectura. */
+export async function consultarListasRipley(alias, codigo) {
+  try {
+    const { cred } = await credencialesRipleyDe(alias);
+    const listas = await miraklListas(cred, { codigo: String(codigo || "").trim() });
+    const filas = listas.map((l) => ({
+      codigo: l.code,
+      etiqueta: l.label,
+      valores: Array.isArray(l.values) ? l.values.map((v) => v.code) : null,
+      cantidad: l.values_count ?? (Array.isArray(l.values) ? l.values.length : null),
+    }));
+    return { ok: true, filas };
+  } catch (e) {
+    return { error: e.message };
+  }
 }
 
 /**

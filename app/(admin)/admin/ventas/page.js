@@ -115,9 +115,7 @@ export default async function VentasPage({ searchParams }) {
 
   return (
     <div className="form-grid">
-      <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
-        <h1 className="admin-titulo">Ventas ({total.toLocaleString("es-PE")})</h1>
-      </div>
+      <h1 className="solo-lector">Ventas ({total.toLocaleString("es-PE")})</h1>
       <TabsVentas activo="ventas" pendientes={pendientes} />
 
       <div className="kpi-grid kpi-ventas">
@@ -152,7 +150,7 @@ export default async function VentasPage({ searchParams }) {
         hrefExcel={hrefExportar("xlsx")}
       />
 
-      <div className="admin-card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="admin-card tabla-scroll" style={{ padding: 0 }}>
         <table className="admin-tabla">
           <thead>
             <tr>

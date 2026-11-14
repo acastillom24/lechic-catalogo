@@ -2,17 +2,17 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { eliminarProductos, actualizarEstadoSaga } from "../../app/(admin)/admin/actions";
+import { eliminarProductos } from "../../app/(admin)/admin/actions";
 import { NIVELES, nivelDe } from "../../lib/stock-niveles";
-import ImportarCsvForm from "./ImportarCsvForm";
 import DialogoEliminar from "./DialogoEliminar";
 import MovimientoForm from "./MovimientoForm";
 import FiltroColumna from "./FiltroColumna";
+import useBarraFija from "./useBarraFija";
+import SistemasCelda, { SistemasEncabezado } from "./SistemasCelda";
 import {
   IconoPapelera,
   IconoExportar,
-  IconoImportar,
-  IconoMas,
+  IconoProductoNuevo,
   IconoStock,
   IconoHistorial,
   IconoEditar,
@@ -41,7 +41,7 @@ function precio(v) {
 
 /**
  * Tabla unificada de productos (una fila por variante) con selección,
- * eliminar, exportar e importar CSV. Los datos llegan ya cargados del servidor.
+ * eliminar (por fila) y exportar a CSV o Excel. Los datos llegan ya cargados del servidor.
  */
 export default function TablaProductos({
   filas,
@@ -55,16 +55,15 @@ export default function TablaProductos({
   hrefSinBusqueda = "/admin",
   marcas = [],
   cuentas = [],
+  integraciones = [],
   hrefLimpiarColumnas,
 }) {
   const [seleccion, setSeleccion] = useState(() => new Set());
-  const [importando, setImportando] = useState(false);
+  const [formato, setFormato] = useState("csv");
   const [moviendo, setMoviendo] = useState(null);
-  const [actualizando, iniciarActualizar] = useTransition();
-  const hayErrores = filas.some((f) => (f.sync || []).some((x) => x.estado === "error"));
-  const hayPendientes =filas.some((f) => (f.sync || []).some((x) => x.estado === "pendiente" || x.estado === "error"));
   const menuRef = useRef(null);
-  const menuImportar = useRef(null);
+  const barraRef = useRef(null);
+  useBarraFija(barraRef);
   const cabeceraRef = useRef(null);
 
   // Si cambia la página/filtros (llegan otras filas), descarta la selección.
@@ -96,10 +95,11 @@ export default function TablaProductos({
   }
 
   const seleccionadas = filas.filter((f) => seleccion.has(f.id));
-  const productosIds = [...new Set(seleccionadas.map((f) => f.producto_id))];
-  const [dialogoEliminar, setDialogoEliminar] = useState(false);
+  const [porEliminar, setPorEliminar] = useState(null); // fila cuyo producto se va a eliminar (pide confirmación)
   const [eliminando, empezarEliminar] = useTransition();
-  const tituloEliminar = `Eliminar ${productosIds.length} producto${productosIds.length === 1 ? "" : "s"} con todas sus variantes (${seleccionadas.length} fila${seleccionadas.length === 1 ? "" : "s"} marcada${seleccionadas.length === 1 ? "" : "s"})`;
+  const tituloEliminar = porEliminar
+    ? `Eliminar «${porEliminar.producto}» con todas sus variantes`
+    : "";
 
   // Filtros por columna (como en Ventas): icono en el encabezado, ventanita con las opciones de esa columna.
   const hrefSin = (claves) => {
@@ -126,6 +126,7 @@ export default function TablaProductos({
   );
   const NOMBRE_STOCK = Object.fromEntries([["alertas", "En alerta"], ...NIVELES.map((n) => [n.id, n.nombre])]);
   const NOMBRE_SISTEMA = { sin: "Sin SAGA", publicado: "Publicado", pendiente: "Pendiente", error: "Con error", vinculado: "Vinculado" };
+  const NOMBRE_INTEGRACION = Object.fromEntries(integraciones.map((i) => [i.id, i.nombre]));
   const rango = (d, h, prefijo) => (columnas[d] || columnas[h] ? `${prefijo}${columnas[d] ? ` desde ${columnas[d]}` : ""}${columnas[h] ? ` hasta ${columnas[h]}` : ""}` : null);
   // Etiquetas de los filtros activos, cada una con su ✕.
   const chips = [
@@ -135,6 +136,7 @@ export default function TablaProductos({
     columnas.sku && { texto: `SKU: ${columnas.sku}`, href: hrefSin(["sku"]) },
     columnas.marca && { texto: `Marca: ${columnas.marca}`, href: hrefSin(["marca"]) },
     columnas.sistema && { texto: NOMBRE_SISTEMA[columnas.sistema] || columnas.sistema, href: hrefSin(["sistema"]) },
+    columnas.integracion && { texto: `Plataforma: ${NOMBRE_INTEGRACION[columnas.integracion] || columnas.integracion}`, href: hrefSin(["integracion"]) },
     columnas.cuenta && { texto: `Cuenta: ${columnas.cuenta}`, href: hrefSin(["cuenta"]) },
     columnas.stock && { texto: `Stock: ${NOMBRE_STOCK[columnas.stock] || columnas.stock}`, href: hrefSin(["stock"]) },
     rango("min_d", "min_h", "Mínimo") && { texto: rango("min_d", "min_h", "Mínimo"), href: hrefSin(["min_d", "min_h"]) },
@@ -146,147 +148,113 @@ export default function TablaProductos({
     if (menuRef.current) menuRef.current.open = false;
   };
 
+  // El menú Exportar se cierra al hacer clic fuera de él o con Escape.
+  useEffect(() => {
+    const fuera = (e) => {
+      if (menuRef.current?.open && !menuRef.current.contains(e.target)) cerrarMenu();
+    };
+    const esc = (e) => {
+      if (e.key === "Escape") cerrarMenu();
+    };
+    document.addEventListener("pointerdown", fuera);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", fuera);
+      document.removeEventListener("keydown", esc);
+    };
+  }, []);
+
   return (
     <div className="form-grid">
-      <div className="admin-barra prod-barra">
-        <div className="prod-barra-izq">
-          {alertas > 0 && columnas.stock !== "alertas" && (
-            <Link
-              href={hrefAlertas}
-              className="btn-campana"
-              title={`${alertas} variante(s) en alerta de stock (ver niveles en Configuración → Inventario)`}
-              aria-label={`${alertas} variantes en alerta de stock`}
-            >
-              <IconoCampana size={20} />
-              <span className="badge-campana">{alertas}</span>
-            </Link>
-          )}
-          {hayErrores && (
-            <Link href="/admin/integraciones/saga" className="chip-saga aviso prod-estado" title="Ver y reintentar los errores de sincronización">
-              Hay errores con SAGA · Ver
-            </Link>
-          )}
-          {hayPendientes && (
-            <button
-              type="button"
-              className="btn-chico"
-              disabled={actualizando}
-              onClick={() => iniciarActualizar(() => actualizarEstadoSaga())}
-              title="Consulta a SAGA si los productos pendientes ya fueron publicados"
-            >
-              {actualizando ? "Consultando…" : "Actualizar estado SAGA"}
-            </button>
-          )}
-        </div>
-
-        <form method="get" action="/admin" className="prod-buscar">
-          {Object.entries(columnas).map(([k, v]) => <input key={k} type="hidden" name={`c_${k}`} value={v} />)}
-          <div className="admin-barra-buscar ancha">
-            <IconoBuscar size={18} />
-            <input type="search" name="q" defaultValue={q} placeholder="Buscar por producto, SKU o variante..." aria-label="Buscar productos" />
-          </div>
-        </form>
-
-        <div className="admin-barra-der">
-          <details className="admin-menu" ref={menuImportar}>
-            <summary className="btn-ico-texto">
-              <IconoImportar /> Importar
-            </summary>
-            <div className="admin-menu-lista">
-              <button type="button" onClick={() => { setImportando(true); menuImportar.current?.removeAttribute("open"); }}>
-                Subir un archivo CSV…
-              </button>
-              <form method="post" action="/admin/exportar">
-                <button type="submit" name="alcance" value="plantilla">
-                  Descargar la plantilla CSV
-                </button>
-              </form>
-            </div>
-          </details>
-
-          <form method="post" action="/admin/exportar" onSubmit={cerrarMenu}>
-            <input type="hidden" name="ids" value={[...seleccion].join(",")} />
-            {q && <input type="hidden" name="q" value={q} />}
+      <div ref={barraRef} className="form-grid barra-fija" style={{ gap: 10 }}>
+        <div className="admin-barra prod-barra">
+          <form method="get" action="/admin" className="prod-buscar">
             {Object.entries(columnas).map(([k, v]) => <input key={k} type="hidden" name={`c_${k}`} value={v} />)}
-            <details className="admin-menu" ref={menuRef}>
-              <summary className="btn-ico-texto">
-                <IconoExportar /> Exportar
-              </summary>
-              <div className="admin-menu-lista">
-                <button type="submit" name="alcance" value="filtrados">
-                  {nFiltros ? `Resultados filtrados (${total})` : `Todos los productos (${total})`}
-                </button>
-                {nFiltros > 0 && (
-                  <button type="submit" name="alcance" value="todo">
-                    Todo el catálogo
-                  </button>
-                )}
-              </div>
-            </details>
+            <div className="admin-barra-buscar ancha">
+              <IconoBuscar size={18} />
+              <input type="search" name="q" defaultValue={q} placeholder="Buscar por producto, SKU o variante..." aria-label="Buscar productos" />
+            </div>
           </form>
 
-          <Link href={hrefNuevo} className="btn-ico-texto primario">
-            <IconoMas /> Agregar producto
-          </Link>
+          <div className="admin-barra-der">
+            {alertas > 0 && columnas.stock !== "alertas" && (
+              <Link
+                href={hrefAlertas}
+                className="btn-campana"
+                title={`${alertas} variante(s) en alerta de stock (ver niveles en Configuración → Inventario)`}
+                aria-label={`${alertas} variantes en alerta de stock`}
+              >
+                <IconoCampana size={20} />
+                <span className="badge-campana">{alertas}</span>
+              </Link>
+            )}
+            <form method="post" action="/admin/exportar" onSubmit={cerrarMenu}>
+              <input type="hidden" name="ids" value={[...seleccion].join(",")} />
+              <input type="hidden" name="formato" value={formato} />
+              {q && <input type="hidden" name="q" value={q} />}
+              {Object.entries(columnas).map(([k, v]) => <input key={k} type="hidden" name={`c_${k}`} value={v} />)}
+              <details className="admin-menu" ref={menuRef}>
+                <summary className="btn-ico-texto">
+                  <IconoExportar /> Exportar
+                </summary>
+                <div className="admin-menu-lista">
+                  <div className="menu-formato" role="group" aria-label="Formato del archivo">
+                    <button type="button" className={formato === "csv" ? "activo" : undefined} aria-pressed={formato === "csv"} onClick={() => setFormato("csv")}>
+                      CSV
+                    </button>
+                    <button type="button" className={formato === "xlsx" ? "activo" : undefined} aria-pressed={formato === "xlsx"} onClick={() => setFormato("xlsx")}>
+                      Excel
+                    </button>
+                  </div>
+                  {seleccion.size > 0 && (
+                    <button type="submit" name="alcance" value="seleccion">
+                      Selección ({seleccion.size} fila{seleccion.size === 1 ? "" : "s"})
+                    </button>
+                  )}
+                  <button type="submit" name="alcance" value="filtrados">
+                    {nFiltros ? `Resultados filtrados (${total})` : `Todos los productos (${total})`}
+                  </button>
+                  {nFiltros > 0 && (
+                    <button type="submit" name="alcance" value="todo">
+                      Todo el catálogo
+                    </button>
+                  )}
+                </div>
+              </details>
+            </form>
+
+            <Link href={hrefNuevo} className="btn-ico-texto">
+              <IconoProductoNuevo /> Agregar producto
+            </Link>
+          </div>
         </div>
+
+        {chips.length > 0 && (
+          <div className="chips-periodo">
+            {chips.map((c) => (
+              <Link key={c.texto} href={c.href} className="chip-filtro" title="Quitar filtro">
+                {c.texto} <IconoCerrar size={14} />
+              </Link>
+            ))}
+            {chips.length > 1 && (
+              <Link href={hrefLimpiarColumnas} className="chip-limpiar">
+                Quitar todos
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
-      {chips.length > 0 && (
-        <div className="chips-periodo">
-          {chips.map((c) => (
-            <Link key={c.texto} href={c.href} className="chip-filtro" title="Quitar filtro">
-              {c.texto} <IconoCerrar size={14} />
-            </Link>
-          ))}
-          {chips.length > 1 && (
-            <Link href={hrefLimpiarColumnas} className="chip-limpiar">
-              Quitar todos
-            </Link>
-          )}
-        </div>
-      )}
-
-      {seleccion.size > 0 && (
-        <div className="barra-seleccion" role="region" aria-label="Acciones sobre la selección">
-          <strong>
-            {seleccion.size} fila{seleccion.size === 1 ? "" : "s"} seleccionada{seleccion.size === 1 ? "" : "s"}
-          </strong>
-          <form method="post" action="/admin/exportar">
-            <input type="hidden" name="ids" value={[...seleccion].join(",")} />
-            <button type="submit" name="alcance" value="seleccion" className="btn-chico">
-              <IconoExportar size={14} /> Exportar selección
-            </button>
-          </form>
-          <button type="button" className="btn-chico peligro" onClick={() => setDialogoEliminar(true)}>
-            <IconoPapelera size={14} /> Eliminar
-          </button>
-          <button type="button" className="btn-chico fantasma" onClick={() => setSeleccion(new Set())}>
-            Quitar selección
-          </button>
-        </div>
-      )}
       <DialogoEliminar
-        abierto={dialogoEliminar}
-        onCerrar={() => setDialogoEliminar(false)}
+        abierto={porEliminar !== null}
+        onCerrar={() => setPorEliminar(null)}
         titulo={tituloEliminar}
         pendiente={eliminando}
-        onConfirmar={(alcance) => empezarEliminar(async () => { await eliminarProductos(productosIds, alcance); })}
+        onConfirmar={(alcance) => empezarEliminar(async () => { await eliminarProductos([porEliminar.producto_id], alcance); })}
       />
 
-      {importando && (
-        <div className="admin-panel-importar">
-          <div className="admin-titulo-fila" style={{ marginBottom: 8 }}>
-            <strong>Importar productos desde CSV</strong>
-            <button type="button" className="btn-ico" onClick={() => setImportando(false)} aria-label="Cerrar la importación">
-              <IconoCerrar />
-            </button>
-          </div>
-          <ImportarCsvForm />
-        </div>
-      )}
-
-      <div className="admin-card" style={{ padding: 0, overflowX: "auto" }}>
-        <table className="admin-tabla">
+      <div className="admin-card tabla-scroll" style={{ padding: 0 }}>
+        <table className="admin-tabla tabla-productos">
           <thead>
             <tr>
               <th style={{ width: 40 }}>
@@ -304,10 +272,12 @@ export default function TablaProductos({
               <th>SKU</th>
               <th>{col("Marca", ["marca"], [{ tipo: "select", name: "marca", opciones: lista(marcas.map((m) => [m, m])) }])}</th>
               <th>
-                {col("Sistemas", ["sistema", "cuenta"], [
-                  { tipo: "select", name: "sistema", etiqueta: "Estado en SAGA", opciones: lista(Object.entries(NOMBRE_SISTEMA)) },
+                {col("Sistemas", ["sistema", "cuenta", "integracion"], [
+                  ...(integraciones.length > 1 ? [{ tipo: "select", name: "integracion", etiqueta: "Plataforma", opciones: lista(integraciones.map((i) => [i.id, i.nombre])) }] : []),
+                  { tipo: "select", name: "sistema", etiqueta: "Estado", opciones: lista(Object.entries(NOMBRE_SISTEMA)) },
                   ...(cuentas.length > 1 ? [{ tipo: "select", name: "cuenta", etiqueta: "Cuenta", opciones: lista(cuentas.map((c) => [c, c])) }] : []),
                 ])}
+                <SistemasEncabezado integraciones={integraciones} />
               </th>
               <th>{col("Stock", ["stock"], [{ tipo: "select", name: "stock", opciones: lista(Object.entries(NOMBRE_STOCK)) }])}</th>
               <th>
@@ -336,10 +306,12 @@ export default function TablaProductos({
                   v={v}
                   controlada={controlada}
                   nivel={nivel}
+                  integraciones={integraciones}
                   marcada={marcada}
                   abierta={moviendo === v.id}
                   onAlternar={() => alternar(v.id)}
                   onMover={() => setMoviendo((m) => (m === v.id ? null : v.id))}
+                  onEliminar={() => setPorEliminar(v)}
                 />
               );
             })}
@@ -357,7 +329,7 @@ export default function TablaProductos({
   );
 }
 
-function FilaProducto({ v, controlada, nivel, marcada, abierta, onAlternar, onMover }) {
+function FilaProducto({ v, controlada, nivel, integraciones, marcada, abierta, onAlternar, onMover, onEliminar }) {
   return (
     <>
       <tr className={marcada ? "fila-marcada" : undefined}>
@@ -388,26 +360,7 @@ function FilaProducto({ v, controlada, nivel, marcada, abierta, onAlternar, onMo
           {v.pestana && v.pestana !== v.marca ? <small style={{ color: "var(--gris)" }}> → {v.pestana}</small> : null}
         </td>
         <td>
-          {(v.sync || []).length === 0
-            ? vacio
-            : v.sync.map((x) => (
-                <span
-                  key={x.cuenta}
-                  title={x.error || `SAGA (${x.cuenta}): ${x.estado}${x.origen === "vinculado" ? ` · vinculado (${x.accion || "vincular"})` : ""}`}
-                  style={{
-                    display: "inline-block",
-                    padding: "1px 8px",
-                    marginRight: 4,
-                    borderRadius: 10,
-                    fontSize: ".75rem",
-                    color: "#fff",
-                    background:
-                      x.estado === "publicado" ? "#2e7d32" : x.estado === "error" ? "#c62828" : "#ef8f00",
-                  }}
-                >
-                  SAGA{v.sync.length > 1 || x.cuenta !== "principal" ? ` · ${x.cuenta}` : ""}{x.origen === "vinculado" ? " · vinculado" : ""}
-                </span>
-              ))}
+          <SistemasCelda sync={v.sync || []} integraciones={integraciones} />
         </td>
         <td>
           {controlada && <strong>{v.stock_actual} </strong>}
@@ -438,6 +391,15 @@ function FilaProducto({ v, controlada, nivel, marcada, abierta, onAlternar, onMo
             >
               <IconoEditar />
             </Link>
+            <button
+              type="button"
+              className="btn-ico peligro"
+              onClick={onEliminar}
+              title="Eliminar producto (pide confirmación)"
+              aria-label={`Eliminar ${v.producto}`}
+            >
+              <IconoPapelera />
+            </button>
           </div>
         </td>
       </tr>

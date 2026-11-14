@@ -58,7 +58,7 @@ export default async function AdminReclamosPage({ searchParams }) {
   return (
     <div className="form-grid">
       <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
-        <h1 className="admin-titulo">Reclamos ({datos.total})</h1>
+        <h1 className="solo-lector">Reclamos ({datos.total})</h1>
         <Link href="/libro-de-reclamaciones" target="_blank" className="btn-admin">Ver formulario público ↗</Link>
       </div>
 

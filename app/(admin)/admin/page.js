@@ -2,6 +2,8 @@ import { after } from "next/server";
 import { getInventario, getMovimientos, getAlertasStock, leerFiltrosColumnas } from "../../../lib/inventario";
 import { query } from "../../../lib/db";
 import { getConfigStock } from "../../../lib/stock-config";
+import { INTEGRACIONES } from "../../../lib/integraciones";
+import { getCuentasRipley } from "../../../lib/ripley-cuentas";
 import { reintentarStockPendiente } from "../../../lib/saga-sync";
 import { drenarCola } from "../../../lib/saga-cola";
 import Link from "next/link";
@@ -41,6 +43,10 @@ export default async function AdminProductosPage({ searchParams }) {
     query("select alias from cuentas_saga order by alias"),
     getConfigStock(),
   ]);
+  // Cuentas de cada integración (columna Sistemas). Una integración sin cuentas no aparece.
+  const ripley = await getCuentasRipley().catch(() => []);
+  const cuentasDe = { saga: cuentas.map((c) => c.alias), ripley: ripley.filter((c) => c.activo).map((c) => c.alias) };
+  const integraciones = INTEGRACIONES.map((i) => ({ ...i, cuentas: cuentasDe[i.id] || [] })).filter((i) => i.cuentas.length > 0);
 
   const href = (extra = {}) => {
     const sp = new URLSearchParams();
@@ -76,9 +82,7 @@ export default async function AdminProductosPage({ searchParams }) {
         </div>
       )}
 
-      <div className="admin-titulo-fila">
-        <h1 className="admin-titulo">Productos ({total})</h1>
-      </div>
+      <h1 className="solo-lector">Productos ({total})</h1>
 
       {historialId && (
         <div className="admin-card">
@@ -129,7 +133,8 @@ export default async function AdminProductosPage({ searchParams }) {
         columnas={columnas}
         q={q}
         marcas={marcas.map((m) => m.marca)}
-        cuentas={cuentas.map((c) => c.alias)}
+        cuentas={[...new Set(integraciones.flatMap((i) => i.cuentas))]}
+        integraciones={integraciones}
         hrefLimpiarColumnas={href(Object.fromEntries(Object.keys(columnas).map((k) => [`c_${k}`, ""])))}
         hrefSinBusqueda={href({ q: "" })}
       />

@@ -45,7 +45,7 @@ export default async function ReportePage({ searchParams }) {
   return (
     <div className="form-grid">
       <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
-        <h1 className="admin-titulo">Reporte de pago</h1>
+        <h1 className="solo-lector">Reporte de pago</h1>
         <span className="nota-periodo">
           {fechaCorta(desde)} a {fechaCorta(hasta)} · Total: <strong>{soles(total)}</strong>
         </span>

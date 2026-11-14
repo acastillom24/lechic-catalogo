@@ -69,7 +69,7 @@
 .admin-main {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 28px 24px 60px;
+  padding: 16px 24px 60px;
 }
 
 .admin-titulo-fila {
@@ -266,13 +266,6 @@
 .admin-menu-lista button:disabled {
   color: var(--gris);
   cursor: default;
-}
-
-.admin-panel-importar {
-  background: var(--papel-hondo);
-  border: 1px solid var(--linea);
-  border-radius: var(--radio);
-  padding: 16px;
 }
 
 .admin-tabla tr.fila-marcada td {
@@ -698,27 +691,12 @@
 .venta-grid .venta-ancho { grid-column: 1 / -1; }
 .venta-acciones { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 .campo small { display: block; margin-top: 4px; color: var(--gris); font-size: 12px; }
-.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-.kpi { padding: 16px; }
-.kpi-valor { font-size: 24px; font-weight: 600; }
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.kpi { padding: 14px 16px 10px; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.kpi-valor { font-size: 22px; font-weight: 600; line-height: 1.25; }
 .kpi-etiqueta { font-size: 13px; color: var(--gris); }
 .kpi-sub { font-size: 12px; color: var(--gris); margin-top: 2px; }
-.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
-.barras { display: grid; gap: 8px; }
-.barra-fila { display: grid; grid-template-columns: 110px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
-.barra-pista { background: var(--linea); border-radius: 4px; height: 10px; overflow: hidden; }
-.barra-relleno { background: var(--rosa); height: 100%; transition: filter .15s; }
-.barras .barra-fila { position: relative; padding: 3px 4px; margin: 0 -4px; border-radius: 6px; outline: none; cursor: default; }
-.barras .barra-fila:hover, .barras .barra-fila:focus-visible { background: var(--rosa-tenue); }
-.barras .barra-fila:hover .barra-relleno, .barras .barra-fila:focus-visible .barra-relleno { filter: brightness(.9); }
-.barras .barra-fila::after {
-  content: attr(data-tip);
-  position: absolute; left: 114px; bottom: calc(100% - 2px); z-index: 3;
-  background: var(--blanco, #fff); color: inherit; border: 1px solid var(--linea); border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.12); padding: 6px 10px; font-size: 12px; white-space: nowrap;
-  opacity: 0; transform: translateY(2px); pointer-events: none; transition: opacity .12s, transform .12s;
-}
-.barras .barra-fila:hover::after, .barras .barra-fila:focus-visible::after { opacity: 1; transform: none; }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; align-items: stretch; }
 .dash-svg { width: 100%; height: auto; display: block; }
 .admin-nav a.activo { font-weight: 600; text-decoration: underline; }
 .campo input:not([type]),
@@ -1541,7 +1519,6 @@ html { scroll-behavior: smooth; }
 /* Productos: barra superior, selección y botones chicos */
 .prod-barra { justify-content: space-between; }
 .prod-barra-izq { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 40px; }
-.prod-estado { text-decoration: none; padding: 6px 12px; font-size: 0.8rem; }
 .btn-chico { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: #efecea; color: var(--tinta); font: inherit; font-size: 0.8rem; font-weight: 600; cursor: pointer; text-decoration: none; }
 .btn-chico:hover:not(:disabled) { background: #e3dfdc; }
 .btn-chico:disabled { color: #b3a9ae; cursor: default; }
@@ -1582,3 +1559,152 @@ html { scroll-behavior: smooth; }
 .prod-buscar { flex: 1 1 280px; min-width: 0; }
 .prod-buscar .admin-barra-buscar { max-width: none; width: 100%; }
 .prod-barra { flex-wrap: wrap; gap: 10px; }
+
+.menu-formato { display: flex; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--linea); background: var(--papel-hondo); }
+.admin-menu-lista .menu-formato button { width: auto; flex: 1; text-align: center; padding: 6px 10px; border: 1px solid var(--linea); border-radius: var(--radio); }
+.admin-menu-lista .menu-formato button.activo { background: var(--rosa-tenue); border-color: currentColor; font-weight: 600; }
+.btn-ico.peligro:hover { color: #c62828; }
+
+/* Columna Sistemas: cuadrícula de puntos de estado por plataforma × cuenta */
+.sis-grid { display: grid; gap: 3px; }
+.sis-cabecera { margin-top: 2px; font-size: 0.68rem; font-weight: 600; color: var(--gris); text-align: center; }
+.sis-celda { display: inline-flex; align-items: center; gap: 6px; padding: 4px 6px; background: none; border: 1px solid transparent; border-radius: var(--radio); cursor: pointer; font: inherit; }
+.sis-celda:hover { background: var(--rosa-tenue); }
+.sis-celda.con-error { border-color: #e7a3a3; background: #fdf1f1; }
+.sis-punto { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; font-size: 0.72rem; font-weight: 700; line-height: 1; color: #fff; }
+.sis-punto.publicado { background: #2e7d32; }
+.sis-punto.pendiente { background: #ef8f00; }
+.sis-punto.error { background: #c62828; }
+.sis-punto.ninguno { background: transparent; color: #b9b3ae; border: 1px dashed #d4cfca; }
+.sis-punto.vacio { visibility: hidden; }
+.sis-punto.vinculado { box-shadow: 0 0 0 2px #fff, 0 0 0 3px currentColor; }
+.sis-contador { font-size: 0.72rem; font-weight: 700; color: #c62828; }
+.sis-detalle { position: fixed; z-index: 40; width: min(330px, calc(100vw - 16px)); max-height: 70vh; overflow: auto; padding: 10px; background: #fff; border: 1px solid var(--linea); border-radius: var(--radio); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12); font-size: 0.82rem; }
+.sis-detalle table { width: 100%; border-collapse: collapse; }
+.sis-detalle th { text-align: left; font-size: 0.7rem; color: var(--gris); padding: 2px 6px 6px; }
+.sis-detalle td { padding: 5px 6px; border-top: 1px solid var(--linea); vertical-align: top; }
+.sis-detalle .sis-punto { width: 16px; height: 16px; font-size: 0.62rem; vertical-align: middle; }
+.sis-detalle small { display: block; color: var(--gris); }
+.sis-detalle .sis-error { color: #c62828; white-space: normal; word-break: break-word; }
+
+/* Encabezados de Productos alineados arriba: «Sistemas» tiene una segunda línea (iniciales) y no debe desnivelar al resto */
+.tabla-productos thead th { vertical-align: top; }
+.tabla-productos thead th .fcol { min-height: 22px; }
+.tabla-productos .sis-cabecera { margin-left: 6px; }
+
+.sis-enlaces { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--linea); }
+
+/* Productos, Ventas y Pendientes: encabezado fijo bajo la barra superior. Para que «sticky» funcione la tabla NO puede estar dentro de un
+   contenedor con overflow (crearía su propio scroll): si no cabe, se desplaza la página entera. */
+.tabla-scroll .admin-tabla thead th { position: sticky; top: calc(var(--admin-topbar-h, 0px) + var(--barra-fija-h, 0px)); z-index: 3; background: #faf8f7; box-shadow: 0 1px 0 var(--linea); }
+
+/* Título de la página solo para lectores de pantalla (la pestaña activa del menú ya lo muestra) */
+.solo-lector { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* ---------- Dashboard: tarjetas compactas y gráficos (Recharts) ---------- */
+.dash-card { padding: 14px 16px 16px; }
+.dash-card-titulo { font-size: 0.92rem; margin-bottom: 8px; color: var(--tinta); }
+.dash-card-nota { margin: -4px 0 8px; font-size: 0.76rem; }
+.dash-chart { width: 100%; min-width: 0; }
+.dash-chart .recharts-wrapper { outline: none; }
+.dash-chart svg *:focus { outline: none; }
+/* El minigráfico ocupa el espacio libre de la tarjeta (mínimo 38 px): no la agranda; la altura la fija la tarjeta más alta de la fila. */
+.kpi-chispa { flex: 1 1 0; min-height: 38px; margin: 0 -6px; position: relative; }
+.dash-tip { background: #fff; border: 1px solid var(--linea); border-radius: 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, .12); padding: 7px 11px; font-size: 12.5px; line-height: 1.5; white-space: nowrap; }
+.dash-tip-marca { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; }
+.dash-tip-marca.linea { height: 2px; vertical-align: middle; }
+.dash-leyenda { display: flex; gap: 14px; font-size: 12px; color: var(--gris); margin: 0 0 4px; }
+.dash-leyenda i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.dash-leyenda i.linea { height: 2px; width: 14px; vertical-align: middle; }
+.dash-card { container-type: inline-size; }
+/* La dona y su leyenda comparten la fila y nunca se salen de la tarjeta: la dona mide lo que permita el alto libre de la
+   tarjeta, sin pasar del 44% de su ancho (ni de 340 px) ni bajar de 150 px. En tarjetas angostas la leyenda va debajo. */
+.dash-dona { display: flex; align-items: center; justify-content: center; gap: 16px 20px; flex: 1 1 auto; min-height: 150px; min-width: 0; }
+.dash-dona-grafico { position: relative; height: min(100%, 44cqw); min-height: 150px; max-height: 340px; aspect-ratio: 1; flex: none; }
+@container (max-width: 330px) {
+  .dash-dona { flex-direction: column; }
+  .dash-dona-grafico { height: auto; width: min(70cqw, 220px); }
+  .dash-dona-leyenda { width: 100%; flex: none; }
+}
+.dash-dona-centro { position: absolute; z-index: 1; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; text-align: center; line-height: 1.2; }
+.dash-dona-centro strong { font-size: 1.05rem; color: var(--tinta); }
+.dash-dona-centro span { font-size: 0.7rem; color: var(--gris); }
+.dash-dona-leyenda { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; flex: 1 1 0; min-width: 0; font-size: 12.5px; }
+.dash-dona-leyenda li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.dash-dona-leyenda i { width: 10px; height: 10px; border-radius: 3px; }
+.dash-dona-leyenda .nombre { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tinta); }
+.dash-dona-leyenda .valor { font-weight: 600; color: var(--tinta); white-space: nowrap; }
+.dash-dona-leyenda small { margin-left: 6px; font-weight: 400; color: var(--gris); }
+
+.kpi-enlace { display: block; text-decoration: none; color: inherit; }
+.kpi-grid > .kpi-enlace > .kpi, .kpi-grid > .kpi { height: 100%; }
+.dash-grid > .dash-card { display: flex; flex-direction: column; min-width: 0; }
+
+/* Dos paneles por fila (cada uno a media anchura); en pantallas angostas, uno debajo del otro */
+.dash-grid.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 900px) { .dash-grid.dos { grid-template-columns: minmax(0, 1fr); } }
+
+/* Dashboard: pestañas a la izquierda y filtros a la derecha, en la misma fila */
+.dash-cabecera { display: flex; align-items: flex-end; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; border-bottom: 1px solid var(--linea); }
+.dash-cabecera .admin-tabs { border-bottom: 0; }
+.dash-cabecera .dash-filtros { margin-left: auto; padding-bottom: 6px; justify-content: flex-end; gap: 6px 14px; }
+/* Desplegables Categoría / Entrega: lista de casillas dentro del panel */
+.fcol-panel.fcol-panel-casillas { width: auto; min-width: 170px; padding: 8px 10px; }
+.fcol-casillas { display: grid; gap: 2px; }
+.dash-casilla { display: flex; align-items: center; gap: 8px; padding: 6px 4px; border-radius: 6px; color: var(--tinta); font-size: 0.85rem; text-decoration: none; cursor: pointer; white-space: nowrap; }
+.dash-casilla:hover { background: var(--rosa-tenue); }
+.dash-casilla.marcada { font-weight: 600; }
+.dash-caja { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1.5px solid #c9b4bd; border-radius: 4px; background: #fff; color: #fff; font-size: 11px; line-height: 1; }
+.dash-casilla.marcada .dash-caja { background: var(--rosa); border-color: var(--rosa); }
+
+/* Filtros del dashboard un poco más chicos */
+.dash-cabecera .fcol-pill { height: 30px; padding: 0 10px; gap: 5px; font-size: 0.8rem; }
+.dash-cabecera .dash-filtros { padding-bottom: 4px; gap: 6px; }
+
+/* Pestañas y filtros del dashboard fijos bajo la barra superior al hacer scroll */
+.dash-cabecera { position: sticky; top: var(--admin-topbar-h, 0px); z-index: 25; background: var(--papel-hondo); padding-top: 6px; }
+
+/* Desglose dentro de una tarjeta KPI (p. ej. ticket promedio por categoría) */
+.kpi-desglose { list-style: none; margin: 8px 0 0; padding: 7px 0 0; border-top: 1px solid var(--linea); display: grid; gap: 2px; font-size: 12px; color: var(--gris); }
+.kpi-desglose li { display: flex; justify-content: space-between; gap: 10px; }
+.kpi-desglose strong { color: var(--tinta); font-weight: 600; }
+
+/* Tarjeta «Por cobrar»: barra apilada por antigüedad y enlace que estira la tarjeta */
+.kpi-enlace { display: flex; }
+.kpi-enlace > .kpi { flex: 1; }
+.kpi-barra { display: flex; gap: 2px; height: 8px; margin-top: 10px; }
+.kpi-barra i { display: block; min-width: 4px; border-radius: 3px; }
+.kpi-marca { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+
+/* Tabla «Mejores clientes del periodo» */
+.tabla-clientes th.num, .tabla-clientes td.num { text-align: right; white-space: nowrap; }
+.tabla-clientes td { padding-top: 9px; padding-bottom: 9px; }
+.cli-puesto { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 0.78rem; font-weight: 700; color: var(--gris); background: #f6ece6; }
+.cli-puesto.top1 { background: #e8267f; color: #fff; }
+.cli-puesto.top2 { background: #f4a3c9; color: #7a2d57; }
+.cli-puesto.top3 { background: #fde4ef; color: #c81f6c; }
+.cli-nombre { display: block; font-weight: 600; color: var(--tinta); text-decoration: none; }
+.cli-nombre:hover { color: var(--rosa-hover); text-decoration: underline; }
+.cli-tel { display: block; color: var(--gris); font-size: 0.74rem; }
+.cli-tipo { background: #efe9f7; color: #5a3d8a; }
+.cli-tipo.nuevo { background: #fde4ef; color: #c81f6c; }
+.cli-monto { display: grid; gap: 4px; min-width: 130px; }
+.cli-barra { display: block; height: 6px; background: #f6ece6; border-radius: 3px; overflow: hidden; }
+.cli-barra i { display: block; height: 100%; background: #e8267f; border-radius: 3px; }
+
+/* Tarjetas con acento de estado (stock) */
+.kpi.tono-grave { border-left: 3px solid #c62828; }
+.kpi.tono-aviso { border-left: 3px solid #eda100; }
+
+/* Dashboard · stock: tablas compactas, nivel de stock y resumen */
+.tabla-compacta th, .tabla-compacta td { padding-top: 7px; padding-bottom: 7px; }
+.tabla-compacta th.num, .tabla-compacta td.num { text-align: right; white-space: nowrap; }
+.stk-nivel { display: grid; gap: 4px; min-width: 96px; font-size: 0.82rem; }
+.stk-barra { display: block; height: 6px; background: #f6ece6; border-radius: 3px; overflow: hidden; }
+.stk-barra i { display: block; height: 100%; border-radius: 3px; }
+.stk-resumen { display: flex; flex-wrap: wrap; gap: 4px 18px; margin: 0 0 10px; font-size: 0.82rem; color: var(--gris); }
+.stk-resumen strong { color: var(--tinta); font-size: 0.95rem; }
+.pill.bajo { background: #fdf0d5; color: #8a5a00; }
+
+/* Buscador y filtros sobre una tabla: quedan fijos bajo la barra superior; el encabezado de la tabla se pega debajo de ellos */
+.barra-fija { position: sticky; top: var(--admin-topbar-h, 0px); z-index: 26; background: var(--papel-hondo); padding: 6px 0; }

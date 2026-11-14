@@ -1,29 +1,38 @@
 /**
- * Piezas visuales del dashboard (componentes de servidor, SVG/CSS sin librerías).
- * Reglas: marcas finas con extremo redondeado sobre la línea base, cuadrícula
- * recesiva, valores en texto (nunca solo color), tooltip nativo en cada marca y
- * el detalle numérico siempre visible junto al gráfico.
+ * Piezas comunes del dashboard: formatos, tarjeta de sección y KPI. Los gráficos (Recharts) viven en los
+ * demás archivos de esta carpeta; el tema y la paleta, en tema.js.
  */
+import Chispa from "./Chispa";
 
 export const soles = (n, dec = 0) =>
   `S/ ${Number(n).toLocaleString("es-PE", { minimumFractionDigits: dec, maximumFractionDigits: dec })}`;
 export const solesDec = (n) => soles(n, 2);
 export const entero = (n) => Number(n).toLocaleString("es-PE");
 
+/**
+ * Formatos por nombre: desde un componente de servidor no se pueden pasar funciones a los gráficos (que son de
+ * cliente), así que se pasa el nombre ("soles", "solesDec", "entero", "clientes") y el gráfico lo resuelve.
+ */
+export const FORMATOS = {
+  soles,
+  solesDec,
+  entero,
+  clientes: (n) => `${entero(n)} clientes`,
+};
+
 export function Seccion({ titulo, nota, children }) {
   return (
-    <section className="admin-card">
-      <h3 style={{ fontSize: "1rem", marginBottom: 4 }}>{titulo}</h3>
-      {nota && <p className="nota-periodo" style={{ marginBottom: 10 }}>{nota}</p>}
-      {!nota && <div style={{ height: 10 }} />}
+    <section className="admin-card dash-card">
+      <h3 className="dash-card-titulo">{titulo}</h3>
+      {nota && <p className="nota-periodo dash-card-nota">{nota}</p>}
       {children}
     </section>
   );
 }
 
-export function Kpi({ etiqueta, valor, sub, delta, deltaTexto }) {
+export function Kpi({ etiqueta, valor, sub, delta, deltaTexto, chispa, chispaPrevia, id, desglose, barra, tono }) {
   return (
-    <div className="admin-card kpi">
+    <div className={tono ? `admin-card kpi tono-${tono}` : "admin-card kpi"}>
       <div className="kpi-etiqueta">{etiqueta}</div>
       <div className="kpi-valor">{valor}</div>
       {delta !== undefined && delta !== null && (
@@ -32,36 +41,27 @@ export function Kpi({ etiqueta, valor, sub, delta, deltaTexto }) {
         </div>
       )}
       {sub && <div className="kpi-sub">{sub}</div>}
-    </div>
-  );
-}
-
-/** Barras horizontales: nombre, barra y valor (con % del total). */
-export function Barras({ datos, formato = soles, mostrarPorcentaje = true, vacio = "Sin datos en este periodo." }) {
-  if (!datos.length) return <p style={{ color: "var(--gris)" }}>{vacio}</p>;
-  const max = Math.max(1, ...datos.map((d) => d.monto));
-  const total = datos.reduce((s, d) => s + d.monto, 0) || 1;
-  return (
-    <div className="barras">
-      {datos.map((d) => (
-        <div
-          className="barra-fila"
-          key={d.nombre}
-          tabIndex={0}
-          data-tip={`${d.nombre}: ${formato(d.monto)}${mostrarPorcentaje ? ` · ${Math.round((d.monto / total) * 100)}%` : ""}${d.n ? ` · ${d.n} ventas` : ""}`}
-        >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.nombre}</span>
-          <div className="barra-pista">
-            <div className="barra-relleno" style={{ width: `${(d.monto / max) * 100}%` }} />
-          </div>
-          <span>
-            {formato(d.monto)}
-            {mostrarPorcentaje && (
-              <span style={{ color: "var(--gris)", marginLeft: 6 }}>{Math.round((d.monto / total) * 100)}%</span>
-            )}
-          </span>
+      {barra?.some((b) => b.valor > 0) && (
+        <div className="kpi-barra" role="img" aria-label={barra.map((b) => `${b.nombre}: ${b.valor}`).join(", ")}>
+          {barra.filter((b) => b.valor > 0).map((b) => (
+            <i key={b.nombre} style={{ flexGrow: b.valor, background: b.color }} title={b.nombre} />
+          ))}
         </div>
-      ))}
+      )}
+      {desglose?.length > 0 && (
+        <ul className="kpi-desglose">
+          {desglose.map((d) => (
+            <li key={d.nombre}>
+              <span>
+                {d.color && <i className="kpi-marca" style={{ background: d.color }} />}
+                {d.nombre}
+              </span>
+              <strong>{d.valor}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+      {chispa && <Chispa valores={chispa} previos={chispaPrevia} id={id || etiqueta} />}
     </div>
   );
 }

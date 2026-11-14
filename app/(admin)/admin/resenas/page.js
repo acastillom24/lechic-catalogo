@@ -42,9 +42,7 @@ export default async function AdminResenasPage({ searchParams }) {
 
   return (
     <div className="form-grid">
-      <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
-        <h1 className="admin-titulo">Reseñas ({resenas.length})</h1>
-      </div>
+      <h1 className="solo-lector">Reseñas ({resenas.length})</h1>
 
       <div className="admin-barra">
         <form method="get" action="/admin/resenas" className="admin-barra-buscar">
