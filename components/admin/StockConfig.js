@@ -15,20 +15,20 @@ export default function StockConfig({ config }) {
   const u = config.umbrales;
 
   return (
-    <form action={accion} className="form-grid" key={estado?.n || 0}>
+    <form action={accion} className="form-grid cg admin-card" key={estado?.n || 0}>
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
 
-      <section className="admin-card form-grid">
-        <h2>Niveles de stock</h2>
+      <div className="pf-panel-bloque">
+        <strong>Niveles de stock</strong>
         <small style={{ color: "var(--gris)" }}>
           Se aplican a todo el catálogo y se miden en unidades de <strong>stock actual</strong>. Sirven para el filtro de la columna Stock, las
           etiquetas de color de la tabla de productos y la campana de alertas. «Sin control» son las variantes que no llevan cantidad
           (solo se sabe si hay o no hay), por eso no tienen límites.
         </small>
 
-        <div style={{ overflowX: "auto" }}>
-          <table className="admin-tabla" style={{ width: "100%" }}>
+        <div className="admin-tabla-wrap">
+          <table className="admin-tabla cg-tabla-stock">
             <thead>
               <tr>
                 <th>Nivel</th>
@@ -78,7 +78,7 @@ export default function StockConfig({ config }) {
           Cada límite debe ser mayor que el anterior ({FILAS_UMBRAL.map((k) => NIVELES.find((n) => n.id === k).nombre).join(" < ")}). La columna «Rango actual» muestra lo que
           se guardó; se actualiza al pulsar «Guardar».
         </small>
-      </section>
+      </div>
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <button type="submit" className="btn-admin solido" disabled={enviando}>

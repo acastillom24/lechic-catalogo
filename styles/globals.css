@@ -140,3 +140,11 @@ input:focus-visible {
     scroll-behavior: auto !important;
   }
 }
+
+/* Descripción con formato (editor de texto enriquecido) en la ficha del producto */
+.detalle-desc-html p { margin: 0 0 0.7em; }
+.detalle-desc-html h2, .detalle-desc-html h3 { margin: 0.8em 0 0.3em; }
+.detalle-desc-html ul, .detalle-desc-html ol { margin: 0 0 0.7em; padding-left: 1.3em; }
+.detalle-desc-html img { max-width: 100%; height: auto; }
+.detalle-desc-html a { text-decoration: underline; }
+.detalle-desc-html blockquote { margin: 0 0 0.7em; padding-left: 10px; border-left: 3px solid currentColor; opacity: 0.85; }

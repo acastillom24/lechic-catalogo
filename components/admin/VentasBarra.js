@@ -1,122 +1,53 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
-import { IconoBuscar, IconoFiltro, IconoCerrar, IconoExportar, IconoCalendario } from "./Iconos";
-import { ESTADOS } from "../../lib/ventas-core";
+import { useEffect, useRef } from "react";
+import { IconoBuscar, IconoCerrar, IconoExportar } from "./Iconos";
 
 /**
- * Barra del reporte de ventas, con el mismo estilo que la de Productos:
- * atajos de periodo (hoy, ayer, 7 días, este mes, mes anterior), buscador, filtros por estado,
- * categoría, entrega y cliente, distrito, día específico o rango de fechas, chips de filtros
- * activos y exportación a CSV / Excel. Los enlaces llegan calculados (solo texto); las listas
- * (`opciones`) vienen de Configuración → Ventas.
+ * Barra del reporte de ventas, simple:
+ *  - el buscador y «Exportar» (CSV / Excel);
+ *  - las etiquetas de los filtros activos, con ✕ para quitarlos.
+ * Los filtros están en el encabezado de cada columna de la tabla (icono de filtro, como en Excel); los atajos de periodo, dentro de «Fecha».
+ * `ocultos` = el resto de filtros activos, para que buscar no los pierda.
  */
-export default function VentasBarra({ filtros, chips, opciones, presets, hrefCsv, hrefExcel, hoy }) {
-  const formRef = useRef(null);
-  const fechaRef = useRef(null);
-  const desdeRef = useRef(null);
-  const hastaRef = useRef(null);
-  const enviar = () => formRef.current?.requestSubmit();
-  // Un día específico y un rango se excluyen: al elegir uno se limpia el otro.
-  const elegirDia = () => {
-    if (desdeRef.current) desdeRef.current.value = "";
-    if (hastaRef.current) hastaRef.current.value = "";
-    enviar();
-  };
-  const elegirRango = () => {
-    if (fechaRef.current) fechaRef.current.value = "";
-    enviar();
-  };
+export default function VentasBarra({ ocultos = {}, q, chips, hrefCsv, hrefExcel, accion = "/admin/ventas" }) {
+  const menu = useRef(null);
 
-  const selector = (nombre, etiqueta, lista, valor, formatear = (o) => o) => (
-    <label className="admin-filtro" title={etiqueta}>
-      <IconoFiltro size={16} />
-      <select name={nombre} defaultValue={valor || ""} aria-label={etiqueta} onChange={enviar}>
-        <option value="">{etiqueta}: todos</option>
-        {lista.map((o) => (
-          <option key={o} value={o}>
-            {formatear(o)}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
+  // El menú Exportar se cierra al hacer clic fuera o con Escape.
+  useEffect(() => {
+    const fuera = (e) => {
+      if (menu.current?.open && !menu.current.contains(e.target)) menu.current.removeAttribute("open");
+    };
+    const tecla = (e) => e.key === "Escape" && menu.current?.removeAttribute("open");
+    document.addEventListener("mousedown", fuera);
+    document.addEventListener("keydown", tecla);
+    return () => {
+      document.removeEventListener("mousedown", fuera);
+      document.removeEventListener("keydown", tecla);
+    };
+  }, []);
 
   return (
     <div className="form-grid" style={{ gap: 10 }}>
-      <div className="chips-periodo">
-        {presets.map((p) => (
-          <Link key={p.clave} href={p.href} className={p.activo ? "chip-per activo" : "chip-per"}>
-            {p.texto}
-          </Link>
+      <form method="get" action={accion} className="admin-barra ventas-barra">
+        {Object.entries(ocultos).map(([k, v]) => (
+          <input key={k} type="hidden" name={k} value={v} />
         ))}
-      </div>
-
-      <form ref={formRef} method="get" action="/admin/ventas" className="admin-barra">
-        <div className="admin-barra-buscar">
+        <div className="admin-barra-buscar ancha">
           <IconoBuscar size={18} />
-          <input type="search" name="q" defaultValue={filtros.q || ""} placeholder="Buscar por teléfono, nombre o referencia..." />
-          <span className="admin-barra-sep" aria-hidden="true" />
-          {selector("estado", "Estado", ESTADOS, filtros.estado, (e) => (e === "pendiente" ? "Pendiente" : "Cerrada"))}
+          <input type="search" name="q" defaultValue={q || ""} placeholder="Buscar por teléfono o nombre..." />
         </div>
 
-        <div className="admin-barra-buscar" style={{ flex: "0 1 auto", minWidth: 0 }}>
-          {selector("categoria", "Categoría", opciones.categorias, filtros.categoria)}
-          <span className="admin-barra-sep" aria-hidden="true" />
-          {selector("destino", "Entrega", opciones.destinos, filtros.destino)}
-          <span className="admin-barra-sep" aria-hidden="true" />
-          {selector("tipo", "Cliente", opciones.tiposCliente, filtros.tipo)}
-        </div>
-
-        <div className="admin-barra-buscar" style={{ flex: "0 1 auto", minWidth: 0 }}>
-          <input
-            type="search"
-            name="distrito"
-            defaultValue={filtros.distrito || ""}
-            placeholder="Distrito..."
-            aria-label="Distrito"
-            style={{ width: 140 }}
-          />
-        </div>
-
-        <span className="admin-rango" title="Un día específico">
-          <IconoCalendario size={16} />
-          <span>Día</span>
-          <input ref={fechaRef} type="date" name="fecha" defaultValue={filtros.fecha || ""} max={hoy} onChange={elegirDia} aria-label="Fecha específica" />
-        </span>
-
-        <span className="admin-rango" title="Rango de fechas">
-          <IconoCalendario size={16} />
-          <input
-            ref={desdeRef}
-            type="date"
-            name="desde"
-            defaultValue={filtros.periodo || filtros.fecha ? "" : filtros.desde || ""}
-            max={hoy}
-            onChange={elegirRango}
-            aria-label="Desde"
-          />
-          <span>a</span>
-          <input
-            ref={hastaRef}
-            type="date"
-            name="hasta"
-            defaultValue={filtros.periodo || filtros.fecha ? "" : filtros.hasta || ""}
-            max={hoy}
-            onChange={elegirRango}
-            aria-label="Hasta"
-          />
-        </span>
-
-        <div className="admin-barra-der">
-          <a href={hrefCsv} className="btn-ico-texto">
-            <IconoExportar /> CSV
-          </a>
-          <a href={hrefExcel} className="btn-ico-texto">
-            <IconoExportar /> Excel
-          </a>
-        </div>
+        <details className="admin-menu admin-barra-der" ref={menu}>
+          <summary className="btn-ico-texto">
+            <IconoExportar /> Exportar
+          </summary>
+          <div className="admin-menu-lista">
+            <a href={hrefCsv}>CSV</a>
+            <a href={hrefExcel}>Excel</a>
+          </div>
+        </details>
       </form>
 
       {chips.length > 0 && (

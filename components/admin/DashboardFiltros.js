@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRef } from "react";
-import { IconoFiltro, IconoCerrar, IconoExportar, IconoCalendario } from "./Iconos";
+import { IconoCerrar, IconoExportar } from "./Iconos";
+import FiltroColumna from "./FiltroColumna";
 
 /**
- * Filtros del dashboard (mismo estilo que la barra de Productos):
- * atajos de periodo, rango personalizado, categoría y entrega.
+ * Filtros del dashboard, con el mismo estilo que las tablas: tres botones (Periodo, Categoría y Entrega) que abren una ventanita
+ * con sus opciones (el periodo con sus atajos y un rango propio), las etiquetas de los filtros activos con ✕ y «Exportar».
  * Todos los enlaces llegan calculados desde el servidor (solo texto).
  */
 export default function DashboardFiltros({
   tab,
   periodo,
+  etiquetaPeriodo,
   desde,
   hasta,
   hoy,
@@ -20,60 +21,56 @@ export default function DashboardFiltros({
   opciones,
   atajos,
   chips,
+  hrefs,
   hrefExportar,
   mostrarPeriodo = true,
 }) {
-  const formRef = useRef(null);
-  const periodoRef = useRef(null);
-
-  const enviar = () => formRef.current?.requestSubmit();
-  const enviarRango = () => {
-    if (periodoRef.current) periodoRef.current.value = "custom";
-    enviar();
+  const ACCION = "/admin/dashboard";
+  // Lo que se conserva al enviar cada filtro: la pestaña y los demás filtros.
+  const conservar = (excluir) => {
+    const o = { tab, periodo, categoria, destino };
+    if (periodo === "custom") Object.assign(o, { desde, hasta });
+    for (const k of excluir) delete o[k];
+    return Object.fromEntries(Object.entries(o).filter(([, v]) => v));
   };
 
   return (
     <div className="form-grid" style={{ gap: 10 }}>
-      <form ref={formRef} method="get" action="/admin/dashboard" className="admin-barra">
-        <input type="hidden" name="tab" value={tab} />
-        <input ref={periodoRef} type="hidden" name="periodo" value={periodo} />
-
-        {mostrarPeriodo && (
-          <div className="chips-periodo">
-            {atajos.map((a) => (
-              <Link key={a.clave} href={a.href} className={periodo === a.clave ? "chip-per activo" : "chip-per"}>
-                {a.etiqueta}
-              </Link>
-            ))}
-            <span className="admin-rango" title="Rango personalizado">
-              <IconoCalendario size={16} />
-              <input type="date" name="desde" defaultValue={desde} max={hoy} onChange={enviarRango} aria-label="Desde" />
-              <span>a</span>
-              <input type="date" name="hasta" defaultValue={hasta} max={hoy} onChange={enviarRango} aria-label="Hasta" />
-            </span>
-          </div>
-        )}
-
-        <div className="admin-barra-buscar" style={{ flex: "0 1 auto", minWidth: 0 }}>
-          <label className="admin-filtro" title="Categoría">
-            <IconoFiltro size={16} />
-            <select name="categoria" defaultValue={categoria || ""} aria-label="Categoría" onChange={enviar}>
-              <option value="">Categoría: todas</option>
-              {opciones.categorias.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <span className="admin-barra-sep" aria-hidden="true" />
-          <label className="admin-filtro" title="Entrega">
-            <IconoFiltro size={16} />
-            <select name="destino" defaultValue={destino || ""} aria-label="Entrega" onChange={enviar}>
-              <option value="">Entrega: todas</option>
-              {opciones.destinos.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
-          </label>
+      <div className="admin-barra dash-barra">
+        <div className="dash-filtros">
+          {mostrarPeriodo && (
+            <FiltroColumna
+              etiqueta="Periodo"
+              textoBoton={etiquetaPeriodo}
+              activo={periodo !== "mes"}
+              accion={ACCION}
+              ocultos={{ ...conservar(["periodo", "desde", "hasta"]), periodo: "custom" }}
+              hrefLimpiar={hrefs.periodo}
+              atajos={atajos.map((a) => ({ clave: a.clave, texto: a.etiqueta, href: a.href, activo: periodo === a.clave }))}
+              campos={[
+                { tipo: "fecha", name: "desde", etiqueta: "Desde", valor: periodo === "custom" ? desde : "", max: hoy },
+                { tipo: "fecha", name: "hasta", etiqueta: "Hasta", valor: periodo === "custom" ? hasta : "", max: hoy },
+              ]}
+            />
+          )}
+          <FiltroColumna
+            etiqueta="Categoría"
+            textoBoton={categoria ? `Categoría: ${categoria}` : "Categoría"}
+            activo={Boolean(categoria)}
+            accion={ACCION}
+            ocultos={conservar(["categoria"])}
+            hrefLimpiar={hrefs.categoria}
+            campos={[{ tipo: "select", name: "categoria", valor: categoria, opciones: opciones.categorias.map((c) => ({ valor: c, texto: c })) }]}
+          />
+          <FiltroColumna
+            etiqueta="Entrega"
+            textoBoton={destino ? `Entrega: ${destino}` : "Entrega"}
+            activo={Boolean(destino)}
+            accion={ACCION}
+            ocultos={conservar(["destino"])}
+            hrefLimpiar={hrefs.destino}
+            campos={[{ tipo: "select", name: "destino", valor: destino, opciones: opciones.destinos.map((d) => ({ valor: d, texto: d })) }]}
+          />
         </div>
 
         {hrefExportar && (
@@ -83,7 +80,7 @@ export default function DashboardFiltros({
             </a>
           </div>
         )}
-      </form>
+      </div>
 
       {chips.length > 0 && (
         <div className="chips-periodo">

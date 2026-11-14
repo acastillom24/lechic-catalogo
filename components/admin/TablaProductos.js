@@ -5,15 +5,14 @@ import Link from "next/link";
 import { eliminarProductos, actualizarEstadoSaga } from "../../app/(admin)/admin/actions";
 import { NIVELES, nivelDe } from "../../lib/stock-niveles";
 import ImportarCsvForm from "./ImportarCsvForm";
+import DialogoEliminar from "./DialogoEliminar";
 import MovimientoForm from "./MovimientoForm";
+import FiltroColumna from "./FiltroColumna";
 import {
-  IconoBuscar,
-  IconoFiltro,
   IconoPapelera,
   IconoExportar,
   IconoImportar,
   IconoMas,
-  IconoPlantilla,
   IconoStock,
   IconoHistorial,
   IconoEditar,
@@ -62,6 +61,7 @@ export default function TablaProductos({
   const hayErrores = filas.some((f) => (f.sync || []).some((x) => x.estado === "error"));
   const hayPendientes =filas.some((f) => (f.sync || []).some((x) => x.estado === "pendiente" || x.estado === "error"));
   const menuRef = useRef(null);
+  const menuImportar = useRef(null);
   const cabeceraRef = useRef(null);
 
   // Si cambia la página/filtros (llegan otras filas), descarta la selección.
@@ -94,35 +94,45 @@ export default function TablaProductos({
 
   const seleccionadas = filas.filter((f) => seleccion.has(f.id));
   const productosIds = [...new Set(seleccionadas.map((f) => f.producto_id))];
-  const eliminar = eliminarProductos.bind(null, productosIds);
+  const [dialogoEliminar, setDialogoEliminar] = useState(false);
+  const [eliminando, empezarEliminar] = useTransition();
+  const tituloEliminar = `Eliminar ${productosIds.length} producto${productosIds.length === 1 ? "" : "s"} con todas sus variantes (${seleccionadas.length} fila${seleccionadas.length === 1 ? "" : "s"} marcada${seleccionadas.length === 1 ? "" : "s"})`;
 
-  function confirmarEliminar(e) {
-    const n = productosIds.length;
-    const msg =
-      `¿Eliminar ${n} producto${n === 1 ? "" : "s"} con todas sus variantes ` +
-      `(${seleccionadas.length} fila${seleccionadas.length === 1 ? "" : "s"} marcada${seleccionadas.length === 1 ? "" : "s"})? ` +
-      `Esta acción no se puede deshacer.`;
-    if (!confirm(msg)) e.preventDefault();
-  }
-
-  const nColumnas = Object.keys(columnas).length;
-  // Una fila de filtros bajo la cabecera; se envía por GET junto con la búsqueda y el filtro de stock actuales.
-  const FORM_COLUMNAS = "filtros-columnas";
-  const corto = { width: "100%", minWidth: 0, padding: "4px 6px", fontSize: ".8rem" };
-  const rango = { width: "50%", minWidth: 0, padding: "4px 6px", fontSize: ".8rem" };
-  const texto = (k, ph) => <input form={FORM_COLUMNAS} type="search" name={`c_${k}`} defaultValue={columnas[k] || ""} placeholder={ph} aria-label={`Filtrar por ${ph}`} style={corto} />;
-  const lista = (k, ph, opciones) => (
-    <select form={FORM_COLUMNAS} name={`c_${k}`} defaultValue={columnas[k] || ""} aria-label={`Filtrar por ${ph}`} style={corto} onChange={(e) => e.currentTarget.form.requestSubmit()}>
-      <option value="">{ph}</option>
-      {opciones.map(([v, e]) => <option key={v} value={v}>{e}</option>)}
-    </select>
+  // Filtros por columna (como en Ventas): icono en el encabezado, ventanita con las opciones de esa columna.
+  const hrefSin = (claves) => {
+    const u = new URLSearchParams();
+    for (const [k, v] of Object.entries(columnas)) if (!claves.includes(k)) u.set(`c_${k}`, v);
+    const t = u.toString();
+    return t ? `/admin?${t}` : "/admin";
+  };
+  const ocultosSin = (claves) => Object.fromEntries(Object.entries(columnas).filter(([k]) => !claves.includes(k)).map(([k, v]) => [`c_${k}`, v]));
+  const lista = (arr) => arr.map(([valor, texto]) => ({ valor, texto }));
+  const col = (etiqueta, claves, campos) => (
+    <FiltroColumna
+      etiqueta={etiqueta}
+      activo={claves.some((k) => columnas[k])}
+      campos={campos.map((c) => ({ ...c, name: `c_${c.name}`, valor: columnas[c.name] }))}
+      ocultos={ocultosSin(claves)}
+      hrefLimpiar={hrefSin(claves)}
+      accion="/admin"
+    />
   );
-  const desdeHasta = (k, paso) => (
-    <div style={{ display: "flex", gap: 4 }}>
-      <input form={FORM_COLUMNAS} type="number" step={paso} min="0" name={`c_${k}_d`} defaultValue={columnas[`${k}_d`] || ""} placeholder="Desde" aria-label={`${k} desde`} style={rango} />
-      <input form={FORM_COLUMNAS} type="number" step={paso} min="0" name={`c_${k}_h`} defaultValue={columnas[`${k}_h`] || ""} placeholder="Hasta" aria-label={`${k} hasta`} style={rango} />
-    </div>
-  );
+  const NOMBRE_STOCK = Object.fromEntries([["alertas", "En alerta"], ...NIVELES.map((n) => [n.id, n.nombre])]);
+  const NOMBRE_SISTEMA = { sin: "Sin SAGA", publicado: "Publicado", pendiente: "Pendiente", error: "Con error", vinculado: "Vinculado" };
+  const rango = (d, h, prefijo) => (columnas[d] || columnas[h] ? `${prefijo}${columnas[d] ? ` desde ${columnas[d]}` : ""}${columnas[h] ? ` hasta ${columnas[h]}` : ""}` : null);
+  // Etiquetas de los filtros activos, cada una con su ✕.
+  const chips = [
+    columnas.producto && { texto: `Producto: ${columnas.producto}`, href: hrefSin(["producto"]) },
+    columnas.variante && { texto: `Variante: ${columnas.variante}`, href: hrefSin(["variante"]) },
+    columnas.sku && { texto: `SKU: ${columnas.sku}`, href: hrefSin(["sku"]) },
+    columnas.marca && { texto: `Marca: ${columnas.marca}`, href: hrefSin(["marca"]) },
+    columnas.sistema && { texto: NOMBRE_SISTEMA[columnas.sistema] || columnas.sistema, href: hrefSin(["sistema"]) },
+    columnas.cuenta && { texto: `Cuenta: ${columnas.cuenta}`, href: hrefSin(["cuenta"]) },
+    columnas.stock && { texto: `Stock: ${NOMBRE_STOCK[columnas.stock] || columnas.stock}`, href: hrefSin(["stock"]) },
+    rango("min_d", "min_h", "Mínimo") && { texto: rango("min_d", "min_h", "Mínimo"), href: hrefSin(["min_d", "min_h"]) },
+    rango("precio_d", "precio_h", "Precio") && { texto: rango("precio_d", "precio_h", "Precio"), href: hrefSin(["precio_d", "precio_h"]) },
+  ].filter(Boolean);
+  const nFiltros = chips.length;
 
   const cerrarMenu = () => {
     if (menuRef.current) menuRef.current.open = false;
@@ -130,31 +140,53 @@ export default function TablaProductos({
 
   return (
     <div className="form-grid">
-      <div className="admin-barra">
-        {nColumnas > 0 && (
-          <Link href={hrefLimpiarColumnas} className="chip-filtro" title="Quitar los filtros de columna">
-            {nColumnas} filtro{nColumnas === 1 ? "" : "s"} de columna <IconoCerrar size={14} />
-          </Link>
-        )}
-
-        {alertas > 0 && columnas.stock !== "alertas" && (
-          <Link
-            href={hrefAlertas}
-            className="btn-campana"
-            title={`${alertas} variante(s) en alerta de stock (ver niveles en Configuración → Inventario)`}
-            aria-label={`${alertas} variantes en alerta de stock`}
-          >
-            <IconoCampana size={20} />
-            <span className="badge-campana">{alertas}</span>
-          </Link>
-        )}
+      <div className="admin-barra prod-barra">
+        <div className="prod-barra-izq">
+          {alertas > 0 && columnas.stock !== "alertas" && (
+            <Link
+              href={hrefAlertas}
+              className="btn-campana"
+              title={`${alertas} variante(s) en alerta de stock (ver niveles en Configuración → Inventario)`}
+              aria-label={`${alertas} variantes en alerta de stock`}
+            >
+              <IconoCampana size={20} />
+              <span className="badge-campana">{alertas}</span>
+            </Link>
+          )}
+          {hayErrores && (
+            <Link href="/admin/integraciones/saga" className="chip-saga aviso prod-estado" title="Ver y reintentar los errores de sincronización">
+              Hay errores con SAGA · Ver
+            </Link>
+          )}
+          {hayPendientes && (
+            <button
+              type="button"
+              className="btn-chico"
+              disabled={actualizando}
+              onClick={() => iniciarActualizar(() => actualizarEstadoSaga())}
+              title="Consulta a SAGA si los productos pendientes ya fueron publicados"
+            >
+              {actualizando ? "Consultando…" : "Actualizar estado SAGA"}
+            </button>
+          )}
+        </div>
 
         <div className="admin-barra-der">
-          <form action={eliminar} onSubmit={confirmarEliminar}>
-            <button type="submit" className="btn-ico-texto peligro" disabled={seleccion.size === 0}>
-              <IconoPapelera /> Eliminar{seleccion.size > 0 ? ` (${seleccion.size})` : ""}
-            </button>
-          </form>
+          <details className="admin-menu" ref={menuImportar}>
+            <summary className="btn-ico-texto">
+              <IconoImportar /> Importar
+            </summary>
+            <div className="admin-menu-lista">
+              <button type="button" onClick={() => { setImportando(true); menuImportar.current?.removeAttribute("open"); }}>
+                Subir un archivo CSV…
+              </button>
+              <form method="post" action="/admin/exportar">
+                <button type="submit" name="alcance" value="plantilla">
+                  Descargar la plantilla CSV
+                </button>
+              </form>
+            </div>
+          </details>
 
           <form method="post" action="/admin/exportar" onSubmit={cerrarMenu}>
             <input type="hidden" name="ids" value={[...seleccion].join(",")} />
@@ -164,56 +196,74 @@ export default function TablaProductos({
                 <IconoExportar /> Exportar
               </summary>
               <div className="admin-menu-lista">
-                <button type="submit" name="alcance" value="seleccion" disabled={seleccion.size === 0}>
-                  Seleccionados ({seleccion.size})
-                </button>
                 <button type="submit" name="alcance" value="filtrados">
-                  Resultados filtrados ({total})
+                  {nFiltros ? `Resultados filtrados (${total})` : `Todos los productos (${total})`}
                 </button>
-                <button type="submit" name="alcance" value="todo">
-                  Todo el catálogo
-                </button>
+                {nFiltros > 0 && (
+                  <button type="submit" name="alcance" value="todo">
+                    Todo el catálogo
+                  </button>
+                )}
               </div>
             </details>
           </form>
 
-          {hayPendientes && (
-            <button
-              type="button"
-              className="btn-ico-texto"
-              disabled={actualizando}
-              onClick={() => iniciarActualizar(() => actualizarEstadoSaga())}
-              title="Consulta a SAGA si los productos pendientes ya fueron publicados"
-            >
-              {actualizando ? "Consultando…" : "Actualizar estado SAGA"}
-            </button>
-          )}
-          {hayErrores && (
-            <Link href="/admin/integraciones/saga" className="btn-ico-texto" title="Ver y reintentar los errores de sincronización">
-              Ver errores de SAGA
-            </Link>
-          )}
-          <button
-            type="button"
-            className={importando ? "btn-ico-texto activo" : "btn-ico-texto"}
-            onClick={() => setImportando((v) => !v)}
-            aria-expanded={importando}
-          >
-            <IconoImportar /> Importar CSV
-          </button>
           <Link href={hrefNuevo} className="btn-ico-texto primario">
             <IconoMas /> Agregar producto
           </Link>
         </div>
       </div>
 
-      {importando && (
-        <div className="admin-panel-importar">
-          <form method="post" action="/admin/exportar" style={{ marginBottom: 12 }}>
-            <button type="submit" name="alcance" value="plantilla" className="btn-ico-texto">
-              <IconoPlantilla /> Descargar plantilla CSV
+      {chips.length > 0 && (
+        <div className="chips-periodo">
+          {chips.map((c) => (
+            <Link key={c.texto} href={c.href} className="chip-filtro" title="Quitar filtro">
+              {c.texto} <IconoCerrar size={14} />
+            </Link>
+          ))}
+          {chips.length > 1 && (
+            <Link href={hrefLimpiarColumnas} className="chip-limpiar">
+              Quitar todos
+            </Link>
+          )}
+        </div>
+      )}
+
+      {seleccion.size > 0 && (
+        <div className="barra-seleccion" role="region" aria-label="Acciones sobre la selección">
+          <strong>
+            {seleccion.size} fila{seleccion.size === 1 ? "" : "s"} seleccionada{seleccion.size === 1 ? "" : "s"}
+          </strong>
+          <form method="post" action="/admin/exportar">
+            <input type="hidden" name="ids" value={[...seleccion].join(",")} />
+            <button type="submit" name="alcance" value="seleccion" className="btn-chico">
+              <IconoExportar size={14} /> Exportar selección
             </button>
           </form>
+          <button type="button" className="btn-chico peligro" onClick={() => setDialogoEliminar(true)}>
+            <IconoPapelera size={14} /> Eliminar
+          </button>
+          <button type="button" className="btn-chico fantasma" onClick={() => setSeleccion(new Set())}>
+            Quitar selección
+          </button>
+        </div>
+      )}
+      <DialogoEliminar
+        abierto={dialogoEliminar}
+        onCerrar={() => setDialogoEliminar(false)}
+        titulo={tituloEliminar}
+        pendiente={eliminando}
+        onConfirmar={(alcance) => empezarEliminar(async () => { await eliminarProductos(productosIds, alcance); })}
+      />
+
+      {importando && (
+        <div className="admin-panel-importar">
+          <div className="admin-titulo-fila" style={{ marginBottom: 8 }}>
+            <strong>Importar productos desde CSV</strong>
+            <button type="button" className="btn-ico" onClick={() => setImportando(false)} aria-label="Cerrar la importación">
+              <IconoCerrar />
+            </button>
+          </div>
           <ImportarCsvForm />
         </div>
       )}
@@ -232,35 +282,29 @@ export default function TablaProductos({
                 />
               </th>
               <th></th>
-              <th>Producto</th>
-              <th>Variante</th>
-              <th>SKU</th>
-              <th>Marca</th>
-              <th>Sistemas</th>
-              <th>Stock</th>
-              <th>Mín.</th>
-              <th>Precio</th>
-              <th></th>
-            </tr>
-            <tr className="fila-filtros">
-              <th colSpan={2}>
-                <form id={FORM_COLUMNAS} method="get" action="/admin" style={{ display: "none" }}>
-                </form>
-                <button type="submit" form={FORM_COLUMNAS} className="btn-ico" title="Aplicar filtros de columna" aria-label="Aplicar filtros de columna">
-                  <IconoFiltro size={16} />
-                </button>
-              </th>
-              <th>{texto("producto", "Producto")}</th>
-              <th>{texto("variante", "Variante")}</th>
-              <th>{texto("sku", "SKU")}</th>
-              <th>{lista("marca", "Todas", marcas.map((m) => [m, m]))}</th>
+              <th>{col("Producto", ["producto"], [{ tipo: "texto", name: "producto", placeholder: "Nombre del producto" }])}</th>
+              <th>{col("Variante", ["variante"], [{ tipo: "texto", name: "variante", placeholder: "Nombre de la variante" }])}</th>
+              <th>{col("SKU", ["sku"], [{ tipo: "texto", name: "sku", placeholder: "Código SKU" }])}</th>
+              <th>{col("Marca", ["marca"], [{ tipo: "select", name: "marca", opciones: lista(marcas.map((m) => [m, m])) }])}</th>
               <th>
-                {lista("sistema", "Todos", [["sin", "Sin SAGA"], ["publicado", "Publicado"], ["pendiente", "Pendiente"], ["error", "Con error"], ["vinculado", "Vinculado"]])}
-                {cuentas.length > 1 && lista("cuenta", "Cuenta", cuentas.map((c) => [c, c]))}
+                {col("Sistemas", ["sistema", "cuenta"], [
+                  { tipo: "select", name: "sistema", etiqueta: "Estado en SAGA", opciones: lista(Object.entries(NOMBRE_SISTEMA)) },
+                  ...(cuentas.length > 1 ? [{ tipo: "select", name: "cuenta", etiqueta: "Cuenta", opciones: lista(cuentas.map((c) => [c, c])) }] : []),
+                ])}
               </th>
-              <th>{lista("stock", "Todos", [["alertas", "En alerta"], ...NIVELES.map((n) => [n.id, n.nombre])])}</th>
-              <th>{desdeHasta("min", "1")}</th>
-              <th>{desdeHasta("precio", "0.01")}</th>
+              <th>{col("Stock", ["stock"], [{ tipo: "select", name: "stock", opciones: lista(Object.entries(NOMBRE_STOCK)) }])}</th>
+              <th>
+                {col("Mín.", ["min_d", "min_h"], [
+                  { tipo: "numero", name: "min_d", etiqueta: "Desde" },
+                  { tipo: "numero", name: "min_h", etiqueta: "Hasta" },
+                ])}
+              </th>
+              <th>
+                {col("Precio", ["precio_d", "precio_h"], [
+                  { tipo: "numero", name: "precio_d", etiqueta: "Desde (S/)" },
+                  { tipo: "numero", name: "precio_h", etiqueta: "Hasta (S/)" },
+                ])}
+              </th>
               <th></th>
             </tr>
           </thead>

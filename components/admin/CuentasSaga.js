@@ -19,8 +19,8 @@ function Formulario({ c, opciones, onCerrar }) {
   const operadores = conActual(opciones.operadores, c?.operador);
 
   return (
-    <form action={accion} className="form-grid" style={{ borderTop: "1px solid var(--borde, #eee)", paddingTop: 12 }}>
-      <h3 style={{ margin: 0 }}>{nueva ? "Agregar cuenta" : `Editar cuenta "${c.alias}"`}</h3>
+    <form action={accion} className="form-grid cg-form-cuenta">
+      <h3 style={{ margin: 0, fontSize: "0.92rem" }}>{nueva ? "Agregar cuenta" : `Editar cuenta "${c.alias}"`}</h3>
       {!nueva && <input type="hidden" name="alias_original" value={c.alias} />}
       <div className="campo">
         <label htmlFor="cs-alias">Alias</label>
@@ -71,17 +71,17 @@ function Formulario({ c, opciones, onCerrar }) {
             <option key={o} value={o}>{o}</option>
           ))}
         </select>
-        <small style={{ color: "var(--gris)" }}>Las listas de URL y operador se editan abajo, en "Conexión".</small>
+        <small style={{ color: "var(--gris)" }}>Las listas de URL y operador se editan en la pestaña «Conexión».</small>
       </div>
       <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
         <input type="checkbox" name="activo" defaultChecked={c ? c.activo : true} /> Activa (aparece al crear/editar productos)
       </label>
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
-        <button type="submit" className="btn-ico-texto primario" disabled={enviando}>
+        <button type="submit" className="btn-admin solido" disabled={enviando}>
           {enviando ? "Guardando…" : "Guardar"}
         </button>
-        <button type="button" className="btn-ico-texto" onClick={onCerrar}>
+        <button type="button" className="btn-admin" onClick={onCerrar}>
           Cancelar
         </button>
       </div>
@@ -95,8 +95,8 @@ function Quitar({ alias }) {
     if (!confirm(`¿Eliminar la cuenta "${alias}"? Se borra su historial de sincronización en la web (no los productos en SAGA).`)) e.preventDefault();
   };
   return (
-    <form action={quitar} onSubmit={confirmar} style={{ display: "inline" }}>
-      <button type="submit" className="btn-ico-texto">Eliminar</button>
+    <form action={quitar} onSubmit={confirmar} style={{ display: "inline", marginLeft: 4 }}>
+      <button type="submit" className="btn-admin cg-ico peligro" aria-label={`Eliminar la cuenta ${alias}`} title="Eliminar la cuenta">✕</button>
     </form>
   );
 }
@@ -108,43 +108,56 @@ export default function CuentasSaga({ cuentas = [], opciones }) {
   const editando = cuentas.find((c) => c.alias === abierto);
 
   return (
-    <details className="admin-card saga-seccion pf-sub">
-      <summary>Cuentas de SAGA</summary>
-      <div className="saga-cuerpo form-grid">
-      {cuentas.length === 0 && <small style={{ color: "var(--gris)" }}>Aún no hay cuentas. Agrega la primera.</small>}
-
-      {cuentas.map((c) => (
-        <div key={c.alias} style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
-          <div>
-            <strong>{c.nombre}</strong> — <code>{c.alias}</code>
-            {!c.activo && <small style={{ color: "var(--gris)" }}> (inactiva)</small>}
-            <br />
-            <small style={{ color: c.tiene_key && c.user_id ? "var(--gris)" : "#b3261e" }}>
-              {c.user_id || "sin usuario"} · {c.base_url || "sin URL"} · operador {c.operador || "—"}
-              {!c.tiene_key && " · falta la API key"}
-            </small>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="button" className="btn-ico-texto" onClick={() => setAbierto(c.alias)}>Editar</button>
-            <Quitar alias={c.alias} />
-          </div>
+    <div className="pf-panel-bloque">
+      <strong>Cuentas de SAGA</strong>
+      <small style={{ color: "var(--gris)" }}>
+        Las cuentas de Seller Center con las que la web crea y sincroniza productos. La API key se guarda en la base de datos, solo la usa el
+        servidor y nunca se muestra de nuevo.
+      </small>
+      {cuentas.length === 0 ? (
+        <small style={{ color: "var(--gris)" }}>Aún no hay cuentas. Agrega la primera.</small>
+      ) : (
+        <div className="admin-tabla-wrap">
+          <table className="admin-tabla cg-tabla-cuentas">
+            <thead>
+              <tr>
+                <th>Cuenta</th>
+                <th>Usuario</th>
+                <th>URL base</th>
+                <th>Operador</th>
+                <th aria-label="Acciones" />
+              </tr>
+            </thead>
+            <tbody>
+              {cuentas.map((c) => (
+                <tr key={c.alias}>
+                  <td>
+                    {c.nombre}
+                    <code className="cg-slug">{c.alias}</code>
+                    {!c.activo && <small style={{ marginLeft: 6, color: "var(--gris)" }}>(inactiva)</small>}
+                    {!c.tiene_key && <small style={{ display: "block", color: "#b3261e" }}>falta la API key</small>}
+                  </td>
+                  <td>{c.user_id || <small style={{ color: "#b3261e" }}>sin usuario</small>}</td>
+                  <td>{c.base_url || <small style={{ color: "#b3261e" }}>sin URL</small>}</td>
+                  <td>{c.operador || "—"}</td>
+                  <td className="cg-acc">
+                    <button type="button" className="btn-admin cg-ico" onClick={() => setAbierto(c.alias)} aria-label={`Editar la cuenta ${c.alias}`} title="Editar">✎</button>
+                    <Quitar alias={c.alias} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      ))}
+      )}
 
       {abierto === null && (
         <div>
-          <button type="button" className="btn-ico-texto primario" onClick={() => setAbierto("nueva")}>
-            + Agregar cuenta
-          </button>
+          <button type="button" className="btn-admin cg-mas" onClick={() => setAbierto("nueva")}>+ Agregar cuenta</button>
         </div>
       )}
       {abierto === "nueva" && <Formulario key="nueva" c={null} opciones={opciones} onCerrar={cerrar} />}
       {editando && <Formulario key={editando.alias} c={editando} opciones={opciones} onCerrar={cerrar} />}
-
-      <small style={{ color: "var(--gris)" }}>
-        La API key se guarda en la base de datos y solo la usa el servidor: nunca se muestra de nuevo.
-      </small>
     </div>
-    </details>
   );
 }

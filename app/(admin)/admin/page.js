@@ -68,6 +68,7 @@ export default async function AdminProductosPage({ searchParams }) {
         </div>
       )}
       {eliminado && <div className="mensaje-ok">Producto eliminado.</div>}
+      {params?.errorEliminar && <div className="mensaje-error">{params.errorEliminar}</div>}
       {eliminados > 0 && (
         <div className="mensaje-ok">
           {eliminados} producto{eliminados === 1 ? "" : "s"} eliminado{eliminados === 1 ? "" : "s"}.

@@ -1,49 +1,65 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { guardarOpcionesVentas, restablecerOpcionesVentas } from "../../app/(admin)/admin/actions";
 
 const aTexto = (arr) => (arr || []).join("\n");
+const contar = (t) => new Set(String(t).split("\n").map((x) => x.trim()).filter(Boolean)).size;
 
-function Lista({ nombre, etiqueta, ayuda, valores, filas = 5 }) {
-  return (
-    <div className="campo">
-      <label htmlFor={`ventas-${nombre}`}>{etiqueta}</label>
-      <textarea id={`ventas-${nombre}`} name={nombre} rows={filas} defaultValue={aTexto(valores)} />
-      {ayuda && <small style={{ color: "var(--gris)" }}>{ayuda}</small>}
-    </div>
-  );
-}
+// Una pestaña por lista: nombre del campo en el formulario de ventas, etiqueta y ayuda.
+const LISTAS = [
+  { nombre: "categorias", etiqueta: "Categoría" },
+  { nombre: "destinos", etiqueta: "Entrega", ayuda: "Se usa también en las pestañas Lima / Provincia / Recojo de Pendientes." },
+  { nombre: "couriers", etiqueta: "Courier" },
+  { nombre: "tiposCliente", etiqueta: "Tipo de cliente" },
+  { nombre: "metodosPago", etiqueta: "Método de pago" },
+];
 
 /**
- * Listas de los campos desplegables de ventas (formulario de /operaciones, filtros del reporte y dashboard).
+ * Listas de los campos desplegables de ventas (formulario de /operaciones, filtros del reporte y dashboard), una pestaña por lista.
  * Una opción por línea; se guardan en mayúsculas. Quitar una opción no cambia las ventas ya registradas.
  */
 export default function VentasConfig({ opciones }) {
   const [estado, accion, enviando] = useActionState(guardarOpcionesVentas, {});
+  const [vista, setVista] = useState(LISTAS[0].nombre);
+  const [valores, setValores] = useState(() => Object.fromEntries(LISTAS.map((l) => [l.nombre, aTexto(opciones[l.nombre])])));
 
   return (
-    <form action={accion} className="form-grid" key={estado?.n || 0}>
+    <form action={accion} className="form-grid cg admin-card" key={estado?.n || 0}>
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
 
-      <section className="admin-card form-grid">
-        <h2>Listas de ventas</h2>
-        <small style={{ color: "var(--gris)" }}>
-          Una opción por línea (se guardan en MAYÚSCULAS). Estas listas llenan los desplegables de <strong>/operaciones</strong> y los
-          filtros del reporte de ventas y del dashboard. Quitar una opción no modifica las ventas ya registradas.
-        </small>
-        <Lista nombre="categorias" etiqueta="Categoría" valores={opciones.categorias} />
-        <Lista
-          nombre="destinos"
-          etiqueta="Entrega"
-          valores={opciones.destinos}
-          ayuda="Se usa también en las pestañas Lima / Provincia / Recojo de Pendientes."
-        />
-        <Lista nombre="couriers" etiqueta="Courier" valores={opciones.couriers} />
-        <Lista nombre="tiposCliente" etiqueta="Tipo de cliente" valores={opciones.tiposCliente} />
-        <Lista nombre="metodosPago" etiqueta="Método de pago" valores={opciones.metodosPago} />
-      </section>
+      <div className="pf-pestanas" role="tablist" aria-label="Listas de ventas">
+        {LISTAS.map((l) => (
+          <button key={l.nombre} type="button" role="tab" aria-selected={l.nombre === vista} className="pf-pestana" onClick={() => setVista(l.nombre)}>
+            {l.etiqueta}
+            <span className="pf-pestana-n" title="Opciones">{contar(valores[l.nombre])}</span>
+          </button>
+        ))}
+      </div>
+      <small style={{ color: "var(--gris)" }}>
+        Una opción por línea (se guardan en MAYÚSCULAS). Estas listas llenan los desplegables de <strong>/operaciones</strong> y los filtros del
+        reporte de ventas y del dashboard. Quitar una opción no modifica las ventas ya registradas.
+      </small>
+
+      {LISTAS.map((l) => (
+        <div key={l.nombre} hidden={l.nombre !== vista} className="form-grid">
+          <div className="pf-panel-bloque">
+            <strong>{l.etiqueta}</strong>
+            <div className="campo">
+              <textarea
+                id={`ventas-${l.nombre}`}
+                name={l.nombre}
+                rows={10}
+                value={valores[l.nombre]}
+                onChange={(e) => setValores((p) => ({ ...p, [l.nombre]: e.target.value }))}
+                aria-label={`Opciones de ${l.etiqueta}`}
+              />
+              {l.ayuda && <small style={{ color: "var(--gris)" }}>{l.ayuda}</small>}
+            </div>
+          </div>
+        </div>
+      ))}
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <button type="submit" className="btn-admin solido" disabled={enviando}>

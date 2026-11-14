@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   consultarEstadoSagaSeleccion, cambiarAccionSagaSeleccion,
@@ -34,15 +34,38 @@ export default function TablaSincronizacionesSaga({
   const [elegidas, setElegidas] = useState(() => new Set());
   const [modo, setModo] = useState(opcionesAccion[0]?.id || "");
   const [enviarAhora, setEnviarAhora] = useState(false);
-  const [mensaje, setMensaje] = useState("");
+  const [avisos, setAvisos] = useState([]); // alertas flotantes: { id, texto, tipo, minimizado }
+  const idAviso = useRef(0);
+  const temporizadores = useRef(new Map());
+
+  const cerrarAviso = (id) => {
+    clearTimeout(temporizadores.current.get(id));
+    temporizadores.current.delete(id);
+    setAvisos((a) => a.filter((x) => x.id !== id));
+  };
+  const minimizarAviso = (id, minimizado) => {
+    clearTimeout(temporizadores.current.get(id));
+    temporizadores.current.delete(id);
+    setAvisos((a) => a.map((x) => (x.id === id ? { ...x, minimizado } : x)));
+  };
+  function mostrarAviso(texto) {
+    const id = ++idAviso.current;
+    const tipo = /error|no se pudo|fall|rechaz/i.test(texto) ? "error" : "ok";
+    setAvisos((a) => [...a.slice(-3), { id, texto, tipo, minimizado: false }]);
+    // Los avisos correctos se pliegan solos a los 8 s; los de error se quedan hasta que se cierren.
+    if (tipo === "ok") temporizadores.current.set(id, setTimeout(() => minimizarAviso(id, true), 8000));
+  }
+  useEffect(() => {
+    const t = temporizadores.current;
+    return () => t.forEach(clearTimeout);
+  }, []);
 
   function ejecutar(clave, accion) {
     setOcupado(clave);
-    setMensaje("");
     iniciar(async () => {
       try {
         const r = await accion();
-        if (r?.mensaje) setMensaje(r.mensaje);
+        if (r?.mensaje) mostrarAviso(r.mensaje);
         setElegidas(new Set());
       } finally {
         setOcupado(null);
@@ -80,17 +103,18 @@ export default function TablaSincronizacionesSaga({
 
   return (
     <div className="form-grid">
-      <div className="admin-barra">
-        <small style={{ color: "var(--gris)" }}>
+      <details className="saga-ayuda">
+        <summary>¿Qué muestra esta pestaña?</summary>
+        <p>
           {esError
             ? "Envíos que SAGA no llegó a recibir o no pudo procesar (datos inválidos, configuración de la cuenta, error del envío). Elige filas y consulta su estado: si SAGA ya tiene el producto, pasa a Pendientes o Sin publicar según lo que SAGA indique. Los avisos de stock se reintentan solos."
             : esPendiente
               ? "Productos que SAGA tiene en Pendientes (en revisión o con contenido, imágenes o compliance por corregir). Último estado guardado: no consulta a SAGA al abrir. Elige filas para consultar su estado."
               : esSinPublicar
-                ? "Productos ya aprobados por SAGA (parte del catálogo) que todavía no se pueden vender. Elige filas y consulta el estado para ver qué falta; si ya quedaron vendibles pasan a Sincronizados."
-                : "Productos vinculados con SAGA. «Consultar estado» revisa su situación actual en SAGA: Pendientes si siguen en revisión, Sin publicar si están aprobados pero no vendibles. Con las filas elegidas también puedes cambiar su tipo de vinculación."}
-        </small>
-      </div>
+                ? "Productos ya aprobados por SAGA (parte del catálogo) que todavía no están publicados en SAGA (casilla «Publicado»). Elige filas y consulta el estado para ver qué falta; si no falta ningún requisito, solo queda publicarlos en Seller Center. Al quedar publicados pasan a Sincronizados."
+                : "Productos vinculados con SAGA. «Consultar estado» revisa su situación actual en SAGA: Pendientes si siguen en revisión, Sin publicar si están aprobados pero sin la casilla «Publicado» activa. Con las filas elegidas también puedes cambiar su tipo de vinculación."}
+        </p>
+      </details>
 
       {conSeleccion && filas.length > 0 && (
         <div className="admin-barra" style={{ flexWrap: "wrap", gap: 10 }}>
@@ -126,10 +150,6 @@ export default function TablaSincronizacionesSaga({
             )}
           </div>
         </div>
-      )}
-
-      {mensaje && (
-        <div className="admin-card" role="status" style={{ fontSize: ".9rem" }}>{mensaje}</div>
       )}
 
       {filas.length === 0 ? (
@@ -192,11 +212,23 @@ export default function TablaSincronizacionesSaga({
                       <td>
                         {nombreAccion(f.accion)}
                         {f.venta_ok && f.venta_fecha && (
-                          <div><small style={{ color: "var(--gris)" }}>Vendible · revisado {fechaHora(f.venta_fecha)}</small></div>
+                          <div><small style={{ color: "var(--gris)" }}>Publicado en SAGA · revisado {fechaHora(f.venta_fecha)}</small></div>
                         )}
                       </td>
                     ) : esSinPublicar ? (
                       <td style={{ maxWidth: 380 }}>
+                        {(() => {
+                          const its = (f.venta_detalle?.items || []).filter((it) => it.estado !== "sin_dato" && it.clave !== "publicacion");
+                          return its.length > 0 && its.every((it) => it.estado === "listo") ? (
+                            <div style={{ marginBottom: 4 }}>
+                              <span className="chip-saga">Listo, falta publicar en SAGA</span>
+                            </div>
+                          ) : (
+                            <div style={{ marginBottom: 4 }}>
+                              <span className="chip-saga aviso">Falta cumplir requisitos</span>
+                            </div>
+                          );
+                        })()}
                         <ul style={{ margin: 0, paddingLeft: 0, listStyle: "none", fontSize: ".82rem", wordBreak: "break-word" }}>
                           {(f.venta_detalle?.items || []).filter((it) => it.estado !== "sin_dato").map((it) => (
                             <li key={it.clave}>
@@ -281,6 +313,34 @@ export default function TablaSincronizacionesSaga({
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {avisos.length > 0 && (
+        <div className="saga-avisos" aria-live="polite">
+          {avisos.map((a) =>
+            a.minimizado ? (
+              <button
+                key={a.id}
+                type="button"
+                className={`saga-aviso-mini ${a.tipo}`}
+                title={a.texto}
+                aria-label="Mostrar aviso"
+                onClick={() => minimizarAviso(a.id, false)}
+              >
+                {a.tipo === "error" ? "!" : "✓"}
+              </button>
+            ) : (
+              <div key={a.id} className={`saga-aviso ${a.tipo}`} role={a.tipo === "error" ? "alert" : "status"}>
+                <span className="saga-aviso-ico" aria-hidden="true">{a.tipo === "error" ? "!" : "✓"}</span>
+                <p>{a.texto}</p>
+                <div className="saga-aviso-acc">
+                  <button type="button" onClick={() => minimizarAviso(a.id, true)} aria-label="Minimizar aviso" title="Minimizar">–</button>
+                  <button type="button" onClick={() => cerrarAviso(a.id)} aria-label="Cerrar aviso" title="Cerrar">×</button>
+                </div>
+              </div>
+            )
+          )}
         </div>
       )}
     </div>

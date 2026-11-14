@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useConfig } from "../lib/ConfigContext";
+import { esHtml, limpiarHtml } from "../lib/html-limpio";
 import { useSeleccion, construirKey } from "../lib/SelectionContext";
 
 export default function ProductDetail({ producto, marca, categoria, children }) {
@@ -107,7 +108,15 @@ export default function ProductDetail({ producto, marca, categoria, children }) 
           {categoria && <p className="detalle-cat">{categoria.nombre}</p>}
           <h1 className="detalle-nombre serif">{producto.nombre}</h1>
           {/* Con varias variantes, cada una puede tener su propia descripción; si no, se muestra la del producto. */}
-          <p className="detalle-desc">{varias && variante.descripcion ? variante.descripcion : producto.descripcion}</p>
+          {(() => {
+            const desc = varias && variante.descripcion ? variante.descripcion : producto.descripcion;
+            // La descripción puede traer formato (editor de texto enriquecido): se muestra ya limpia; la antigua en texto plano, con sus saltos de línea.
+            return esHtml(desc) ? (
+              <div className="detalle-desc detalle-desc-html" dangerouslySetInnerHTML={{ __html: limpiarHtml(desc) }} />
+            ) : (
+              <p className="detalle-desc" style={{ whiteSpace: "pre-line" }}>{desc}</p>
+            );
+          })()}
 
           {/* Selector de variantes */}
           {varias && (

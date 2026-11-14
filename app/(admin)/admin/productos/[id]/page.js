@@ -9,8 +9,9 @@ export const metadata = { title: "Editar producto · Panel Le Chic" };
 // Las imágenes se envían a SAGA tras guardar (~2 minutos): necesita más tiempo que una página normal.
 export const maxDuration = 300;
 
-export default async function EditarProductoPage({ params }) {
+export default async function EditarProductoPage({ params, searchParams }) {
   const { id } = await params;
+  const { errorEliminar } = (await searchParams) || {};
   const producto = await getProducto(id, { incluirInactivas: true });
   if (!producto) notFound();
 
@@ -43,6 +44,7 @@ export default async function EditarProductoPage({ params }) {
         <h1 className="admin-titulo">Editar producto</h1>
         <EliminarProductoBoton id={producto.id} nombre={producto.nombre} />
       </div>
+      {errorEliminar && <div className="mensaje-error">{errorEliminar}</div>}
       <ProductoForm modo="editar" marcas={marcas} pestanas={pestanas} producto={producto} cuentasSaga={cuentasSaga} sincronizadas={sincronizadas} variantesSincronizadas={variantesSincronizadas} estadoSync={estadoSync} preciosCanal={preciosCanal} paquetesCuenta={paquetesCuenta} categoriasCuenta={categoriasCuenta} opcionesSaga={opcionesSaga} variantesPack={await getVariantesParaPack()} />
     </div>
   );
