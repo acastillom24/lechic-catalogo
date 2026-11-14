@@ -24,19 +24,19 @@ import { getConfigMarcas } from "../../../lib/marcas-config";
 import { guardarProductoDesdeForm, parseNumero, parseAromas } from "../../../lib/productos-guardar";
 import { fijarStock } from "../../../lib/inventario";
 import {
-  refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock,
+  refrescarPendientes, reintentarStockPendiente, sincronizarStockVariante, sincronizarCambiosStock, eliminarEnSaga,
   consultarSeleccion, aplicarAccionSeleccion, cambiarAccionSeleccion, resumirResultados,
 } from "../../../lib/saga-sync";
 import { getOpcionesSaga, getBaseIntegracion, IDS_BASE, CLAVE as CLAVE_SAGA_OPCIONES, CLAVE_ATRIBUTOS, CLAVE_CATALOGO, CLAVE_EQUIVALENCIAS } from "../../../lib/saga-opciones";
 import { aplicarFormularioSaga, extrasPorCategoria, normalizarEquivalencias } from "../../../lib/equivalencias";
 import { esGrupoValido, GRUPO_PREDETERMINADO, porId as campoWebPorId } from "../../../lib/campos-web";
-import { TIPOS as TIPOS_ATRIBUTO, idDeEtiqueta } from "../../../lib/atributos-categoria";
+import { TIPOS as TIPOS_ATRIBUTO, idDeEtiqueta, atributosDe, CLAVE_GENERALES, BLOQUES_GENERALES, UBICACIONES } from "../../../lib/atributos-categoria";
 import { IDS as PERMISOS_IDS, guardarPermisosUsuario } from "../../../lib/ventas-permisos";
 import { CLAVE as CLAVE_VENTAS } from "../../../lib/ventas-opciones";
 import { IDS as IDS_ATRIBUTOS } from "../../../lib/saga-atributos";
-import { camposDe, IMAGENES_TOPE } from "../../../lib/saga-campos";
+import { IMAGENES_TOPE } from "../../../lib/saga-campos";
 import { guardarSeguimiento } from "../../../lib/reclamos";
-import { credenciales as credencialesSaga, producto as productoSaga, atributosCategoria as atributosCategoriaSaga } from "../../../lib/sellercenter";
+import { credenciales as credencialesSaga, producto as productoSaga, productosPorBusqueda as busquedaSaga, atributosCategoria as atributosCategoriaSaga, marcas as marcasSagaApi } from "../../../lib/sellercenter";
 import { desdeSaga } from "../../../lib/saga-mapeo";
 import { registrarMovimientoDesdeForm } from "../../../lib/movimiento-form";
 import {
@@ -134,8 +134,23 @@ async function agotarEnSaga(productoIds) {
   for (const f of filas) await sincronizarStockVariante(Number(f.variante_id), { cero: true });
 }
 
-export async function eliminarProducto(id) {
-  await agotarEnSaga([id]);
+/**
+ * Qué pasa en las plataformas al eliminar de la web. alcance "web": en SAGA solo queda con stock 0 (se conserva allá);
+ * alcance "todas": se quita también de SAGA (ProductRemove). Si SAGA no lo quita, no se borra nada de la web.
+ * Devuelve un texto de error o "" si todo salió bien.
+ */
+async function quitarDePlataformas(ids, alcance) {
+  if (alcance === "todas") {
+    const r = await eliminarEnSaga(ids);
+    return r.errores.length ? `No se eliminó nada de la web porque SAGA no quitó el producto. ${r.errores.join(" ")}` : "";
+  }
+  await agotarEnSaga(ids);
+  return "";
+}
+
+export async function eliminarProducto(id, alcance = "web") {
+  const errorPlataformas = await quitarDePlataformas([id], alcance);
+  if (errorPlataformas) redirect(`/admin/productos/${encodeURIComponent(id)}?errorEliminar=${encodeURIComponent(errorPlataformas)}`);
   const [producto] = await query("select coalesce(pestana, marca) as pestana from productos where id = $1", [id]);
   await query("delete from productos where id = $1", [id]);
 
@@ -148,11 +163,12 @@ export async function eliminarProducto(id) {
 }
 
 /** Elimina varios productos a la vez (filas marcadas en la tabla). */
-export async function eliminarProductos(ids) {
+export async function eliminarProductos(ids, alcance = "web") {
   const lista = [...new Set((Array.isArray(ids) ? ids : []).map((x) => String(x)).filter(Boolean))];
   if (!lista.length || lista.length > 500) redirect("/admin");
 
-  await agotarEnSaga(lista);
+  const errorPlataformas = await quitarDePlataformas(lista, alcance);
+  if (errorPlataformas) redirect(`/admin?errorEliminar=${encodeURIComponent(errorPlataformas)}`);
   const pestanas = await query("select distinct coalesce(pestana, marca) as pestana from productos where id = any($1::text[])", [lista]);
   const borrados = await query("delete from productos where id = any($1::text[]) returning id", [lista]);
 
@@ -805,6 +821,7 @@ function listaOpciones(formData, campo, etiqueta, { max = 500 } = {}) {
 export async function guardarOpcionesSaga(prevState, formData) {
   let valor;
   let nuevaBase;
+  let marcasNuevas = null;
   try {
     let acciones;
     try {
@@ -843,7 +860,9 @@ export async function guardarOpcionesSaga(prevState, formData) {
     }
     if (!categorias.length) throw new Error("Agrega al menos una categoría de SAGA.");
     // «Permitir variantes» ya no se edita aquí (vive en Integraciones → Web): se conserva lo que hubiera guardado.
-    const previas = new Map(((await getOpcionesSaga()).categorias || []).map((c) => [c.id, c]));
+    const guardadas = await getOpcionesSaga();
+    const listaGuardada = (campo, etiqueta, opciones) => (formData.has(campo) ? listaOpciones(formData, campo, etiqueta, opciones) : guardadas[campo]);
+    const previas = new Map((guardadas.categorias || []).map((c) => [c.id, c]));
     // Campos extra que se muestran por categoría (casillas de Configuración). Solo se guardan los que SAGA
     // define para esa categoría; sin marcador (categoría recién agregada) rigen los predeterminados.
     for (const c of categorias) {
@@ -865,14 +884,16 @@ export async function guardarOpcionesSaga(prevState, formData) {
     }
     valor = {
       mapaCategorias: {}, // las equivalencias de categoría viven ahora en la clave `equivalencias`
-      aromas: listaOpciones(formData, "aromas", "Aromas", { max: 100 }),
-      cantidades: listaOpciones(formData, "cantidades", "Medidas del frasco"),
-      tiposPerfume: listaOpciones(formData, "tiposPerfume", "Tipos de perfume", { max: 100 }),
-      condiciones: listaOpciones(formData, "condiciones", "Condiciones", { max: 50 }),
-      generos: listaOpciones(formData, "generos", "Géneros", { max: 20 }),
-      formatosBelleza: listaOpciones(formData, "formatosBelleza", "Formatos de belleza", { max: 100 }),
-      paises: listaOpciones(formData, "paises", "Países", { max: 400 }),
-      caracteristicas: listaOpciones(formData, "caracteristicas", "Características", { max: 300 }),
+      // Listas de valores de SAGA: ya no se editan en esta pantalla (se personalizan en la web con «Consultar SAGA»). Si el formulario
+      // no las trae se conserva lo guardado; si las trae (formularios antiguos) se validan como siempre.
+      aromas: listaGuardada(formData, "aromas", "Aromas", { max: 100 }),
+      cantidades: listaGuardada(formData, "cantidades", "Medidas del frasco"),
+      tiposPerfume: listaGuardada(formData, "tiposPerfume", "Tipos de perfume", { max: 100 }),
+      condiciones: listaGuardada(formData, "condiciones", "Condiciones", { max: 50 }),
+      generos: listaGuardada(formData, "generos", "Géneros", { max: 20 }),
+      formatosBelleza: listaGuardada(formData, "formatosBelleza", "Formatos de belleza", { max: 100 }),
+      paises: listaGuardada(formData, "paises", "Países", { max: 400 }),
+      caracteristicas: listaGuardada(formData, "caracteristicas", "Características", { max: 300 }),
       categorias,
       acciones,
       urlsBase: listaOpciones(formData, "urlsBase", "URLs base de Seller Center", { max: 20 }),
@@ -881,7 +902,26 @@ export async function guardarOpcionesSaga(prevState, formData) {
     const mala = valor.urlsBase.find((u) => !/^https:\/\/\S+$/.test(u));
     if (mala) throw new Error(`URL base inválida: "${mala}". Debe empezar con https://`);
     // Equivalencias de atributos (SAGA ↔ atributos web): se calculan sobre lo guardado y actualizan los campos usados.
-    nuevaBase = aplicarFormularioSaga(await getBaseIntegracion(), valor.categorias, { has: (k) => formData.has(k), get: (k) => formData.get(k) });
+    const { categorias: categoriasWebGuardadas } = await getConfigMarcas();
+    nuevaBase = aplicarFormularioSaga(await getBaseIntegracion(), valor.categorias, {
+      has: (k) => formData.has(k),
+      get: (k) => formData.get(k),
+      slugsWeb: new Set(categoriasWebGuardadas.map((c) => c.slug)),
+    });
+    // Marcas: cada marca de la web se empareja con UNA marca de SAGA (no se puede repetir una marca de SAGA).
+    if (formData.has("marcasSagaMarca")) {
+      const usadas = new Map();
+      marcasNuevas = (await getConfigMarcas()).marcas.map((m) => {
+        const k = `marcaSaga_${m.slug}`;
+        const nombreSaga = formData.has(k) ? textoConfig(formData.get(k), `Marca "${m.nombre}" (nombre en SAGA)`, 100) : m.nombreSaga;
+        if (nombreSaga) {
+          const clave = nombreSaga.toLowerCase();
+          if (usadas.has(clave)) throw new Error(`La marca de SAGA «${nombreSaga}» está asignada a «${usadas.get(clave)}» y a «${m.nombre}»: cada una solo puede usarse una vez.`);
+          usadas.set(clave, m.nombre);
+        }
+        return { ...m, nombreSaga };
+      });
+    }
   } catch (err) {
     return { error: err.message || "No se pudo leer el formulario." };
   }
@@ -894,6 +934,7 @@ export async function guardarOpcionesSaga(prevState, formData) {
     );
     await guardarClaveConfiguracion(CLAVE_EQUIVALENCIAS, nuevaBase.equivalencias);
     await guardarClaveConfiguracion(CLAVE_ATRIBUTOS, nuevaBase.catalogo);
+    if (marcasNuevas) await guardarClaveConfiguracion("marcas", marcasNuevas);
   } catch (err) {
     return { error: `No se pudo guardar: ${err.message}` };
   }
@@ -916,10 +957,10 @@ export async function guardarIntegracionWeb(prevState, formData) {
       }
     };
     const crudo = leer("atributosJson", "{}", "No se pudieron leer los atributos. Recarga la página e inténtalo de nuevo.");
-    const crudoCategorias = leer("categoriasJson", "{}", "No se pudieron leer las equivalencias de categoría. Recarga la página e inténtalo de nuevo.");
     const crudoEnlaces = leer("enlacesJson", "{}", "No se pudieron leer las equivalencias de atributos. Recarga la página e inténtalo de nuevo.");
     const crudoFijos = leer("fijosJson", "{}", "No se pudieron leer las equivalencias de los campos de la web. Recarga la página e inténtalo de nuevo.");
     const crudoConfig = leer("configCategoriasJson", "{}", "No se pudo leer la configuración de las categorías. Recarga la página e inténtalo de nuevo.");
+    const crudoCamposWeb = leer("camposWebJson", "{}", "No se pudieron leer los campos generales. Recarga la página e inténtalo de nuevo.");
     if (!crudo || typeof crudo !== "object" || Array.isArray(crudo) || !Array.isArray(crudo.catalogo)) throw new Error("Atributos inválidos.");
     const { categorias } = await getConfigMarcas();
     const slugs = new Set(categorias.map((c) => c.slug));
@@ -946,38 +987,38 @@ export async function guardarIntegracionWeb(prevState, formData) {
       const max = tipo === "texto" ? largo(a?.max) : null;
       if (Number.isNaN(min) || Number.isNaN(max)) throw new Error(`Atributo "${etiqueta}": el largo mínimo y máximo deben ser números enteros entre 1 y 1000.`);
       if (min && max && min > max) throw new Error(`Atributo "${etiqueta}": el largo mínimo no puede ser mayor que el máximo.`);
-      return { id, etiqueta, tipo, opciones, grupo: esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO, ...(min ? { min } : {}), ...(max ? { max } : {}) };
+      // General = vale para todas las categorías (Integraciones → Web → Campos generales); se ubica en un bloque.
+      const general = a?.general === true;
+      const bloque = general ? (BLOQUES_GENERALES[a?.bloque] ? a.bloque : "especificaciones") : null;
+      const grupo = general ? BLOQUES_GENERALES[bloque] : esGrupoValido(a?.grupo) ? a.grupo : GRUPO_PREDETERMINADO;
+      return { id, etiqueta, tipo, opciones, grupo, ...(general ? { general: true, bloque } : {}), ...(!general && UBICACIONES.includes(a?.ubicacion) ? { ubicacion: a.ubicacion } : {}), ...(min ? { min } : {}), ...(max ? { max } : {}) };
     });
     // Lo ya guardado no se borra (los productos usan esos atributos); se puede renombrar, cambiar de tipo y ampliar sus opciones.
     // Los valores de productos que no encajen con el nuevo tipo se ignoran al leerlos (limpiarPropios).
     const op = await getOpcionesSaga();
     for (const previo of op.catalogoWeb || []) {
-      if (!lista.some((a) => a.id === previo.id)) lista.push({ id: previo.id, etiqueta: previo.etiqueta, tipo: previo.tipo, opciones: previo.opciones, grupo: previo.grupo, ...(previo.min ? { min: previo.min } : {}), ...(previo.max ? { max: previo.max } : {}) });
+      if (!lista.some((a) => a.id === previo.id)) lista.push({ id: previo.id, etiqueta: previo.etiqueta, tipo: previo.tipo, opciones: previo.opciones, grupo: previo.grupo, ...(previo.general ? { general: true, bloque: previo.bloque } : {}), ...(previo.ubicacion ? { ubicacion: previo.ubicacion } : {}), ...(previo.min ? { min: previo.min } : {}), ...(previo.max ? { max: previo.max } : {}) });
     }
     const activosEnviados = crudo.activos && typeof crudo.activos === "object" && !Array.isArray(crudo.activos) ? crudo.activos : {};
     const catalogo = {};
     for (const [slug, marcados] of Object.entries(activosEnviados)) {
       if (!slugs.has(slug)) throw new Error(`La categoría "${slug}" no existe.`);
       const set = new Set(Array.isArray(marcados) ? marcados.map(String) : []);
-      const attrs = lista.filter((a) => set.has(a.id)); // en el orden del catálogo
+      const attrs = lista.filter((a) => set.has(a.id) && !a.general); // en el orden del catálogo (los generales van aparte)
       if (attrs.length > 40) throw new Error(`Categoría "${slug}": máximo 40 atributos activos.`);
       if (attrs.length) catalogo[slug] = attrs;
     }
+    // Atributos generales: valen para todas las categorías.
+    const atributosGenerales = lista.filter((a) => a.general);
+    if (atributosGenerales.length) catalogo[CLAVE_GENERALES] = atributosGenerales;
 
     // Equivalencias de categoría por plataforma (varias por plataforma). En SAGA solo valen las de su lista de categorías.
-    const sagaIds = new Set((op.categorias || []).map((c) => c.id));
     const plataformas = op.equivalencias.plataformas;
-    const idsPlataforma = new Set(plataformas.map((x) => x.id));
+    // Las equivalencias de categoría (web ↔ plataforma) se editan desde cada plataforma (Integraciones → SAGA): aquí se conservan las
+    // guardadas, solo de categorías de la web que siguen existiendo.
     const categoriasEq = {};
-    for (const [web, porPlat] of Object.entries(crudoCategorias || {})) {
-      if (!slugs.has(web)) throw new Error(`La categoría "${web}" no existe.`);
-      for (const [plat, lista] of Object.entries(porPlat || {})) {
-        if (!idsPlataforma.has(plat)) throw new Error(`Plataforma desconocida: "${plat}".`);
-        const cats = [...new Set((Array.isArray(lista) ? lista : []).map((x) => String(x).trim()).filter(Boolean))];
-        const mala = plat === "saga" ? cats.find((c) => !sagaIds.has(c)) : cats.find((c) => !/^[A-Za-z0-9_-]{1,40}$/.test(c));
-        if (mala) throw new Error(`Categoría "${web}": el código "${mala}" no está en la lista de categorías de ${plat === "saga" ? "SAGA" : plat}.`);
-        if (cats.length) (categoriasEq[web] ||= {})[plat] = cats;
-      }
+    for (const [web, porPlat] of Object.entries((await getBaseIntegracion()).equivalencias.categorias || {})) {
+      if (slugs.has(web)) categoriasEq[web] = porPlat;
     }
 
     // Enlaces de atributos que siguen siendo válidos: el atributo web existe y la categoría de la plataforma sigue cruzada.
@@ -987,7 +1028,7 @@ export async function guardarIntegracionWeb(prevState, formData) {
       for (const [plat, porCat] of Object.entries(porPlat)) {
         for (const [cat, campos] of Object.entries(porCat)) {
           if (!(categoriasEq[web]?.[plat] || []).includes(cat)) continue;
-          const validos = Object.fromEntries(Object.entries(campos).filter(([, attr]) => (catalogo[web] || []).some((a) => a.id === attr)));
+          const validos = Object.fromEntries(Object.entries(campos).filter(([, attr]) => atributosDe(catalogo, web).some((a) => a.id === attr)));
           if (Object.keys(validos).length) (((atributos[web] ||= {})[plat] ||= {})[cat] = validos);
         }
       }
@@ -1006,7 +1047,18 @@ export async function guardarIntegracionWeb(prevState, formData) {
     }
     const configCategorias = normalizarEquivalencias({ plataformas, configCategorias: crudoConfig }).configCategorias;
     for (const web of Object.keys(configCategorias)) if (!slugs.has(web)) delete configCategorias[web];
-    const equivalencias = { plataformas, categorias: categoriasEq, atributos, fijos, configCategorias };
+    // Los campos activos por categoría de SAGA y los equivalentes de los campos generales se editan en Integraciones → SAGA: aquí se conservan (solo de categorías que siguen cruzadas).
+    const eqActual = (await getBaseIntegracion()).equivalencias;
+    const camposCategoria = {};
+    for (const [cat, campos] of Object.entries(eqActual.camposCategoria || {})) {
+      if (Object.values(categoriasEq).some((p) => (p.saga || []).includes(cat))) camposCategoria[cat] = campos;
+    }
+    // Nombres de los campos generales: lo que trae el formulario o, si no, lo guardado. Con qué campo de SAGA se corresponden
+    // (equivGenerales) se edita en Integraciones → SAGA: aquí se conserva.
+    const camposWeb = formData.has("camposWebJson")
+      ? normalizarEquivalencias({ plataformas, camposWeb: crudoCamposWeb?.camposWeb }).camposWeb
+      : eqActual.camposWeb || {};
+    const equivalencias = { plataformas, categorias: categoriasEq, atributos, fijos, configCategorias, camposCategoria, equivGenerales: eqActual.equivGenerales || {}, camposWeb };
 
     // Los campos de SAGA que se usan por categoría siguen a los enlaces (quitar un atributo web lo deja de usar).
     const [filaSaga] = await query("select valor from configuracion where clave = $1", [CLAVE_SAGA_OPCIONES]);
@@ -1110,22 +1162,19 @@ export async function guardarMarcasConfig(prevState, formData) {
     const pestanas = await getPestanas();
     const slugsPestana = new Set(pestanas.map((p) => p.slug));
     const idsPlataforma = new Set((await getBaseIntegracion()).equivalencias.plataformas.map((p) => p.id));
+    const previas = new Map((await getConfigMarcas()).marcas.map((m) => [m.slug, m]));
     const vistos = new Set();
     const marcas = lista.map((m, i) => {
       const slug = slugConfig(m?.slug, `Marca ${i + 1}`);
       if (vistos.has(slug)) throw new Error(`Marca repetida: "${slug}".`);
       vistos.add(slug);
       const nombre = textoConfig(m.nombre, `Marca "${slug}"`, 60, { requerido: true });
-      const nombreSaga = textoConfig(m.nombreSaga, `Marca "${slug}" (nombre en SAGA)`, 100);
+      // El nombre exacto en cada plataforma se empareja desde la plataforma (Integraciones → SAGA → Marcas): aquí se conserva lo guardado.
+      const nombreSaga = previas.get(slug)?.nombreSaga || "";
       const pestanaDefault = String(m.pestanaDefault || "");
       if (!slugsPestana.has(pestanaDefault)) throw new Error(`Marca "${nombre}": elige una pestaña por defecto válida.`);
-      // Nombre exacto en las demás plataformas registradas (Configuración → Integraciones).
       const nombres = {};
-      for (const [plat, valor] of Object.entries(m.nombres && typeof m.nombres === "object" ? m.nombres : {})) {
-        if (!idsPlataforma.has(plat)) continue;
-        const t = textoConfig(valor, `Marca "${slug}" (nombre en ${plat})`, 100);
-        if (t) nombres[plat] = t;
-      }
+      for (const [plat, valor] of Object.entries(previas.get(slug)?.nombres || {})) if (idsPlataforma.has(plat)) nombres[plat] = valor;
       return { slug, nombre, nombreSaga, nombres, pestanaDefault };
     });
     if (!marcas.length) throw new Error("Agrega al menos una marca.");
@@ -1366,6 +1415,45 @@ export async function traerDatosSaga(alias, sku) {
 }
 
 /**
+ * Trae de SAGA un producto por su SKU padre (el SKU de la primera variante): sus datos y, si forma un grupo, los de sus
+ * variantes hermanas (mismo ParentSku). Solo lectura. Devuelve { padre, items: [{ sku, nombre, datos }], avisos }.
+ */
+export async function traerGrupoSaga(alias, sku) {
+  const codigo = String(sku || "").trim();
+  if (!codigo) return { error: "Escribe primero el SKU de la primera variante." };
+  const [cuenta] = await query("select * from cuentas_saga where alias = $1 and activo", [String(alias || "")]);
+  if (!cuenta) return { error: "Elige una cuenta SAGA activa." };
+  try {
+    const cred = credencialesSaga(cuenta);
+    const op = await getOpcionesSaga();
+    const raiz = await productoSaga(cred, codigo);
+    if (!raiz) return { error: `SAGA no tiene el SKU "${codigo}" en la cuenta ${cuenta.nombre}.` };
+    const padre = String(raiz.ParentSku || "").trim() || codigo;
+    const crudos = new Map([[String(raiz.SellerSku), raiz]]);
+    const avisos = [];
+    // El padre de SAGA es la primera variante: si se escribió otro SKU del grupo, se trae también el padre.
+    if (padre !== String(raiz.SellerSku)) {
+      const cabeza = await productoSaga(cred, padre);
+      if (cabeza) crudos.set(String(cabeza.SellerSku), cabeza);
+    }
+    // Hermanas: productos de la cuenta con el mismo ParentSku (se buscan por el nombre, que comparten).
+    try {
+      for (const x of await busquedaSaga(cred, raiz.Name || codigo)) {
+        if (String(x.ParentSku || "").trim() === padre && !crudos.has(String(x.SellerSku))) crudos.set(String(x.SellerSku), x);
+      }
+    } catch (e) {
+      avisos.push(`No se pudieron buscar las otras variantes del grupo (${e.message}); agrégalas con «Agregar variante».`);
+    }
+    const items = [...crudos.values()]
+      .sort((a, b) => (String(a.SellerSku) === padre ? -1 : String(b.SellerSku) === padre ? 1 : String(a.SellerSku).localeCompare(String(b.SellerSku))))
+      .map((raw) => ({ sku: String(raw.SellerSku), nombre: String(raw.Name || ""), datos: desdeSaga(raw, op, cuenta) }));
+    return { padre, items, avisos };
+  } catch (e) {
+    return { error: `No se pudo consultar SAGA: ${e.message}` };
+  }
+}
+
+/**
  * Requisitos de los atributos de una categoría de SAGA (solo lectura) para copiarlos al crear un atributo de la web:
  * tipo equivalente, obligatorio, largo mínimo/máximo, descripción y lista de valores exactos. Usa la primera cuenta activa.
  */
@@ -1377,7 +1465,7 @@ export async function consultarAtributosSaga(categoriaId) {
   try {
     const r = await atributosCategoriaSaga(credencialesSaga(cuenta), id);
     const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
-    const TIPOS = { dropdown: "lista", multiselect: "multi", numberfield: "numero", textfield: "texto" };
+    const TIPOS = { dropdown: "lista", multiselect: "multi", numberfield: "numero", textfield: "texto", datefield: "fecha" };
     const num = (v) => (Number(v) > 0 ? Number(v) : null);
     const atributos = lista(r?.Body?.Attribute).map((a) => ({
       id: a.FeedName,
@@ -1385,6 +1473,7 @@ export async function consultarAtributosSaga(categoriaId) {
       tipo: TIPOS[a.InputType] || "texto",
       obligatorio: a.isMandatory === "1",
       nivel: a.GroupName === "Variation" ? "variante" : "producto",
+      grupo: a.GroupName || "", // Main, Garantía y Envío, Price & Tax, Product Specifications, Variation
       descripcion: String(a.Description || "").split("//")[0].trim(),
       min: num(a.MinLength ?? a.MinimumLength),
       max: num(a.MaxLength),
@@ -1393,6 +1482,34 @@ export async function consultarAtributosSaga(categoriaId) {
     }));
     if (!atributos.length) return { error: `SAGA no devolvió atributos para la categoría ${id}.` };
     return { atributos };
+  } catch (e) {
+    return { error: `No se pudo consultar SAGA: ${e.message}` };
+  }
+}
+
+// Marcas de SAGA (GetBrands): la lista es grande, se guarda unos minutos para no consultarla en cada búsqueda.
+let cacheMarcasSaga = { t: 0, nombres: [] };
+
+/** Busca marcas de SAGA por texto (solo referencia para emparejar las de la web). Devuelve hasta 30 nombres exactos. */
+export async function consultarMarcasSaga(texto) {
+  const q = String(texto || "").trim().toLowerCase();
+  try {
+    if (Date.now() - cacheMarcasSaga.t > 10 * 60 * 1000 || !cacheMarcasSaga.nombres.length) {
+      const [cuenta] = await query("select * from cuentas_saga where activo and api_key is not null and api_key <> '' order by alias limit 1");
+      if (!cuenta) return { error: "No hay una cuenta SAGA activa con API key (Configuración → Integraciones → SAGA)." };
+      const r = await marcasSagaApi(credencialesSaga(cuenta));
+      const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+      const nombres = lista(r?.Body?.Brands?.Brand ?? r?.Body?.Brands)
+        .map((x) => (x.Brand ?? x).Name)
+        .filter((n) => typeof n === "string" && n.trim());
+      if (!nombres.length) return { error: "SAGA no devolvió marcas." };
+      cacheMarcasSaga = { t: Date.now(), nombres: [...new Set(nombres)].sort((a, b) => a.localeCompare(b)) };
+    }
+    const todas = cacheMarcasSaga.nombres;
+    const coincide = q ? todas.filter((n) => n.toLowerCase().includes(q)) : todas;
+    // El nombre exacto primero, luego los que empiezan igual.
+    coincide.sort((a, b) => Number(b.toLowerCase() === q) - Number(a.toLowerCase() === q) || Number(b.toLowerCase().startsWith(q)) - Number(a.toLowerCase().startsWith(q)));
+    return { marcas: coincide.slice(0, 30), total: coincide.length };
   } catch (e) {
     return { error: `No se pudo consultar SAGA: ${e.message}` };
   }

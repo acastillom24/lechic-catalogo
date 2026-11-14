@@ -257,6 +257,12 @@ alter table productos add column if not exists genero             text;
 -- (Antes aquí se eliminaba una columna `notas_aromaticas` del producto, de una versión muy antigua. Ya no: ese nombre es ahora el de las notas aromáticas.)
 alter table productos add column if not exists caracteristicas    text;
 alter table productos add column if not exists condicion          text not null default 'Nuevo';
+-- Garantía y envío (campos generales de SAGA): NameCn, NameEn, ConditionTypeNote, ProductWarranty, SellerWarranty.
+alter table productos add column if not exists name_cn            text;
+alter table productos add column if not exists name_en            text;
+alter table productos add column if not exists detalle_condicion  text;
+alter table productos add column if not exists detalle_garantia   text;
+alter table productos add column if not exists garantia           text;
 
 alter table productos add column if not exists sku_padre text;  -- ParentSku en SAGA; solo se usa si usar_sku_padre
 alter table productos add column if not exists usar_sku_padre boolean not null default false;  -- sin marcar: cada variante es un producto suelto en SAGA

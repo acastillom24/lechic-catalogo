@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import {
   crearUsuarioVentasAccion,
   cambiarPasswordVentasAccion,
   eliminarUsuarioVentasAccion,
   guardarPermisosVentasAccion,
 } from "../../app/(admin)/admin/actions";
-import { IconoMas, IconoLlave, IconoPapelera, IconoUsuario } from "./Iconos";
+import { IconoLlave, IconoPapelera, IconoUsuario } from "./Iconos";
 import PasswordInput from "../PasswordInput";
 
 /** Cambio de contraseña de un usuario (campo + botón de llave). */
@@ -83,83 +83,97 @@ function PermisosUsuario({ id, permisos }) {
 /** Alta, cambio de contraseña, vistas permitidas y baja de usuarios que pueden ingresar a /operaciones. */
 export default function UsuariosVentas({ usuarios, permisos = {} }) {
   const [estado, accion, enviando] = useActionState(crearUsuarioVentasAccion, {});
+  const [agregando, setAgregando] = useState(false);
+  // Al crear con éxito se cierra el formulario; el aviso queda visible arriba de la tabla.
+  useEffect(() => {
+    if (estado?.ok) setAgregando(false);
+  }, [estado?.n, estado?.ok]);
 
   return (
-    <section className="admin-card form-grid">
-      <h2>Usuarios del panel de operaciones (/operaciones)</h2>
+    <div className="pf-panel-bloque">
+      <strong>Usuarios del panel de operaciones (/operaciones)</strong>
+      {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
+      {estado?.error && <div className="mensaje-error">{estado.error}</div>}
 
-      <form action={accion} key={estado?.n || "nuevo"} className="form-grid">
-        {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
-        {estado?.error && <div className="mensaje-error">{estado.error}</div>}
-        <div className="venta-grid">
-          <div className="campo">
-            <label htmlFor="nuevo-usuario">Usuario</label>
-            <input id="nuevo-usuario" name="usuario" required autoComplete="off" />
-          </div>
-          <div className="campo">
-            <label htmlFor="nuevo-password">Contraseña (mín. 6)</label>
-            <PasswordInput id="nuevo-password" name="password" required minLength={6} autoComplete="new-password" />
-          </div>
-        </div>
-        <div>
-          <button type="submit" className="btn-ico-texto primario" disabled={enviando}>
-            <IconoMas /> {enviando ? "Creando..." : "Agregar usuario"}
-          </button>
-        </div>
-      </form>
-
-      <table className="admin-tabla">
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>Creado</th>
-            <th>Contraseña</th>
-            <th>Vistas en operaciones</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {usuarios.map((u) => (
-            <tr key={u.id}>
-              <td className="celda-producto">
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <IconoUsuario size={16} /> {u.usuario}
-                </span>
-              </td>
-              <td>{new Date(u.created_at).toLocaleDateString("es-PE", { timeZone: "America/Lima" })}</td>
-              <td>
-                <CambiarPassword id={u.id} />
-              </td>
-              <td>
-                <PermisosUsuario id={u.id} permisos={permisos[u.id] || {}} />
-              </td>
-              <td>
-                <div className="acciones-fila">
-                  <form
-                    action={eliminarUsuarioVentasAccion.bind(null, u.id)}
-                    onSubmit={(e) => {
-                      if (!confirm(`¿Eliminar al usuario "${u.usuario}"? Perderá el acceso de inmediato.`)) {
-                        e.preventDefault();
-                      }
-                    }}
-                  >
-                    <button className="btn-ico" title="Eliminar usuario" aria-label={`Eliminar a ${u.usuario}`}>
-                      <IconoPapelera />
-                    </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-          ))}
-          {usuarios.length === 0 && (
+      <div className="admin-tabla-wrap">
+        <table className="admin-tabla">
+          <thead>
             <tr>
-              <td colSpan={5} style={{ textAlign: "center", color: "var(--gris)" }}>
-                Aún no hay usuarios.
-              </td>
+              <th>Usuario</th>
+              <th>Creado</th>
+              <th>Contraseña</th>
+              <th>Vistas en operaciones</th>
+              <th></th>
             </tr>
-          )}
-        </tbody>
-      </table>
-    </section>
+          </thead>
+          <tbody>
+            {usuarios.map((u) => (
+              <tr key={u.id}>
+                <td className="celda-producto">
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <IconoUsuario size={16} /> {u.usuario}
+                  </span>
+                </td>
+                <td>{new Date(u.created_at).toLocaleDateString("es-PE", { timeZone: "America/Lima" })}</td>
+                <td>
+                  <CambiarPassword id={u.id} />
+                </td>
+                <td>
+                  <PermisosUsuario id={u.id} permisos={permisos[u.id] || {}} />
+                </td>
+                <td>
+                  <div className="acciones-fila">
+                    <form
+                      action={eliminarUsuarioVentasAccion.bind(null, u.id)}
+                      onSubmit={(e) => {
+                        if (!confirm(`¿Eliminar al usuario "${u.usuario}"? Perderá el acceso de inmediato.`)) {
+                          e.preventDefault();
+                        }
+                      }}
+                    >
+                      <button className="btn-ico" title="Eliminar usuario" aria-label={`Eliminar a ${u.usuario}`}>
+                        <IconoPapelera />
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {usuarios.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: "center", color: "var(--gris)" }}>
+                  Aún no hay usuarios.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {agregando ? (
+        <form action={accion} key={estado?.n || "nuevo"} className="form-grid">
+          <div className="cg-listas">
+            <div className="campo">
+              <label htmlFor="nuevo-usuario">Usuario</label>
+              <input id="nuevo-usuario" name="usuario" required autoComplete="off" />
+            </div>
+            <div className="campo">
+              <label htmlFor="nuevo-password">Contraseña (mín. 6)</label>
+              <PasswordInput id="nuevo-password" name="password" required minLength={6} autoComplete="new-password" />
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="submit" className="btn-admin solido" disabled={enviando}>
+              {enviando ? "Creando..." : "Agregar usuario"}
+            </button>
+            <button type="button" className="btn-admin" onClick={() => setAgregando(false)}>Cancelar</button>
+          </div>
+        </form>
+      ) : (
+        <div>
+          <button type="button" className="btn-admin cg-mas" onClick={() => setAgregando(true)}>+ Agregar usuario</button>
+        </div>
+      )}
+    </div>
   );
 }

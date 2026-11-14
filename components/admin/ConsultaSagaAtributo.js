@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { consultarAtributosSaga } from "../../app/(admin)/admin/actions";
 
-const ETIQUETA_TIPO = { multi: "varias opciones", lista: "una opción", texto: "texto", numero: "número" };
+const ETIQUETA_TIPO = { multi: "varias opciones", lista: "una opción", texto: "texto", numero: "número", fecha: "fecha" };
 const norm = (t) => String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 // Resultados ya consultados por categoría de SAGA (se comparten entre todos los atributos de la pantalla).
@@ -17,12 +17,12 @@ const AMARILLO = { background: "#fff6cc", border: "1px solid #ecd36a", color: "#
  * largo mínimo/máximo, lista de valores exactos) y permite APLICARLOS al atributo (tipo, opciones y largos) o copiar sus opciones.
  * `onAplicar({ tipo, opciones, min, max, etiqueta })` actualiza el atributo; no guarda nada hasta «Guardar».
  */
-export default function ConsultaSagaAtributo({ categoriasSaga = [], etiquetaActual = "", onAplicar }) {
+export default function ConsultaSagaAtributo({ categoriasSaga = [], etiquetaActual = "", codigoInicial = "", onAplicar }) {
   const [cat, setCat] = useState(categoriasSaga[0] ? String(categoriasSaga[0].id) : "");
   const [lista, setLista] = useState(null);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(codigoInicial);
   const [aviso, setAviso] = useState("");
 
   async function consultar(c = cat) {
@@ -53,13 +53,14 @@ export default function ConsultaSagaAtributo({ categoriasSaga = [], etiquetaActu
   const aplicar = (a) => {
     // Una lista sin valores definidos por SAGA es libre: se aplica como texto (una lista vacía no se podría guardar).
     const libre = (a.tipo === "lista" || a.tipo === "multi") && !a.opciones.length;
-    const tipo = libre ? "texto" : a.tipo;
+    const tipo = libre || a.tipo === "fecha" ? "texto" : a.tipo; // las fechas se guardan como texto (AAAA-MM-DD)
     onAplicar({
       tipo,
       opciones: a.opciones,
       min: tipo === "texto" && a.min ? String(a.min) : "",
       max: tipo === "texto" && a.max ? String(a.max) : "",
       etiqueta: etiquetaActual.trim() ? undefined : a.etiqueta,
+      crudo: a, // lo que SAGA devuelve tal cual (tipo, largos, obligatorio, opciones)
     });
     setAviso(`Requisitos de «${a.etiqueta}» aplicados (tipo, opciones y largos). Revisa y guarda.`);
   };

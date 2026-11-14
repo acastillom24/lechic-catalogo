@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useConfig } from "../lib/ConfigContext";
+import { htmlATexto } from "../lib/html-texto";
 import { useSeleccion, construirKey } from "../lib/SelectionContext";
 import CantidadControl from "./CantidadControl";
 
@@ -65,7 +66,7 @@ function OfertaCard({ producto, config, agregar, items, cambiarCantidad, onInter
 
         <h3 className="slide-nombre serif">{producto.nombre}</h3>
         {producto.descripcion && (
-          <p className="slide-desc">{producto.descripcion}</p>
+          <p className="slide-desc">{htmlATexto(producto.descripcion)}</p>
         )}
         <div className="slide-precio">
           {hayOferta && (

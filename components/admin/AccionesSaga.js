@@ -44,9 +44,8 @@ export default function AccionesSaga({ acciones }) {
   }
 
   return (
-    <details className="admin-card saga-seccion pf-sub">
-      <summary>Acciones de vinculación</summary>
-      <div className="saga-cuerpo form-grid">
+    <div className="pf-panel-bloque">
+      <strong>Acciones de vinculación</strong>
       <small style={{ color: "var(--gris)" }}>
         Cada acción, al elegirla en una variante, comprueba que el SKU ya exista en SAGA y en cada guardado envía
         <strong> solo los atributos marcados</strong> que tengan valor (los vacíos no borran nada). Las cuatro primeras no se
@@ -54,7 +53,7 @@ export default function AccionesSaga({ acciones }) {
       </small>
       <input type="hidden" name="accionesJson" value={JSON.stringify(lista)} />
 
-      <div style={{ overflowX: "auto" }}>
+      <div className="admin-tabla-wrap">
         <table className="admin-tabla">
           <thead>
             <tr>
@@ -130,6 +129,5 @@ export default function AccionesSaga({ acciones }) {
         </button>
       </div>
     </div>
-    </details>
   );
 }

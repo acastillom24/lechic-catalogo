@@ -32,7 +32,7 @@ function ColaboradorForm({ id = 0, inicial = VACIO, onListo }) {
     <form action={accion} key={k} className="form-grid">
       {estado?.ok && <div className="mensaje-ok">{estado.ok}</div>}
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
-      <div className="venta-grid">
+      <div className="cg-listas">
         <div className="campo">
           <label htmlFor={`c-nombre-${id}`}>Trabajador</label>
           <input id={`c-nombre-${id}`} type="text" name="nombre" required defaultValue={inicial.nombre} autoComplete="off" />
@@ -151,11 +151,11 @@ function FilaColaborador({ c }) {
 
 /** Alta, edición y baja de colaboradores (Configuración). */
 export default function Colaboradores({ colaboradores }) {
+  const [agregando, setAgregando] = useState(false);
   return (
-    <section className="admin-card form-grid">
-      <h2>Colaboradores (asistencias y pagos)</h2>
-      <ColaboradorForm />
-      <div style={{ overflowX: "auto" }}>
+    <div className="pf-panel-bloque">
+      <strong>Colaboradores (asistencias y pagos)</strong>
+      <div className="admin-tabla-wrap">
         <table className="admin-tabla">
           <thead>
             <tr>
@@ -186,6 +186,13 @@ export default function Colaboradores({ colaboradores }) {
           </tbody>
         </table>
       </div>
-    </section>
+      {agregando ? (
+        <ColaboradorForm onListo={() => setAgregando(false)} />
+      ) : (
+        <div>
+          <button type="button" className="btn-admin cg-mas" onClick={() => setAgregando(true)}>+ Agregar trabajador</button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,21 +1,23 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { guardarProducto, traerDatosSaga } from "../../app/(admin)/admin/actions";
+import { guardarProducto, traerGrupoSaga } from "../../app/(admin)/admin/actions";
 import { slugify } from "../../lib/slug";
-import { LIMITES, CALIDAD, GENERO_POR_CATEGORIA, validarProducto, advertenciasSaga } from "../../lib/saga-mapeo";
+import { LIMITES, CALIDAD, GENERO_POR_CATEGORIA, validarProducto } from "../../lib/saga-mapeo";
 import { esCategoriaGeneral, camposDe, heredarVariante, imagenesRequeridas, IMAGENES_TOPE } from "../../lib/saga-campos";
 import ImagenesVariante from "./ImagenesVariante";
 import SelectBuscador from "./SelectBuscador";
-import CamposExtra from "./CamposExtra";
-import AtributosProducto from "./AtributosProducto";
-import SelectMulti from "./SelectMulti";
-import { atributosDe, extrasConPropios, propiosDesdeSaga, mapaCampos } from "../../lib/atributos-categoria";
-import { categoriasDePlataforma, permiteVariantesWeb } from "../../lib/equivalencias";
+import AtributosProducto, { UBICACION_DEFECTO } from "./AtributosProducto";
+import GeneralesProducto from "./GeneralesProducto";
+import EditorDescripcion from "./EditorDescripcion";
+import SelectUnico from "./SelectUnico";
+import { atributosDe, extrasConPropios, propiosDesdeSaga, mapaCampos, ubicacionDe } from "../../lib/atributos-categoria";
+import { categoriasDePlataforma, permiteVariantesWeb, campoGeneralActivo, sagaAdmite } from "../../lib/equivalencias";
+import { CAMPOS_WEB, esLibre } from "../../lib/campos-web";
 import { efectivoBase, personalizadosAFila } from "../../lib/atributos-efectivos";
 import PackComponentes from "./PackComponentes";
 
-import { IconoMas, IconoPapelera, IconoGuardar } from "./Iconos";
+import { IconoMas } from "./Iconos";
 import { ATRIBUTOS } from "../../lib/saga-atributos";
 
 // Qué hacer con una variante en una cuenta SAGA. Las acciones de vinculación vienen de Configuración → SAGA.
@@ -34,9 +36,10 @@ function ayudaAccion(modo, acciones) {
   return `El SKU ya debe existir en SAGA. En cada guardado envía: ${envia.join(", ") || "nada"}.${noToca.length ? ` No toca: ${noToca.join(", ")}.` : ""}`;
 }
 
-function nuevaVariante() {
+// La clave de la variante inicial es fija (no aleatoria) para que el HTML del servidor y el del navegador coincidan.
+function nuevaVariante(key = Math.random().toString(36).slice(2)) {
   return {
-    key: Math.random().toString(36).slice(2),
+    key,
     nombre: "",
     precio: "",
     precioOferta: "",
@@ -65,8 +68,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   const [estado, accion, enviando] = useActionState(accionGuardar || guardarProducto, {});
 
   const [id, setId] = useState(producto?.id || "");
-  const [idTocadoManualmente, setIdTocadoManualmente] = useState(modo === "editar");
-  const [marca, setMarca] = useState(producto?.marca || marcas[0]?.slug || "");
+  const [idTocadoManualmente] = useState(modo === "editar");
+  // Al crear no hay marca elegida (se elige a mano o «Traer de SAGA» la completa).
+  const [marca, setMarca] = useState(producto?.marca || "");
   // Pestaña (ubicación en la web): independiente de la marca (la de SAGA). Al elegir marca se
   // autoselecciona su pestaña por defecto, pero se puede cambiar.
   const [pestana, setPestana] = useState(
@@ -74,7 +78,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   );
   const pestanaObj = pestanas.find((p) => p.slug === pestana);
   const categorias = pestanaObj?.categorias || [];
-  const [categoria, setCategoria] = useState(producto?.categoria || categorias[0]?.slug || "");
+  // Al crear no hay categoría elegida: es obligatoria y define los atributos.
+  const [categoria, setCategoria] = useState(producto?.categoria || "");
   // Si el producto guardado usa una marca/pestaña/categoría que ya no está configurada, se muestra tal cual
   // para no cambiarla en silencio al guardar.
   const marcasOpc = marcas.some((m) => m.slug === marca) || !marca ? marcas : [...marcas, { slug: marca, nombre: `${marca} (no configurada)` }];
@@ -86,7 +91,6 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     producto?.descripcion || (producto?.variantes?.length === 1 ? producto.variantes[0].attrs?.descripcion : "") || ""
   );
   const [destacado, setDestacado] = useState(!!producto?.destacado);
-  const [avisoId, setAvisoId] = useState(false);
 
   const sg = producto?.saga || {};
   // Producto con una sola variante cuyos datos aún estaban en la variante
@@ -115,6 +119,12 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     cantidadEmpaque: sg.cantidadEmpaque || deVariante.cantidadEmpaque || "",
     fraganciaPerfume: sg.fraganciaPerfume?.length ? sg.fraganciaPerfume : deVariante.fraganciaPerfume || [],
     notasAromaticas: sg.notasAromaticas || deVariante.notasAromaticas || "",
+    // Garantía y envío (campos generales de SAGA).
+    nameCn: sg.nameCn || "",
+    nameEn: sg.nameEn || "",
+    detalleCondicion: sg.detalleCondicion || "",
+    detalleGarantia: sg.detalleGarantia || "",
+    garantia: sg.garantia || "",
   });
   // Valores generales que heredan las variantes mientras no tengan uno propio.
   const [atributos, setAtributos] = useState({
@@ -123,41 +133,53 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     propios: sg.atributos?.propios || {},
   });
   // Paquete propio por cuenta (solo las que se personalizaron; el resto usa el general del producto).
-  const [paquetes, setPaquetes] = useState(() =>
+  const [paquetes] = useState(() =>
     Object.fromEntries(Object.entries(paquetesCuenta).map(([alias, d]) => [alias, { personalizar: true, ...d }]))
   );
   // Categoría primaria propia por cuenta (solo las personalizadas; el resto usa la general): { alias: { personalizar, sagaCategoria, extras, varianteExtras } }.
-  const [catCuenta, setCatCuenta] = useState(() =>
+  const [catCuenta] = useState(() =>
     Object.fromEntries(Object.entries(categoriasCuenta).map(([alias, d]) => [alias, { personalizar: true, ...d }]))
   );
   const [cuentasMarcadas, setCuentasMarcadas] = useState(sincronizadas);
+  // Panel visible (Producto y garantía · Atributos · Variantes · Integraciones) y «solo obligatorios» de Garantía y envío.
+  const [panel, setPanel] = useState("producto");
+  const [soloObl, setSoloObl] = useState(true);
+  // Se activa al intentar guardar con datos pendientes para SAGA (se apaga solo cuando ya no falta nada).
+  const [intentoBloqueado, setIntentoBloqueado] = useState(false);
   const esPerfume = ["feminine", "masculine", "couples"].includes(categoria);
   const conSaga = (!restringido || permitirSaga) && cuentasSaga.length > 0;
   // Con categoría SAGA elegida manda ella (perfumes = 1735, cualquier otra usa campos extra); sin elegir, la categoría web.
   const sagaGeneral = saga.sagaCategoria ? esCategoriaGeneral(saga.sagaCategoria) : !esPerfume;
+  // Campos generales libres activos en esta categoría (Integraciones → Web) y admitidos por su categoría de SAGA.
+  const sagaCatEfectiva = saga.sagaCategoria || (esPerfume ? "1735" : "");
+  const generales = CAMPOS_WEB.filter(esLibre)
+    .filter((d) => campoGeneralActivo(opcionesSaga.equivalencias, categoria, d, sagaCatEfectiva ? [sagaCatEfectiva] : undefined) && sagaAdmite(d, sagaCatEfectiva))
+    .map((d) => d.id);
+  // Nombres editados de los campos generales (Integraciones → Web → Campos generales).
+  const requisitosCampos = opcionesSaga.equivalencias?.camposWeb || {};
+  const etiquetasCampos = Object.fromEntries(Object.entries(opcionesSaga.equivalencias?.camposWeb || {}).map(([id, c]) => [id, c.etiqueta]));
   // Variantes y SKU padre solo si la categoría de la web lo permite (Configuración → Integraciones → Web).
   const permiteVar = permiteVariantesWeb(opcionesSaga.equivalencias, opcionesSaga.categorias, categoria);
   // Atributos propios de la categoría web (Configuración → SAGA → Atributos por categoría).
-  const atribCategoria = atributosDe(opcionesSaga.atributosCategoria, categoria);
+  // Cada atributo propio va en «Atributos» (a nivel de producto) o en «Variantes» (en cada variante): lo elegido en Integraciones → Web o, sin elegir, lo que dice SAGA.
+  const atribCategoria = atributosDe(opcionesSaga.atributosCategoria, categoria).map((a) => (a.general ? a : { ...a, ubicacion: ubicacionDe(a, opcionesSaga.equivalencias) }));
   const nombreCategoria = (categoriasOpc.find((c) => c.slug === categoria) || {}).nombre || "la categoría";
   const nombreCategoriaWeb = nombreCategoria;
   // Categorías de SAGA que equivalen a la categoría web (Configuración → Integraciones → Web). Solo se ofrecen esas;
   // si el producto ya tenía otra guardada, se conserva visible para no perderla en silencio.
   const idsEquivalentes = categoriasDePlataforma(opcionesSaga.equivalencias, categoria, "saga");
   const categoriasSagaOpc = (opcionesSaga.categorias || []).filter((c) => idsEquivalentes.includes(String(c.id)) || String(c.id) === String(saga.sagaCategoria));
-  const skuPadreBloqueado = variantesSincronizadas.length > 0;
   const generoActual = saga.genero || GENERO_POR_CATEGORIA[categoria] || "";
-  const lista = (t) => String(t || "").split(",").map((x) => x.trim()).filter(Boolean);
 
   const [variantes, setVariantes] = useState(() =>
     producto?.variantes?.length
-      ? producto.variantes.map((v) => ({
-          key: Math.random().toString(36).slice(2),
+      ? producto.variantes.map((v, idx) => ({
+          key: `v${idx}`,
           nombre: v.nombre || "",
           precio: v.precio ?? "",
           precioOferta: v.precioOferta ?? "",
           stock: v.stock !== false,
-          imagenes: (v.imagenes || []).map((url) => ({ key: Math.random().toString(36).slice(2), url })),
+          imagenes: (v.imagenes || []).map((url, j) => ({ key: `i${idx}-${j}`, url })),
           id: v.id ?? null,
           sku: v.sku || "",
           stockMinimo: v.stockMinimo ?? 0,
@@ -183,16 +205,19 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
             ])
           ),
         }))
-      : [nuevaVariante()]
+      : [nuevaVariante("v0")]
   );
 
   // Categoría sin variantes: el producto es una sola ficha (si ya tenía varias de antes, se siguen mostrando todas).
   const sinVariantes = variantes.length <= 1;
   // El paso «SKU padre» solo aplica con 2 o más variantes en una categoría que las admita.
-  const verSkuPadre = permiteVar && !sinVariantes;
+  // Las variantes se agrupan solas (como en SAGA): el SKU padre es el de la primera variante o, si SAGA ya lo confirmó, el que devolvió.
+  const usarPadre = !sinVariantes;
+  // El padre de SAGA es el SKU de la primera variante (el código que se escribió al crear no existe allá).
+  const skuPadreAuto = variantes[0]?.sku || "";
   const nomV = (v) => (sinVariantes && !v.nombre.trim() ? "Único" : v.nombre);
-  // Sin variantes la descripción es una sola (la del producto): la de la variante solo existe cuando hay varias.
-  const attrsDe = (v) => (sinVariantes ? {} : v.attrs || {});
+  // Lo ubicado en «Variantes» (Integraciones → Web) se llena en la variante, también cuando es una sola.
+  const attrsDe = (v) => v.attrs || {};
 
   function actualizarVariante(i, cambios) {
     setVariantes((prev) => prev.map((v, idx) => (idx === i ? { ...v, ...cambios } : v)));
@@ -204,6 +229,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     genero: generoActual, formatoBelleza: saga.formatoBelleza, caracteristicas: saga.caracteristicas,
     contenidoPaquete: saga.contenidoPaquete, paqueteAncho: saga.paqueteAncho, paqueteLargo: saga.paqueteLargo,
     paqueteAlto: saga.paqueteAlto, paquetePeso: saga.paquetePeso,
+    nameCn: saga.nameCn, nameEn: saga.nameEn, detalleCondicion: saga.detalleCondicion, detalleGarantia: saga.detalleGarantia, garantia: saga.garantia,
     volumen: saga.volumen, cantidadEmpaque: saga.cantidadEmpaque, fraganciaPerfume: saga.fraganciaPerfume, notasAromaticas: saga.notasAromaticas,
     extras: saga.extras, registroSanitario: atributos.registroSanitario, varianteExtras: atributos.varianteExtras,
     propios: atributos.propios,
@@ -229,22 +255,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       })
     );
   }
-  // «Copiar todo del producto»: la variante pasa a tener como propios todos los valores actuales del producto.
-  function copiarTodoDelProducto(i) {
-    const copia = JSON.parse(JSON.stringify({ ...attrsProducto, descripcion: descripcion }));
-    setVariantes((prev) =>
-      prev.map((v, idx) => {
-        if (idx !== i) return v;
-        const sig = {};
-        for (const [k, val] of Object.entries(copia)) if (conValor(val)) sig[k] = val;
-        return { ...v, attrs: sig };
-      })
-    );
-  }
-  // «Usar los del producto»: la variante vuelve a heredar todo.
-  function usarLosDelProducto(i) {
-    setVariantes((prev) => prev.map((v, idx) => (idx === i ? { ...v, attrs: {} } : v)));
-  }
+  const [pestVar, setPestVar] = useState({});
+  const pestDe = (v) => pestVar[v.key] || "car";
 
   const [traer, setTraer] = useState({});
   const [cuentaTraer, setCuentaTraer] = useState("");
@@ -255,14 +267,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
 
   // Trae de SAGA los datos propios de SAGA de la variante i y completa SOLO los campos vacíos.
   // Nunca toca nombre, descripción, marca, precio web, imagen ni stock.
-  async function traerDeSaga(i) {
-    const v = variantes[i];
-    setTraer((p) => ({ ...p, [v.key]: { cargando: true } }));
-    const r = await traerDatosSaga(aliasTraer, v.sku);
-    if (r?.error) {
-      setTraer((p) => ({ ...p, [v.key]: { error: r.error } }));
-      return;
-    }
+  // Llena la variante `v` (posición i) con lo que SAGA devolvió (r). Con `conProducto` también completa los datos del producto
+  // (modelo, país, paquete, descripción…); las variantes hermanas solo completan lo suyo. Devuelve qué se llenó.
+  function llenarDesdeSaga(v, i, r, conProducto) {
     const POR_DEFECTO = { paisProduccion: "Perú", condicion: "Nuevo", formatoBelleza: "Frasco" }; // valores precargados: se pueden reemplazar
     const vacio = (k, x) => x === "" || x === null || x === undefined || x === POR_DEFECTO[k] || (Array.isArray(x) && x.length === 0);
     const ETIQUETA = {
@@ -271,7 +278,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       genero: "Género", formatoBelleza: "Formato belleza", sagaCategoria: "Categoría", modelo: "Modelo", tipoPerfume: "Tipo de perfume",
       caracteristicas: "Características", condicion: "Condición", contenidoPaquete: "Contenido del paquete", paqueteAncho: "Ancho",
       paqueteLargo: "Largo", paqueteAlto: "Alto", paquetePeso: "Peso", skuPadre: "SKU padre", usarSkuPadre: "Usar SKU padre",
-      precio: "Precio SAGA", precioOferta: "Precio oferta SAGA", ofertaInicio: "Oferta desde", ofertaFin: "Oferta hasta",
+      nameCn: "Nombre en chino", nameEn: "Nombre en inglés", detalleCondicion: "Detalle de la condición", detalleGarantia: "Detalle de la garantía", garantia: "Garantía",
+      precio: "Precio de venta", precioOferta: "Precio de oferta", ofertaInicio: "Inicio de la oferta", ofertaFin: "Fin de la oferta",
     };
     const llenados = [];
     const conValor = [];
@@ -279,8 +287,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       const cambios = {};
       for (const [k, nuevo] of Object.entries(nuevos)) {
         if (nuevo === "" || nuevo === null || nuevo === undefined || (Array.isArray(nuevo) && nuevo.length === 0)) continue;
-        if ((skuPadreBloqueado || !permiteVar) && (k === "skuPadre" || k === "usarSkuPadre")) continue;
-        if (k === "usarSkuPadre" ? actuales[k] !== true : vacio(k, actuales[k])) {
+        if (vacio(k, actuales[k])) {
           cambios[k] = nuevo;
           llenados.push(ETIQUETA[k] || k);
         } else if (String(actuales[k]) !== String(nuevo)) {
@@ -289,57 +296,155 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       }
       return cambios;
     };
-    // Sin variantes todo se llena en el producto. Con variantes, lo propio de la variante (medida, registro, fragancia,
-    // descripción…) se llena en sus atributos y lo del producto (modelo, país, paquete…) en el producto.
-    const { codigoBarras: sagaBarras, ...deVariante } = r.variante;
-    const efectivoActual = sinVariantes ? { ...attrsProducto, descripcion } : { ...attrsProducto, ...v.attrs, descripcion: v.attrs?.descripcion || "" };
-    const cambAttrsVar = elegir(deVariante, efectivoActual);
+    // Siempre se llena en la variante: lo ubicado en «Variantes» va a sus atributos; lo ubicado en «Atributos» y los datos generales, al producto.
+    const ubicK = (k) => requisitosCampos[k]?.ubicacion || UBICACION_DEFECTO[k] || "atributos";
+    const { codigoBarras: sagaBarras, descripcion: descSaga, imagenes: imagenesSaga = [], ...deVariante } = r.variante;
+    const deProducto = { ...r.producto };
+    delete deProducto.skuPadre; // el padre de SAGA es la primera variante: se maneja aparte
+    delete deProducto.usarSkuPadre;
+    // Nombre y marca del producto (no son atributos): se llenan solo si están vacíos, igual que lo demás.
+    const nombreSaga = deProducto.nombreProducto, marcaDeSaga = deProducto.marcaSaga;
+    delete deProducto.nombreProducto;
+    delete deProducto.marcaSaga;
+    const avisosMarca = [];
+    if (conProducto) {
+      if (nombreSaga) {
+        if (!nombre.trim()) {
+          alCambiarNombreProducto(nombreSaga);
+          llenados.push("Nombre del producto");
+        } else if (nombre.trim() !== nombreSaga.trim()) conValor.push("Nombre del producto");
+      }
+      if (marcaDeSaga) {
+        const normM = (t) => String(t || "").trim().toLowerCase();
+        const deLaWeb = marcas.find((m) => normM(m.nombreSaga) === normM(marcaDeSaga));
+        if (!deLaWeb) avisosMarca.push(`La marca «${marcaDeSaga}» de SAGA no está emparejada con ninguna marca de la web (Integraciones → SAGA → Marcas).`);
+        else if (!marca) {
+          alCambiarMarca(deLaWeb.slug);
+          llenados.push("Marca");
+        } else if (marca !== deLaWeb.slug) conValor.push("Marca");
+      }
+    }
+    const enVar = {}, enProd = {};
+    for (const [k, val] of Object.entries({ ...deVariante, ...deProducto })) (ubicK(k) === "variantes" ? enVar : enProd)[k] = val;
+    const cambVar = elegir(enVar, { ...attrsProducto, ...v.attrs });
     const cambBarras = elegir({ codigoBarras: sagaBarras }, v);
-    const cambVar = { ...cambBarras };
-    const cambProd = elegir(r.producto, { ...saga, genero: saga.genero });
-    const cambPrecios = elegir(r.precios, v.preciosSaga[aliasTraer] || {});
+    const cambProd = conProducto ? elegir(enProd, { ...saga, ...attrsProducto }) : {};
+    const cambDesc = conProducto ? elegir({ descripcion: descSaga }, { descripcion }) : {};
+    // Precio de venta, precio de oferta y vigencia: llenan la pestaña Precio de la variante (solo si están vacíos). El stock no se trae:
+    // el de la web es el que manda el inventario.
+    const cambPrecioWeb = elegir({ precio: r.precios.precio, precioOferta: r.precios.precioOferta }, v);
+    const vigActual = vigenciaDe(v);
+    const cambVigencia = elegir(
+      { ofertaInicio: r.precios.ofertaInicio, ofertaFin: r.precios.ofertaFin },
+      { ofertaInicio: vigActual.inicio, ofertaFin: vigActual.fin },
+    );
+    // Imágenes: solo si la variante aún no tiene ninguna.
+    const cambImagenes = v.imagenes.length === 0 ? imagenesSaga.slice(0, IMAGENES_TOPE) : [];
+    if (cambImagenes.length) llenados.push("Imágenes");
     // Si la variante aún no está registrada en esa cuenta, lo normal es vincularla (ya existe en SAGA).
     const sinRegistro = !estadoSync[v.id]?.[aliasTraer];
-    if (sinVariantes) {
-      // La descripción de SAGA llena la descripción del producto (la de la web) si está vacía.
-      const { descripcion: descSaga, ...restoVar } = cambAttrsVar;
-      if (descSaga !== undefined) setDescripcion(descSaga);
-      if (Object.keys(restoVar).length) cambiarAttrsProducto(restoVar);
-    }
-    setVariantes((prev) =>
-      prev.map((x, idx) =>
-        idx === i
-          ? {
-              ...x,
-              ...cambVar,
-              attrs: !sinVariantes && Object.keys(cambAttrsVar).length ? { ...x.attrs, ...cambAttrsVar } : x.attrs,
-              preciosSaga: { ...x.preciosSaga, [aliasTraer]: { ...(x.preciosSaga[aliasTraer] || {}), ...cambPrecios } },
-              acciones: sinRegistro ? { ...x.acciones, [aliasTraer]: "vincular" } : x.acciones,
-            }
-          : x
-      )
-    );
-    if (Object.keys(cambProd).length) setSaga((prev) => ({ ...prev, ...cambProd }));
+    // La descripción de SAGA llena la de la web si está vacía.
+    if (cambDesc.descripcion !== undefined) setDescripcion(cambDesc.descripcion);
+    if (Object.keys(cambProd).length) cambiarAttrsProducto(cambProd);
     // Atributos propios de la categoría: se llenan desde su campo equivalente de SAGA (Configuración → Atributos por categoría).
     const atribsEnlazados = atributosDe(opcionesSaga.atributosCategoria, categoria);
     const mapaTraer = mapaCampos(opcionesSaga.equivalencias, categoria, "saga", r.producto?.sagaCategoria || saga.sagaCategoria);
     const desdeSagaAtribs = propiosDesdeSaga(atribsEnlazados, mapaTraer, r.extras);
-    const nuevosPropios = {};
+    const propiosProd = {}, propiosVar = {};
     for (const [aid, valor] of Object.entries(desdeSagaAtribs.valores)) {
       const etq = atribsEnlazados.find((x) => x.id === aid)?.etiqueta || aid;
-      const actual = (sinVariantes ? atributos.propios : { ...atributos.propios, ...(v.attrs?.propios || {}) })?.[aid];
+      const def = atribCategoria.find((x) => x.id === aid);
+      const enVariante = def && !def.general && def.ubicacion === "variantes";
+      if (!enVariante && !conProducto) continue;
+      const actual = (enVariante ? v.attrs?.propios : atributos.propios)?.[aid];
       if (actual === undefined || actual === "" || (Array.isArray(actual) && actual.length === 0)) {
-        nuevosPropios[aid] = valor;
+        (enVariante ? propiosVar : propiosProd)[aid] = valor;
         llenados.push(etq);
       } else if (JSON.stringify(actual) !== JSON.stringify(valor)) {
         conValor.push(etq);
       }
     }
-    if (Object.keys(nuevosPropios).length) {
-      if (sinVariantes) setAtributos((prev) => ({ ...prev, propios: { ...prev.propios, ...nuevosPropios } }));
-      else setVariantes((prev) => prev.map((x, idx) => (idx === i ? { ...x, attrs: { ...x.attrs, propios: { ...(x.attrs?.propios || {}), ...nuevosPropios } } } : x)));
+    if (Object.keys(propiosProd).length) setAtributos((prev) => ({ ...prev, propios: { ...prev.propios, ...propiosProd } }));
+    setVariantes((prev) =>
+      prev.map((x, idx) => {
+        if (idx !== i) return x;
+        const attrs = { ...x.attrs, ...cambVar };
+        if (Object.keys(propiosVar).length) attrs.propios = { ...(x.attrs?.propios || {}), ...propiosVar };
+        return {
+          ...x,
+          ...cambBarras,
+          ...(cambPrecioWeb.precio !== undefined ? { precio: String(cambPrecioWeb.precio) } : {}),
+          ...(cambPrecioWeb.precioOferta !== undefined ? { precioOferta: String(cambPrecioWeb.precioOferta) } : {}),
+          ...(cambImagenes.length ? { imagenes: cambImagenes.map((url) => ({ key: Math.random().toString(36).slice(2), url })) } : {}),
+          attrs,
+          // La vigencia de la oferta se aplica a todas las cuentas (se puede afinar en Integraciones → Precios por plataforma).
+          preciosSaga: Object.keys(cambVigencia).length
+            ? { ...x.preciosSaga, ...Object.fromEntries(cuentasSaga.map((c) => [c.alias, { ...(x.preciosSaga[c.alias] || {}), ...cambVigencia }])) }
+            : x.preciosSaga,
+          acciones: sinRegistro ? { ...x.acciones, [aliasTraer]: "vincular" } : x.acciones,
+        };
+      })
+    );
+    const nombreSugerido = Object.values(propiosVar).find((x) => typeof x === "string" && x.trim()) || "";
+    return { llenados, conValor, avisos: [...(r.avisos || []), ...desdeSagaAtribs.avisos, ...avisosMarca], nombreSugerido };
+  }
+
+  // «Traer de SAGA» a nivel del SKU padre (el SKU de la primera variante en SAGA): si es único llena la primera variante; si el
+  // grupo tiene más, agrega esas variantes y las llena. Solo completa campos vacíos.
+  async function traerDelPadre() {
+    const sku = (variantes[0]?.sku || "").trim();
+    if (!categoria) return; // sin categoría no se sabe qué atributos completar
+    setTraer((p) => ({ ...p, padre: { cargando: true } }));
+    const g = await traerGrupoSaga(aliasTraer, sku);
+    if (g?.error) {
+      setTraer((p) => ({ ...p, padre: { error: g.error } }));
+      return;
     }
-    setTraer((p) => ({ ...p, [v.key]: { llenados, conValor, avisos: [...(r.avisos || []), ...desdeSagaAtribs.avisos] } }));
+    const posiciones = new Map(variantes.map((x, idx) => [x.sku.trim(), idx]));
+    const avisos = [...(g.avisos || [])];
+    const nuevas = [];
+    const trabajos = [];
+    let total = variantes.length;
+    let numero = total;
+    for (const it of g.items) {
+      let idx = posiciones.get(it.sku);
+      let objetivo = idx === undefined ? null : variantes[idx];
+      if (idx === undefined) {
+        numero += 1;
+        objetivo = { ...nuevaVariante(), sku: it.sku, nombre: `Variante ${numero}`, abierta: true };
+        nuevas.push(objetivo);
+        idx = total++;
+      }
+      trabajos.push({ v: objetivo, i: idx, nuevo: !variantes.some((x) => x.key === objetivo.key), datos: it.datos });
+    }
+    if (nuevas.length) {
+      // Al pasar de una a varias, la primera necesita un nombre para distinguirla.
+      setVariantes((prev) => {
+        const base = prev.length === 1 && (!prev[0].nombre.trim() || prev[0].nombre.trim() === "Único") ? [{ ...prev[0], nombre: "Variante 1" }] : prev;
+        return [...base, ...nuevas];
+      });
+    }
+    const llenados = [], conValor = [];
+    for (const t of trabajos) {
+      const res = llenarDesdeSaga(t.v, t.i, t.datos, t.i === 0);
+      llenados.push(...res.llenados);
+      conValor.push(...res.conValor);
+      avisos.push(...res.avisos);
+      // El nombre de la variante se propone con el primer atributo de variación que SAGA trae (p. ej. el color).
+      // También la que ya existía si su nombre es genérico («Único», «Variante 1», vacío); un nombre que escribiste no se toca.
+      const generico = !t.v.nombre.trim() || t.v.nombre.trim() === "Único" || /^variante \d+$/i.test(t.v.nombre.trim());
+      if ((t.nuevo || generico) && res.nombreSugerido) actualizarVariante(t.i, { nombre: res.nombreSugerido });
+    }
+    if (g.padre && g.padre !== sku) avisos.push(`El SKU padre en SAGA es ${g.padre}: ponlo en la primera variante.`);
+    const agregadas = trabajos.filter((t) => t.nuevo).length;
+    setTraer((p) => ({
+      ...p,
+      padre: {
+        llenados: [...new Set(llenados)],
+        conValor: [...new Set(conValor)],
+        avisos: [agregadas ? `Se agregaron ${agregadas} variante${agregadas === 1 ? "" : "s"} del grupo de SAGA.` : "Producto único en SAGA: se llenó la primera variante.", ...avisos],
+      },
+    }));
   }
 
   function actualizarPrecioSaga(i, alias, cambios) {
@@ -363,11 +468,6 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       while (base.some((x) => x.nombre.trim().toLowerCase() === `variante ${n}`)) n++;
       return [...base, { ...nuevaVariante(), nombre: `Variante ${n}`, abierta: true }];
     });
-    // La sección «Variantes» se muestra al tener más de una: se deja abierta para ver la nueva.
-    setTimeout(() => {
-      const d = document.getElementById("pf-variantes");
-      if (d) d.open = true;
-    }, 50);
   }
 
   function quitarVariante(i) {
@@ -392,7 +492,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   // Cambiar la categoría solo si deja de existir en la nueva pestaña.
   function ajustarCategoria(slugPestana) {
     const cats = pestanas.find((p) => p.slug === slugPestana)?.categorias || [];
-    if (!cats.some((c) => c.slug === categoria)) elegirCategoria(cats[0]?.slug || "");
+    // Si la categoría elegida no existe en la nueva pestaña se vacía: hay que elegir otra.
+    if (categoria && !cats.some((c) => c.slug === categoria)) elegirCategoria("");
   }
 
   // Elegir la categoría web limita la categoría de SAGA a sus equivalentes: se conserva la actual si sigue siendo válida;
@@ -421,7 +522,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   }
 
   // Largo del nombre que recibe SAGA (producto + variante, salvo "Único"): se toma el peor caso.
-  const nombreSagaDe = (v) => (v.sagaCombinarNombre !== false && v.nombre && v.nombre !== "Único" ? `${nombre} ${v.nombre}` : nombre);
+  const nombreSagaDe = () => nombre;
   const largoNombreSaga = Math.max(0, ...variantes.map((v) => nombreSagaDe(v).length));
   const fueraDeRangoNombre = (n) => n < CALIDAD.tituloMin || n > CALIDAD.tituloMax;
   // Aviso (no impide guardar) bajo el nombre del producto: SAGA pide títulos de 20 a 100 caracteres.
@@ -429,36 +530,14 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     !conSaga || nombre.trim() === ""
       ? null
       : largoNombreSaga > LIMITES.texto
-        ? { rojo: true, texto: `Muy largo para SAGA: máximo ${LIMITES.texto} caracteres y queda en ${largoNombreSaga}. Acórtalo${sinVariantes ? "" : " o desmarca «Combinar nombre» en la variante"}.` }
+        ? { rojo: true, texto: `Muy largo para SAGA: máximo ${LIMITES.texto} caracteres y queda en ${largoNombreSaga}. Acórtalo.` }
         : fueraDeRangoNombre(largoNombreSaga)
-          ? { rojo: false, texto: `SAGA pide de ${CALIDAD.tituloMin} a ${CALIDAD.tituloMax} caracteres en el nombre y tiene ${largoNombreSaga}${sinVariantes ? "" : " (la variante más larga)"}; fuera de ese rango baja la calificación.` }
+          ? { rojo: false, texto: `SAGA pide de ${CALIDAD.tituloMin} a ${CALIDAD.tituloMax} caracteres en el nombre y tiene ${largoNombreSaga}; fuera de ese rango baja la calificación.` }
           : null;
-
-  // Avisos de calidad de SAGA (título 20–100, descripción ≥ 50): advierten, no impiden guardar.
-  const avisosCalidad = (v) =>
-    conSaga
-      ? advertenciasSaga({ nombre, descripcion }, { nombre: nomV(v), descripcion: attrsDe(v).descripcion || "", saga_combinar_nombre: v.sagaCombinarNombre })
-      : [];
-  const avisosPorVariante = variantes.map(avisosCalidad);
 
   // Acción de la variante en una cuenta: la elegida o, por defecto, crear (variantes nuevas o ya enviadas).
   const accionDe = (v, alias) =>
     v.acciones[alias] ?? (v.id && !variantesSincronizadas.map(String).includes(String(v.id)) ? "ninguna" : "crear");
-
-  function cambiarPaquete(alias, cambios) {
-    setPaquetes((prev) => {
-      const actual = prev[alias] || { personalizar: false };
-      // Al personalizar por primera vez se parte de una copia del general.
-      const base = cambios.personalizar && !actual.contenidoPaquete && actual.paqueteAncho === undefined
-        ? { contenidoPaquete: saga.contenidoPaquete, paqueteAncho: saga.paqueteAncho, paqueteLargo: saga.paqueteLargo, paqueteAlto: saga.paqueteAlto, paquetePeso: saga.paquetePeso }
-        : {};
-      return { ...prev, [alias]: { ...base, ...actual, ...cambios } };
-    });
-  }
-
-  function cambiarCategoriaCuenta(alias, cambios) {
-    setCatCuenta((prev) => ({ ...prev, [alias]: { personalizar: false, extras: {}, varianteExtras: {}, ...prev[alias], ...cambios } }));
-  }
 
   // Qué le falta a cada variante para publicarse en SAGA (mismas reglas y misma herencia que al enviar).
   function faltantesSaga(v, alias) {
@@ -470,9 +549,11 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       saga_categoria: saga.sagaCategoria, modelo: saga.modelo || null, pais_produccion: saga.paisProduccion,
       tipo_perfume: saga.tipoPerfume, genero: generoActual, formato_belleza: saga.formatoBelleza,
       condicion: saga.condicion, caracteristicas: saga.caracteristicas, contenido_paquete: saga.contenidoPaquete,
+      name_cn: saga.nameCn || null, name_en: saga.nameEn || null, detalle_condicion: saga.detalleCondicion || null,
+      detalle_garantia: saga.detalleGarantia || null, garantia: saga.garantia || null,
       paquete_ancho: num(saga.paqueteAncho), paquete_largo: num(saga.paqueteLargo),
       paquete_alto: num(saga.paqueteAlto), paquete_peso: num(saga.paquetePeso),
-      usar_sku_padre: permiteVar && !sinVariantes && saga.usarSkuPadre,
+      usar_sku_padre: usarPadre,
       volumen: saga.volumen || null, cantidad_empaque: saga.cantidadEmpaque || null,
       fragancia_perfume: saga.fraganciaPerfume, notas_aromaticas: saga.notasAromaticas || null, saga_extras: saga.extras,
       atributos: { registro_sanitario: atributos.registroSanitario, variante_extras: atributos.varianteExtras, propios: atributos.propios },
@@ -481,7 +562,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     const vr = {
       nombre: nomV(v), sku: v.sku, descripcion: pers.columnas.descripcion, volumen: pers.columnas.volumen,
       cantidad_empaque: pers.columnas.cantidad_empaque, registro_sanitario: pers.columnas.registro_sanitario,
-      fragancia_perfume: pers.columnas.fragancia_perfume, notas_aromaticas: pers.columnas.notas_aromaticas, saga_combinar_nombre: v.sagaCombinarNombre,
+      fragancia_perfume: pers.columnas.fragancia_perfume, notas_aromaticas: pers.columnas.notas_aromaticas, saga_combinar_nombre: false,
       saga_extras: pers.columnas.saga_extras, atributos: pers.atributos,
       codigo_barras: v.codigoBarras,
       // Las imágenes nuevas se subirán a Cloudinary (https) al guardar: aquí solo cuentan como presentes.
@@ -505,18 +586,28 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   }
   // Cada cuenta puede tener sus propios precios: se valida por cuenta. Lo que falta en todas se lista una vez.
   // Con una acción de vincular/actualizar solo importan los datos que ESA acción envía (los vacíos no viajan).
+  // A qué dato de la matriz de acciones (Configuración → SAGA) corresponde cada falta. Lo que no coincide con ninguno son los campos
+  // extra de la categoría (p. ej. Talla o Color), que viajan con «Campos extra de la categoría».
   const MAPA_FALTANTE = [
-    [/^Nombre/, "nombre"], [/^Descripción/, "descripcion"], [/^Imagen/, "imagen"], [/^Precio/, "precio"],
-    [/^Registro sanitario/, "registro_sanitario"], [/^Ancho del paquete/, "paquete_ancho"], [/^Largo del paquete/, "paquete_largo"],
-    [/^Alto del paquete/, "paquete_alto"], [/^Peso del paquete/, "paquete_peso"], [/^Contenido del paquete/, "paquete_contenido"],
-    [/^Modelo/, "modelo"], [/^País de producción/, "pais"], [/^Condición/, "condicion"],
+    [/^Nombre/, "nombre"], [/^Marca/, "marca"], [/^Categoría primaria/, "categoria"], [/^Descripción/, "descripcion"],
+    [/^Im[aá]gen/, "imagen"], [/^Precio/, "precio"], [/^Fechas de oferta/, "oferta"], [/^Registro sanitario/, "registro_sanitario"],
+    [/^Tipo de perfume/, "tipo_perfume"], [/^Género/, "genero"], [/^Formato belleza/, "formato_belleza"], [/^Condición/, "condicion"],
+    [/^Ancho del paquete/, "paquete_ancho"], [/^Largo del paquete/, "paquete_largo"], [/^Alto del paquete/, "paquete_alto"],
+    [/^Peso del paquete/, "paquete_peso"], [/^Contenido del paquete/, "paquete_contenido"], [/^Medida del frasco/, "medida"],
+    [/^Cantidad contenida/, "cantidad_empaque"], [/^Fragancia/, "aroma"], [/^Características/, "caracteristicas"],
+    [/^País de producción/, "pais"], [/^Modelo/, "modelo"], [/^Notas aromáticas/, "notas"], [/^SKU/, "sku"],
   ];
+  const idDeFalta = (t) => MAPA_FALTANTE.find(([re]) => re.test(t))?.[1] || "extras";
   const faltantesDeAccion = (v, a) => {
     const modo = accionDe(v, a);
     if (modo === "crear") return faltantesSaga(v, a);
     const envia = (opcionesSaga.acciones || []).find((x) => x.id === modo)?.atributos;
-    if (!envia) return []; // ninguna / desvincular / acción desconocida: no envía datos
-    return faltantesSaga(v, a).filter((t) => MAPA_FALTANTE.some(([re, id]) => re.test(t) && envia.includes(id)));
+    if (!envia) return []; // sin acción / desvincular / acción desconocida: no envía datos
+    // El SKU siempre se necesita; lo demás solo si la acción lo envía.
+    return faltantesSaga(v, a).filter((t) => {
+      const id = idDeFalta(t);
+      return id === "sku" || envia.includes(id);
+    });
   };
   function faltantesPorCuenta(v) {
     // Crear exige todo; las acciones de vincular, solo lo que envían.
@@ -574,16 +665,11 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       codigoBarras: v.codigoBarras,
       // Solo lo que la variante personaliza; lo demás lo hereda del producto.
       attrs: attrsDe(v),
-      sagaCombinarNombre: v.sagaCombinarNombre,
+      sagaCombinarNombre: false,
       preciosSaga: v.preciosSaga,
       acciones: Object.fromEntries(cuentasMarcadas.map((a) => [a, accionDe(v, a)])),
     }))
   );
-
-  const etiquetaAccion = (modoAccion) =>
-    ({ ninguna: "No enviar", crear: "Crear en SAGA", desvincular: "Dejar de sincronizar" })[modoAccion] ||
-    (opcionesSaga.acciones || []).find((x) => x.id === modoAccion)?.nombre ||
-    modoAccion;
 
   const estadoSagaChip = cuentasMarcadas.length > 0 && (
     <span className={variantesIncompletas ? "chip-saga aviso" : "chip-saga ok"}>
@@ -603,7 +689,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
 
   // «Traer datos de SAGA»: botón discreto junto al SKU (ícono). Usa la cuenta de Le Chic por defecto; si hay varias cuentas
   // se puede cambiar con un selector pequeño. Rellena solo campos vacíos.
-  const controlTraer = (v, i) =>
+  const controlTraer = (sku, clave, alClic) =>
     conSaga && (
       <>
         {cuentasSaga.length > 1 && (
@@ -620,12 +706,12 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         <button
           type="button"
           className="pf-icono-btn"
-          disabled={!v.sku.trim() || !aliasTraer || traer[v.key]?.cargando}
-          onClick={() => traerDeSaga(i)}
+          disabled={!sku.trim() || !aliasTraer || !categoria || traer[clave]?.cargando}
+          onClick={alClic}
           aria-label="Traer datos de SAGA"
-          title={v.sku.trim() ? `Traer datos de SAGA (${cuentasSaga.find((c) => c.alias === aliasTraer)?.nombre || ""}). Solo completa campos vacíos.` : "Escribe el SKU para traer los datos de SAGA"}
+          title={!categoria ? "Elige primero la categoría: define qué atributos se completan" : sku.trim() ? `Traer datos de SAGA (${cuentasSaga.find((c) => c.alias === aliasTraer)?.nombre || ""}). Solo completa campos vacíos.` : "Escribe el SKU de la primera variante para traer los datos de SAGA"}
         >
-          {traer[v.key]?.cargando ? (
+          {traer[clave]?.cargando ? (
             <span aria-hidden="true">…</span>
           ) : (
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -635,74 +721,33 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         </button>
       </>
     );
-  const mensajesTraer = (v) =>
-    conSaga && (traer[v.key]?.error || traer[v.key]?.llenados) ? (
-      <div className="pf-traer-panel">
-        {traer[v.key]?.error && <small style={{ color: "#b3261e" }}>{traer[v.key].error}</small>}
-        {traer[v.key]?.llenados && (
-          <small style={{ color: "var(--gris)", display: "block" }}>
-            {traer[v.key].llenados.length
-              ? `Se completaron: ${traer[v.key].llenados.join(", ")}.`
-              : "No había campos vacíos que completar."}
-            {traer[v.key].conValor.length > 0 && ` Ya tenían otro valor (no se cambiaron): ${traer[v.key].conValor.join(", ")}.`}
-            {traer[v.key].avisos.map((a) => ` ${a}`)}
-          </small>
+  // Resultado de «Traer de SAGA»: una notificación flotante (no mueve el formulario) que se abre con un clic y se cierra con la ✕.
+  const mensajesTraer = (clave) => {
+    const t = traer[clave];
+    if (!conSaga || !(t?.error || t?.llenados)) return null;
+    const cerrar = () => setTraer((p) => { const n = { ...p }; delete n[clave]; return n; });
+    const n = t.llenados?.length || 0;
+    return (
+      <div className={t.error ? "pf-toast error" : "pf-toast"} role="status">
+        <button type="button" className="pf-toast-x" aria-label="Cerrar la notificación" title="Cerrar" onClick={cerrar}>✕</button>
+        {t.error ? (
+          <p>{t.error}</p>
+        ) : (
+          <details>
+            <summary>
+              <strong>Traído de SAGA</strong>
+              <span>{n ? `${n} campo${n === 1 ? "" : "s"} completado${n === 1 ? "" : "s"}` : "No había campos vacíos que completar"}</span>
+            </summary>
+            {n > 0 && <p><b>Se completaron:</b> {t.llenados.join(", ")}.</p>}
+            {t.conValor.length > 0 && <p><b>Ya tenían otro valor (no se cambiaron):</b> {t.conValor.join(", ")}.</p>}
+            {t.avisos.map((a, i) => <p key={i}>{a}</p>)}
+          </details>
         )}
       </div>
-    ) : null;
+    );
+  };
 
-  // Datos de SAGA de una variante (acciones por cuenta, nombre/descripción, medida y fragancia). Sin variantes va a nivel de producto.
-  const bloqueSaga = (v, i, solo = false) => (
-                <details className="pf-bloque pf-bloque-saga saga-seccion">
-                  <summary>
-                    <span className="pf-sello">SAGA</span> {solo ? "Datos de SAGA del producto" : "Datos de esta variante"}
-                    {cuentasMarcadas.length > 0 && (
-                      <span className={faltantesPorVariante[i].total ? "chip-saga aviso" : "chip-saga ok"}>
-                        {cuentasMarcadas.some((a) => accionDe(v, a) === "crear")
-                          ? faltantesPorVariante[i].total ? `Faltan ${faltantesPorVariante[i].total}` : "Completa"
-                          : cuentasMarcadas.some((a) => !["ninguna", "crear", "desvincular"].includes(accionDe(v, a))) ? "Vinculada" : "Sin envío"}
-                      </span>
-                    )}
-                  </summary>
-                  <div className="form-grid saga-cuerpo">
-                    {listaFaltantes(i)}
-
-                    <div className="campo">
-                      {!solo && (
-                      <label className="campo-check">
-                        <input
-                          type="checkbox"
-                          checked={v.sagaCombinarNombre}
-                          onChange={(e) => actualizarVariante(i, { sagaCombinarNombre: e.target.checked })}
-                        />
-                        Combinar nombre del producto + nombre de la variante
-                      </label>
-                      )}
-                      {(() => {
-                        const enSaga = nombreSagaDe(v);
-                        const excede = enSaga.length > LIMITES.texto;
-                        const aviso = !excede && fueraDeRangoNombre(enSaga.trim().length);
-                        return (
-                          <small style={{ color: excede ? "#b3261e" : aviso ? "#9a6700" : "var(--gris)" }}>
-                            En SAGA se verá: <strong>{enSaga || "—"}</strong> ({enSaga.trim().length} caracteres; SAGA pide de {CALIDAD.tituloMin} a {CALIDAD.tituloMax}).
-                            {excede ? " Es demasiado largo para SAGA: acórtalo." : ""}
-                            {aviso ? " ⚠ Fuera de ese rango SAGA baja la calificación del producto." : ""}
-                            {!v.sagaCombinarNombre && " Solo se envía el nombre del producto."}
-                          </small>
-                        );
-                      })()}
-                    </div>
-
-                    {avisosPorVariante[i].some((a) => a.startsWith("Descripción")) && (
-                      <small style={{ color: "#9a6700" }}>
-                        ⚠ {avisosPorVariante[i].find((a) => a.startsWith("Descripción"))}
-                      </small>
-                    )}
-                  </div>
-                </details>
-  );
-
-  // Activa / pack / quitar de una variante (en un producto sin variantes van junto a «Destacado»).
+  // «Activa» y «Quitar variante» (solo desde la segunda) de una variante.
   const opcionesVariante = (v, i) => (
     <>
                   <label className="campo-check">
@@ -713,48 +758,113 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                     />
                     Activa (visible en el sitio)
                   </label>
-                  {!restringido && variantes.length > 1 && (
+                  {!restringido && i > 0 && (
                     <button type="button" className="btn-admin peligro pf-var-quitar" onClick={() => quitarVariante(i)}>
                       Quitar variante
                     </button>
                   )}
     </>
   );
-  // Precio, stock, costo y composición de pack de una variante.
-  const bloquePrecioStock = (v, i) => (
-    <div className="pf-bloque">
-      <h5>Precio y stock</h5>
+  // Vigencia de la oferta: SAGA la pide por cuenta; aquí se fija una sola para todas las cuentas
+  // (la tabla «Precios por plataforma» de Integraciones permite afinarla por cuenta).
+  const vigenciaDe = (v) => {
+    const o = cuentasSaga.map((c) => v.preciosSaga[c.alias] || {}).find((x) => x.ofertaInicio || x.ofertaFin) || {};
+    return { inicio: o.ofertaInicio || "", fin: o.ofertaFin || "" };
+  };
+  function fijarVigencia(i, cambios) {
+    setVariantes((prev) =>
+      prev.map((v, idx) =>
+        idx !== i
+          ? v
+          : { ...v, preciosSaga: { ...v.preciosSaga, ...Object.fromEntries(cuentasSaga.map((c) => [c.alias, { ...(v.preciosSaga[c.alias] || {}), ...cambios }])) } }
+      )
+    );
+  }
+
+  // Pestaña «Características»: nombre de la variante y los atributos ubicados en «Variantes» (Integraciones → Web → Atributos por categoría).
+  const panelCaracteristicas = (v, i) => (
+    <>
+      <div className="pf-var-grid">
+        <div className="campo">
+          <label htmlFor={`var${i}-nombre`}>Nombre de la variante</label>
+          <input
+            id={`var${i}-nombre`}
+            type="text"
+            value={v.nombre}
+            onChange={(e) => actualizarVariante(i, { nombre: e.target.value })}
+            placeholder={sinVariantes ? "Único" : 'Ej: "50 ml", "Rosa"'}
+          />
+          {sinVariantes && <small>Con una sola variante SAGA usa solo el nombre del producto.</small>}
+        </div>
+      </div>
+      {conSaga && (
+        <AtributosProducto
+          soloVariacion
+          valores={v.attrs || {}}
+          onChange={(c) => cambiarAttrsVariante(i, c)}
+          enVariante
+          prefijo={`var${i}`}
+          conSaga={conSaga}
+          sagaGeneral={sagaGeneral}
+          generales={generales}
+          etiquetas={etiquetasCampos}
+          requisitos={requisitosCampos}
+          opcionesSaga={opcionesSaga}
+          atribCategoria={atribCategoria}
+          nombreCategoria={nombreCategoria}
+        />
+      )}
+    </>
+  );
+
+  // Pestaña «Precio»: costo, precio de venta, precio de oferta y vigencia de la oferta.
+  const panelPrecio = (v, i) => {
+    const vig = vigenciaDe(v);
+    return (
+      <div className="pf-var-grid">
+        {!restringido && !v.esPack && (
+          <div className="campo">
+            <label htmlFor={`var${i}-costo`}>Costo (S/) <em>opcional</em></label>
+            <input id={`var${i}-costo`} type="number" min="0" step="0.01" value={v.costo} onChange={(e) => actualizarVariante(i, { costo: e.target.value })} />
+          </div>
+        )}
+        <div className="campo">
+          <label htmlFor={`var${i}-precio`}>Precio de venta (S/) <em>*</em></label>
+          <input id={`var${i}-precio`} type="number" step="0.1" min="0" value={v.precio} onChange={(e) => actualizarVariante(i, { precio: e.target.value })} />
+        </div>
+        <div className="campo">
+          <label htmlFor={`var${i}-oferta`}>Precio de oferta (S/) <em>opcional</em></label>
+          <input id={`var${i}-oferta`} type="number" step="0.1" min="0" value={v.precioOferta} onChange={(e) => actualizarVariante(i, { precioOferta: e.target.value })} />
+        </div>
+        {conSaga && cuentasSaga.length > 0 && (
+          <div className="campo pf-vigencia">
+            <label htmlFor={`var${i}-vig-ini`}>Vigencia de la oferta</label>
+            <div className="pf-vigencia-fechas">
+              <input id={`var${i}-vig-ini`} type="date" aria-label="Oferta desde" value={vig.inicio} onChange={(e) => fijarVigencia(i, { ofertaInicio: e.target.value })} />
+              <span aria-hidden="true">→</span>
+              <input type="date" aria-label="Oferta hasta" value={vig.fin} onChange={(e) => fijarVigencia(i, { ofertaFin: e.target.value })} />
+            </div>
+            {v.precioOferta !== "" && (!vig.inicio || !vig.fin) ? (
+              <small style={{ color: "#9a6700" }}>⚠ SAGA exige las dos fechas cuando hay precio de oferta.</small>
+            ) : (
+              <small>Se aplica a todas las plataformas; puedes afinarla en Integraciones → Precios por plataforma.</small>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Pestaña «Inventario»: stock, stock mínimo, SKU del vendedor (con «traer de SAGA») y código de barras.
+  const panelInventario = (v, i) => (
+    <>
       {!restringido && (
         <label className="campo-check">
-          <input
-            type="checkbox"
-            checked={v.esPack}
-            onChange={(e) => actualizarVariante(i, { esPack: e.target.checked })}
-          />
+          <input type="checkbox" checked={v.esPack} onChange={(e) => actualizarVariante(i, { esPack: e.target.checked })} />
           Es un pack (su stock depende de otros productos)
         </label>
       )}
-      <div className="pf-grid-4">
-        <div className="campo">
-          <label>Precio (S/)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={v.precio}
-            onChange={(e) => actualizarVariante(i, { precio: e.target.value })}
-          />
-        </div>
-        <div className="campo">
-          <label>Precio de oferta (opcional)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={v.precioOferta}
-            onChange={(e) => actualizarVariante(i, { precioOferta: e.target.value })}
-          />
-        </div>
+      <div className="pf-var-grid">
         {restringido ? (
           v.esPack ? (
             <div className="campo">
@@ -765,11 +875,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
             <div className="campo">
               <label>Stock</label>
               <label className="campo-check">
-                <input
-                  type="checkbox"
-                  checked={v.stock}
-                  onChange={(e) => actualizarVariante(i, { stock: e.target.checked })}
-                />
+                <input type="checkbox" checked={v.stock} onChange={(e) => actualizarVariante(i, { stock: e.target.checked })} />
                 Con stock disponible
               </label>
             </div>
@@ -781,8 +887,9 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
           )
         ) : !v.esPack ? (
           <div className="campo">
-            <label>Stock (cantidad)</label>
+            <label htmlFor={`var${i}-stock`}>Stock (cantidad)</label>
             <input
+              id={`var${i}-stock`}
               type="number"
               min="0"
               step="1"
@@ -792,88 +899,116 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
             />
             {v.stockCantidad === "" && v.stockActual === null ? (
               <label className="campo-check">
-                <input
-                  type="checkbox"
-                  checked={v.stock}
-                  onChange={(e) => actualizarVariante(i, { stock: e.target.checked })}
-                />
+                <input type="checkbox" checked={v.stock} onChange={(e) => actualizarVariante(i, { stock: e.target.checked })} />
                 Con stock disponible
               </label>
             ) : (
               <small>
                 Al guardar se registra el ajuste en el historial.{" "}
-                {v.stockActual !== null && (
-                  <a href={`/admin?q=${encodeURIComponent(v.sku || nombre)}`}>Ver en Inventario</a>
-                )}
+                {v.stockActual !== null && <a href={`/admin?q=${encodeURIComponent(v.sku || nombre)}`}>Ver en Inventario</a>}
               </small>
             )}
           </div>
-        ) : null}
-        {!restringido && !v.esPack && (
-          <>
-            <div className="campo">
-              <label>Stock mínimo (alerta y colchón en SAGA)</label>
-              <input
-                type="number"
-                min="0"
-                step="1"
-                value={v.stockMinimo}
-                onChange={(e) => actualizarVariante(i, { stockMinimo: e.target.value })}
-              />
-              {conSaga && (() => {
-                // Lo que verá SAGA: con el stock en o bajo el mínimo se publica 0 (colchón).
-                const enWeb = v.stockCantidad !== "" ? Number(v.stockCantidad) : v.stockActual;
-                if (enWeb === null || enWeb === undefined || Number.isNaN(enWeb)) return null;
-                const minimo = Number(v.stockMinimo) || 0;
-                const enSaga = enWeb > minimo ? enWeb : 0;
-                return (
-                  <small style={{ color: enWeb > 0 && enSaga === 0 ? "#b3261e" : "var(--gris)" }}>
-                    En SAGA se publicará: <strong>{enSaga}</strong>
-                    {enWeb > 0 && enSaga === 0 ? ` — el stock (${enWeb}) no supera el mínimo (${minimo}). ¿Pusiste la cantidad en el campo equivocado?` : ""}
-                  </small>
-                );
-              })()}
-            </div>
-            <div className="campo">
-              <label>Costo (S/, opcional)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={v.costo}
-                onChange={(e) => actualizarVariante(i, { costo: e.target.value })}
-              />
-            </div>
-          </>
+        ) : (
+          <div className="campo">
+            <label>Stock</label>
+            <strong>Pack · stock calculado: {v.stockPack}</strong>
+          </div>
         )}
-      </div>
-      {!restringido && v.esPack && (
-        <PackComponentes
-          componentes={v.componentes}
-          onChange={(componentes) => actualizarVariante(i, { componentes })}
-          opciones={variantesPack}
-          idPropio={v.id}
-        />
-      )}
-    </div>
-  );
-  // Imágenes de una variante.
-  const bloqueImagenes = (v, i) => (
-    <div className="pf-bloque">
-      <h5>Imágenes</h5>
-      <div className="pf-imagen-fila">
-        <div className="campo pf-imagen">
-          <ImagenesVariante
-            varianteKey={v.key}
-            imagenes={v.imagenes}
-            onChange={(imagenes) => actualizarVariante(i, { imagenes })}
-            max={IMAGENES_TOPE}
-            minimo={conSaga && saga.sagaCategoria ? imagenesRequeridas(saga.sagaCategoria, opcionesSaga.categorias).min : 0}
-          />
+        {!restringido && !v.esPack && (
+          <div className="campo">
+            <label htmlFor={`var${i}-minimo`}>Stock mínimo <em>alerta y colchón en SAGA</em></label>
+            <input id={`var${i}-minimo`} type="number" min="0" step="1" value={v.stockMinimo} onChange={(e) => actualizarVariante(i, { stockMinimo: e.target.value })} />
+            {conSaga && (() => {
+              // Lo que verá SAGA: con el stock en o bajo el mínimo se publica 0 (colchón).
+              const enWeb = v.stockCantidad !== "" ? Number(v.stockCantidad) : v.stockActual;
+              if (enWeb === null || enWeb === undefined || Number.isNaN(enWeb)) return null;
+              const minimo = Number(v.stockMinimo) || 0;
+              const enSaga = enWeb > minimo ? enWeb : 0;
+              return (
+                <small style={{ color: enWeb > 0 && enSaga === 0 ? "#b3261e" : "var(--gris)" }}>
+                  En SAGA se publicará: <strong>{enSaga}</strong>
+                  {enWeb > 0 && enSaga === 0 ? ` — el stock (${enWeb}) no supera el mínimo (${minimo}). ¿Pusiste la cantidad en el campo equivocado?` : ""}
+                </small>
+              );
+            })()}
+          </div>
+        )}
+        <div className="campo">
+          <label htmlFor={`var${i}-sku`}>SKU vendedor <em>enlaza con facturación</em></label>
+          <input id={`var${i}-sku`} type="text" value={v.sku} onChange={(e) => actualizarVariante(i, { sku: e.target.value })} placeholder="Ej: YB-ROSA-50" />
+        </div>
+        <div className="campo">
+          <label htmlFor={`var${i}-barras`}>Código de barras {conSaga && <em>*</em>}</label>
+          <input id={`var${i}-barras`} type="text" value={v.codigoBarras} onChange={(e) => actualizarVariante(i, { codigoBarras: e.target.value })} />
         </div>
       </div>
+      {!restringido && v.esPack && (
+        <PackComponentes componentes={v.componentes} onChange={(componentes) => actualizarVariante(i, { componentes })} opciones={variantesPack} idPropio={v.id} />
+      )}
+    </>
+  );
+
+  // Pestaña «Multimedia»: imágenes de la variante.
+  const panelMultimedia = (v, i) => (
+    <div className="pf-imagen-fila">
+      <div className="campo pf-imagen">
+        <ImagenesVariante
+          varianteKey={v.key}
+          imagenes={v.imagenes}
+          onChange={(imagenes) => actualizarVariante(i, { imagenes })}
+          max={IMAGENES_TOPE}
+          minimo={conSaga && saga.sagaCategoria ? imagenesRequeridas(saga.sagaCategoria, opcionesSaga.categorias).min : 0}
+        />
+      </div>
     </div>
   );
+
+  // Una variante: cabecera (resumen) y sus 4 pestañas. Todo se llena a nivel de variante, también con una sola.
+  const PEST_VAR = [["car", "Características"], ["pre", "Precio"], ["inv", "Inventario"], ["mul", "Multimedia"]];
+  const tarjetaVariante = (v, i) => {
+    const pestana = pestDe(v);
+    const cuerpo = (
+      <div className="pf-var-cuerpo">
+        <div className="pf-var-opciones">{opcionesVariante(v, i)}</div>
+        <div className="pf-vtabs" role="tablist" aria-label="Datos de la variante">
+          {PEST_VAR.map(([id, texto]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={pestana === id}
+              className="pf-vtab"
+              onClick={() => setPestVar((p) => ({ ...p, [v.key]: id }))}
+            >
+              <IconoVariante id={id} /> {texto}
+            </button>
+          ))}
+        </div>
+        <div hidden={pestana !== "car"} data-vtab="car" data-vkey={v.key} className="pf-var-panel">{panelCaracteristicas(v, i)}</div>
+        <div hidden={pestana !== "pre"} data-vtab="pre" data-vkey={v.key} className="pf-var-panel">{panelPrecio(v, i)}</div>
+        <div hidden={pestana !== "inv"} data-vtab="inv" data-vkey={v.key} className="pf-var-panel">{panelInventario(v, i)}</div>
+        <div hidden={pestana !== "mul"} data-vtab="mul" data-vkey={v.key} className="pf-var-panel">{panelMultimedia(v, i)}</div>
+      </div>
+    );
+    if (sinVariantes) return <div className="pf-variante pf-var-unica" key={v.key} id={`pf-var-${i}`}>{cuerpo}</div>;
+    return (
+      <details className="pf-variante" key={v.key} id={`pf-var-${i}`} open={v.abierta === true}>
+        <summary className="pf-var-resumen">
+          <span className="pf-var-n">{i + 1}</span>
+          <strong className="pf-var-nombre">{v.nombre.trim() || "Sin nombre"}</strong>
+          <span className="pf-var-dato">{v.sku ? `SKU ${v.sku}` : "Sin SKU"}</span>
+          <span className="pf-var-dato">{v.precio === "" ? "Sin precio" : `S/ ${v.precio}`}</span>
+          <span className="pf-var-dato">
+            {v.esPack ? `Pack · ${v.stockPack}` : v.stockCantidad !== "" ? `Stock ${v.stockCantidad}` : v.stock ? "Con stock" : "Sin stock"}
+          </span>
+          {!v.activo && <span className="chip-saga aviso">Inactiva</span>}
+          {v.esPack && <span className="chip-saga">Pack</span>}
+        </summary>
+        {cuerpo}
+      </details>
+    );
+  };
 
   // Qué hacer con una variante en una cuenta (crear, vincular, no enviar…): se elige en el panel de SAGA.
   const selectorAccion = (v, i, c) => {
@@ -885,7 +1020,8 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         aria-label={`Acción en ${c.nombre}${variantes.length > 1 ? ` para ${v.nombre.trim() || "la variante"}` : ""}`}
         onChange={(e) => actualizarVariante(i, { acciones: { ...v.acciones, [c.alias]: e.target.value } })}
       >
-        <option value="ninguna">No enviar</option>
+        {/* Sin acción elegida: no se envía nada. No es una acción (para no enviar basta no marcar la cuenta); solo se muestra mientras es el valor actual. */}
+        {modoAccion === "ninguna" && <option value="ninguna">{registrada ? "En revisión de SAGA" : "Elegir acción…"}</option>}
         <option value="crear">Crear en SAGA (SKU nuevo)</option>
         {(opcionesSaga.acciones || []).map((x) => (
           <option key={x.id} value={x.id}>{x.nombre}</option>
@@ -893,6 +1029,29 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
         {registrada && <option value="desvincular">Dejar de sincronizar</option>}
       </select>
     );
+  };
+  // Estado de una variante para publicar en SAGA, con lo que le falta (se muestra en «¿Qué quieres hacer en cada cuenta?»).
+  const estadoDeVariante = (i) => {
+    if (faltantesPorVariante[i].total > 0) {
+      return (
+        <details className="pf-estado-var">
+          <summary><span className="chip-saga rojo">Faltan {faltantesPorVariante[i].total}</span></summary>
+          {listaFaltantes(i)}
+        </details>
+      );
+    }
+    // Con acciones que no envían la ficha (p. ej. vincular) no se exige nada; aun así se informa lo que faltaría para crearla.
+    const ficha = [...new Set(cuentasMarcadas.flatMap((a) => faltantesSaga(variantes[i], a)))];
+    if (ficha.length > 0) {
+      return (
+        <details className="pf-estado-var">
+          <summary><span className="chip-saga rojo">Ficha incompleta: {ficha.length}</span></summary>
+          <small>La acción elegida no envía estos datos, por eso no se exigen; se pedirían al crear el producto en SAGA:</small>
+          <ul className="saga-faltantes">{ficha.map((f) => <li key={f}>{f}</li>)}</ul>
+        </details>
+      );
+    }
+    return <span className="chip-saga ok">Completa</span>;
   };
   // Lo que falta para publicar una variante (comunes a las cuentas y propio de cada una).
   const listaFaltantes = (i) =>
@@ -917,26 +1076,33 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
 
   // Las secciones principales arrancan abiertas y todo lo de adentro minimizado. Al navegar o fallar la validación del navegador se abren las secciones que contienen el campo.
   function abrirContenedores(e) {
+    const pn = e.target.closest?.("[data-panel]")?.getAttribute("data-panel");
+    if (pn) setPanel(pn);
+    const vt = e.target.closest?.("[data-vtab]");
+    if (vt) setPestVar((p) => ({ ...p, [vt.getAttribute("data-vkey")]: vt.getAttribute("data-vtab") }));
     let d = e.target.closest?.("details");
     while (d) {
       d.open = true;
       d = d.parentElement?.closest("details");
     }
   }
-  function irASeccion(e) {
-    const a = e.target.closest?.("a[href^='#']");
-    if (!a) return;
-    const destino = document.getElementById(a.getAttribute("href").slice(1));
-    if (!destino) return;
-    e.preventDefault();
-    if (destino.tagName === "DETAILS") destino.open = true;
-    abrirContenedores({ target: destino });
-    destino.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
   return (
-    <form action={accion} className="pf" onInvalidCapture={abrirContenedores}>
+    <form
+      action={accion}
+      className="pf"
+      onInvalidCapture={abrirContenedores}
+      onSubmit={(e) => {
+        // No se guarda con datos pendientes para SAGA: hay que completarlos, cambiar la acción o desmarcar la cuenta.
+        if (conSaga && variantesIncompletas > 0) {
+          e.preventDefault();
+          setIntentoBloqueado(true);
+          setPanel("integraciones");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      }}
+    >
       {conSaga && <input type="hidden" name="sagaCampos" value="1" />}
+      {conSaga && <input type="hidden" name="sagaCuentasVisibles" value={JSON.stringify(cuentasSaga.map((c) => c.alias))} />}
       {conSaga && <input type="hidden" name="sagaExtras" value={JSON.stringify(saga.extras)} />}
       {conSaga && <input type="hidden" name="paquetesJson" value={JSON.stringify(paquetes)} />}
       {conSaga && <input type="hidden" name="categoriasCuentaJson" value={JSON.stringify(catCuenta)} />}
@@ -945,6 +1111,10 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
       )}
 
       <input type="hidden" name="modo" value={modo} />
+      {/* El id (URL) se genera solo del nombre y no se edita. El SKU padre es el de la primera variante (como en SAGA); si SAGA ya lo confirmó, ese. */}
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="skuPadre" value={skuPadreAuto} />
+      {usarPadre && <input type="hidden" name="usarSkuPadre" value="on" />}
       {modo === "editar" && <input type="hidden" name="idOriginal" value={producto.id} />}
       <input type="hidden" name="variantesJson" value={variantesJson} />
 
@@ -955,176 +1125,169 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
           {!sinVariantes && <span className="chip-saga">{variantes.length} variante{variantes.length === 1 ? "" : "s"}</span>}
           {conSaga && estadoSagaChip}
         </div>
-        <nav className="pf-nav" aria-label="Secciones del formulario" onClick={irASeccion}>
-          <a href="#pf-web">Web</a>
-          {conSaga && <a href="#pf-plataformas">Plataformas</a>}
-          {!sinVariantes && <a href="#pf-variantes">Variantes</a>}
-          {conSaga && <a href="#pf-precios">Precios</a>}
-        </nav>
         {botonGuardar}
       </div>
 
       {estado?.error && <div className="mensaje-error">{estado.error}</div>}
+      {intentoBloqueado && conSaga && variantesIncompletas > 0 && (
+        <div className="mensaje-error" role="alert">
+          No se puede guardar: {variantesIncompletas === 1 ? "una variante tiene" : `${variantesIncompletas} variantes tienen`} datos pendientes para SAGA. Complétalos, cambia la
+          acción de {variantesIncompletas === 1 ? "esa variante" : "esas variantes"} o desmarca la cuenta en Integraciones → Plataformas (paso 1).
+        </div>
+      )}
 
-      {/* ===== 1. Datos de la web ===== */}
-      <details id="pf-web" className="pf-seccion pf-seccion-plegable" open>
-        <summary className="pf-seccion-cab">
-          <div>
-            <h3>Datos de la web</h3>
-            <small>Lo que ven tus clientes en el catálogo y los atributos del producto.</small>
+      <div className="pf-panelcard cg admin-card">
+        {/* Arriba del todo: el SKU padre (con «Traer de SAGA», que llena todas las pestañas) y la categoría, que define los atributos. */}
+        <div className="pf-top">
+          <div className={categoria ? "campo pf-top-cat" : "campo pf-top-cat con-aviso"}>
+            <label htmlFor="categoria">Categoría <em>*</em></label>
+            <SelectUnico
+              id="categoria"
+              name="categoria"
+              valor={categoria}
+              opciones={categoriasOpc.map((c) => c.slug)}
+              formato={(sl) => categoriasOpc.find((c) => c.slug === sl)?.nombre || sl}
+              onChange={elegirCategoria}
+              placeholder="Elegir categoría…"
+              buscar="Buscar categoría…"
+              requerido
+            />
+            {!categoria ? (
+              <small className="pf-aviso-campo">⚠ Falta elegir la categoría: de ella dependen los atributos que se piden.</small>
+            ) : null}
           </div>
-          {nombre.trim() && <span className="pf-seccion-resumen">{nombre.trim()}</span>}
-        </summary>
+          <div className="campo pf-top-sku">
+            <label htmlFor="sku-padre-in">SKU padre</label>
+            <div className="pf-sku-grupo">
+              <input
+                id="sku-padre-in"
+                type="text"
+                value={variantes[0]?.sku || ""}
+                onChange={(e) => actualizarVariante(0, { sku: e.target.value })}
+                placeholder="SKU de la primera variante"
+              />
+              {controlTraer(variantes[0]?.sku || "", "padre", traerDelPadre)}
+            </div>
+            {mensajesTraer("padre")}
+          </div>
+        </div>
+        <div className="pf-pestanas" role="tablist" aria-label="Secciones del producto">
+          {[
+            ["producto", "Producto y garantía", null, "producto"],
+            ["atributos", "Atributos", null, "atributos"],
+            ["variantes", "Variantes", variantes.length, "variantes"],
+            ...(conSaga ? [["integraciones", "Integraciones", cuentasMarcadas.length, "conexion"]] : []),
+          ].map(([id, nombre, n, icono]) => (
+            <button key={id} type="button" role="tab" aria-selected={panel === id} className="pf-pestana" onClick={() => setPanel(id)}>
+              <IconoPanelProducto id={icono} />
+              {nombre}
+              {n !== null && <span className="pf-pestana-n">{n}</span>}
+            </button>
+          ))}
+        </div>
+        <div hidden={panel !== "producto"} data-panel="producto" className="form-grid">
+          <div className="pf-panel-bloque" id="pf-ident">
+            <strong>Principal</strong>
+            {/* 1. Nombre: ocupa toda la fila */}
+            <div className="campo">
+              <label htmlFor="nombre">Nombre del producto <em>*</em></label>
+              <input
+                id="nombre"
+                name="nombre"
+                type="text"
+                required
+                value={nombre}
+                onChange={(e) => alCambiarNombreProducto(e.target.value)}
+              />
+              {avisoNombre && <small style={{ color: avisoNombre.rojo ? "#b3261e" : "#9a6700" }}>⚠ {avisoNombre.texto}</small>}
+            </div>
 
-        <div className="pf-subs">
-          <details id="pf-ident" className="saga-seccion pf-sub">
-            <summary>
-              Identificación <em>categoría, marca, nombre y SKU</em>
-            </summary>
-            <div className="saga-cuerpo pf-sub-cuerpo">
+            {/* 2. Marca, Pestaña y Modelo en la misma fila */}
             <div className="pf-grid-3">
               <div className="campo">
-                <label htmlFor="categoria">Categoría</label>
-                <select
-                  id="categoria"
-                  name="categoria"
-                  value={categoria}
-                  onChange={(e) => elegirCategoria(e.target.value)}
-                >
-                  {categoriasOpc.map((c) => (
-                    <option key={c.slug} value={c.slug}>
-                      {c.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="campo">
-                <label htmlFor="marca">Marca</label>
-                <select id="marca" name="marca" value={marca} onChange={(e) => alCambiarMarca(e.target.value)}>
-                  {marcasOpc.map((m) => (
-                    <option key={m.slug} value={m.slug}>
-                      {m.nombre}
-                    </option>
-                  ))}
-                </select>
+                <label htmlFor="marca">Marca <em>*</em></label>
+                <SelectUnico
+                  id="marca"
+                  name="marca"
+                  valor={marca}
+                  opciones={marcasOpc.map((m) => m.slug)}
+                  formato={(sl) => marcasOpc.find((m) => m.slug === sl)?.nombre || sl}
+                  onChange={alCambiarMarca}
+                  placeholder="Elegir marca…"
+                  buscar="Buscar marca…"
+                  requerido
+                />
               </div>
               <div className="campo">
                 <label htmlFor="pestana">Pestaña (dónde se muestra en la web)</label>
-                <select id="pestana" name="pestana" value={pestana} onChange={(e) => alCambiarPestana(e.target.value)}>
-                  {pestanasOpc.map((p) => (
-                    <option key={p.slug} value={p.slug}>
-                      {p.nombre}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="pf-grid-2">
-              <div className="campo">
-                <label htmlFor="nombre">Nombre del producto</label>
-                <input
-                  id="nombre"
-                  name="nombre"
-                  type="text"
-                  required
-                  value={nombre}
-                  onChange={(e) => alCambiarNombreProducto(e.target.value)}
+                <SelectUnico
+                  id="pestana"
+                  name="pestana"
+                  valor={pestana}
+                  opciones={pestanasOpc.map((p) => p.slug)}
+                  formato={(sl) => pestanasOpc.find((p) => p.slug === sl)?.nombre || sl}
+                  onChange={alCambiarPestana}
+                  placeholder="Elegir pestaña…"
+                  buscar="Buscar pestaña…"
+                  requerido
                 />
-                {avisoNombre && <small style={{ color: avisoNombre.rojo ? "#b3261e" : "#9a6700" }}>⚠ {avisoNombre.texto}</small>}
               </div>
-              <div className="campo">
-                <label htmlFor="id">Id (parte de la URL)</label>
-                {modo === "editar" ? (
-                  <>
-                    <input
-                      id="id"
-                      name="id"
-                      type="text"
-                      value={id}
-                      readOnly
-                      aria-readonly="true"
-                      className="pf-id-bloqueado"
-                      title="El id es parte de la URL del producto y no se puede cambiar"
-                      onFocus={() => setAvisoId(true)}
-                      onClick={() => setAvisoId(true)}
-                      onBlur={() => setAvisoId(false)}
-                    />
-                    {avisoId && <small>El id es parte de la URL del producto y no se puede cambiar.</small>}
-                  </>
-                ) : (
-                  <input
-                    id="id"
-                    name="id"
-                    type="text"
-                    value={id}
-                    onChange={(e) => {
-                      setIdTocadoManualmente(true);
-                      setId(e.target.value);
-                    }}
-                    placeholder="se genera solo a partir del nombre"
-                  />
-                )}
-              </div>
-              {sinVariantes && (
-                <div className="campo">
-                  <label htmlFor="skuProducto">SKU del producto</label>
-                  <div className="pf-sku-grupo">
-                    <input
-                      id="skuProducto"
-                      type="text"
-                      value={variantes[0].sku}
-                      onChange={(e) => actualizarVariante(0, { sku: e.target.value })}
-                      placeholder="Ej: YB-ROSA-50"
-                    />
-                    {controlTraer(variantes[0], 0)}
-                  </div>
-                  {mensajesTraer(variantes[0])}
-                </div>
-              )}
-              {!sinVariantes && (
-                <div className="campo">
-                  <label htmlFor="skuPadre">SKU padre</label>
-                  <input
-                    id="skuPadre"
-                    name="skuPadre"
-                    type="text"
-                    value={saga.skuPadre}
-                    onChange={(e) => cambiarSaga({ skuPadre: e.target.value })}
-                    placeholder="Código que agrupa las variantes"
-                  />
-                  {!skuPadreBloqueado && (
-                    <small>Agrupa las variantes. SAGA lo usa solo si marcas «Usar SKU padre» en Plataformas (vacío = id del producto).</small>
-                  )}
-                </div>
-              )}
-              {sinVariantes && conSaga && (
-                <div className="campo">
-                  <label htmlFor="codigoBarrasProducto">Código de barras</label>
-                  <input id="codigoBarrasProducto" type="text" value={variantes[0].codigoBarras} onChange={(e) => actualizarVariante(0, { codigoBarras: e.target.value })} />
-                </div>
-              )}
-            </div>
-            </div>
-          </details>
-
-          <details id="pf-desc" className="saga-seccion pf-sub">
-            <summary>
-              Descripción y visibilidad
-              {destacado && <span className="chip-saga">Destacado</span>}
-              {sinVariantes && !variantes[0].activo && <span className="chip-saga aviso">Inactivo</span>}
-            </summary>
-            <div className="saga-cuerpo pf-sub-cuerpo">
-            <div className="campo">
-              <label htmlFor="descripcion">Descripción</label>
-              <textarea
-                id="descripcion"
-                name="descripcion"
-                value={descripcion}
-                onChange={(e) => setDescripcion(e.target.value)}
+              <GeneralesProducto
+                parte="principal"
+                solo={["modelo"]}
+                conSaga={conSaga}
+                generales={generales}
+                etiquetas={etiquetasCampos}
+                requisitos={requisitosCampos}
+                opcionesSaga={opcionesSaga}
+                atribCategoria={atribCategoria}
+                valores={attrsProducto}
+                onChange={cambiarAttrsProducto}
               />
             </div>
 
+            {/* 3. Descripción */}
+            <EditorDescripcion valor={descripcion} onChange={setDescripcion} />
+
+            {/* 4. País de origen */}
+            <div className="pf-grid-2">
+              <GeneralesProducto
+                parte="principal"
+                solo={["paisProduccion", "propios"]}
+                conSaga={conSaga}
+                generales={generales}
+                etiquetas={etiquetasCampos}
+                requisitos={requisitosCampos}
+                opcionesSaga={opcionesSaga}
+                atribCategoria={atribCategoria}
+                valores={attrsProducto}
+                onChange={cambiarAttrsProducto}
+              />
+            </div>
+          </div>
+
+          <div className="pf-panel-bloque" id="pf-garantia">
+            <strong>Garantía y envío</strong>
+            <label className="campo-check">
+              <input type="checkbox" checked={soloObl} onChange={(e) => setSoloObl(e.target.checked)} />
+              Mostrar solo atributos obligatorios y que aumentan la calidad del contenido
+            </label>
+            <GeneralesProducto
+              parte="garantia"
+              soloObligatorios={soloObl}
+              conSaga={conSaga}
+              generales={generales}
+              etiquetas={etiquetasCampos}
+              requisitos={requisitosCampos}
+              opcionesSaga={opcionesSaga}
+              atribCategoria={atribCategoria}
+              valores={attrsProducto}
+              onChange={cambiarAttrsProducto}
+            />
+          </div>
+
+          <div className="pf-panel-bloque" id="pf-desc">
+            <strong>Visibilidad</strong>
               <div className="pf-var-opciones">
               <label className="campo-check">
                 <input
@@ -1135,75 +1298,58 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 />
                 Destacado (aparece resaltado en el catálogo)
               </label>
-                {sinVariantes && opcionesVariante(variantes[0], 0)}
               </div>
-            </div>
-          </details>
+          </div>
+        </div>
 
-          {sinVariantes && (
-            <details id="pf-precio" className="saga-seccion pf-sub">
-              <summary>
-                Precio y stock
-                <em>
-                  {variantes[0].precio === "" ? "sin precio" : `S/ ${variantes[0].precio}`}
-                  {" · "}
-                  {variantes[0].esPack ? `pack ${variantes[0].stockPack}` : variantes[0].stockCantidad !== "" ? `stock ${variantes[0].stockCantidad}` : variantes[0].stock ? "con stock" : "sin stock"}
-                </em>
-              </summary>
-              <div className="saga-cuerpo pf-sub-cuerpo pf-sub-plano">{bloquePrecioStock(variantes[0], 0)}</div>
-            </details>
-          )}
-
-          {sinVariantes && (
-            <details id="pf-imagenes" className="saga-seccion pf-sub">
-              <summary>
-                Imágenes
-                <em>{variantes[0].imagenes.length ? `${variantes[0].imagenes.length} imagen${variantes[0].imagenes.length === 1 ? "" : "es"}` : "sin imágenes"}</em>
-              </summary>
-              <div className="saga-cuerpo pf-sub-cuerpo pf-sub-plano">{bloqueImagenes(variantes[0], 0)}</div>
-            </details>
-          )}
-
-          <details id="pf-atributos" className="saga-seccion pf-sub">
-            <summary>
-              Atributos del producto <em>{nombreCategoria}</em>
-            </summary>
-            <div className="saga-cuerpo pf-sub-cuerpo">
+        <div hidden={panel !== "atributos"} data-panel="atributos" className="form-grid">
+          <div className="pf-panel-bloque" id="pf-atributos">
+            <strong>Atributos del producto · {nombreCategoria}</strong>
             <AtributosProducto
+              omitirGenerales
+              conservarVariacion
               valores={attrsProducto}
               onChange={cambiarAttrsProducto}
               prefijo="prod"
               conSaga={conSaga}
               sagaGeneral={sagaGeneral}
+              generales={generales}
+              etiquetas={etiquetasCampos}
+              requisitos={requisitosCampos}
               opcionesSaga={opcionesSaga}
               atribCategoria={atribCategoria}
               nombreCategoria={nombreCategoria}
               sinVariantes={sinVariantes}
             />
-            </div>
-          </details>
+          </div>
         </div>
 
-        {/* Variantes: solo en categorías que las permiten (Configuración → SAGA). Cada una repite estos atributos y hereda los del producto. */}
-        {sinVariantes && permiteVar && !restringido && (
-          <div className="pf-agregar-variante">
-            <button type="button" className="btn-ico-texto" onClick={agregarVariante}>
-              <IconoMas /> Agregar variante
-            </button>
-            <small>Cada variante repite estos atributos y hereda los del producto; solo cambias lo que la distingue.</small>
-          </div>
-        )}
-      </details>
-
-      {/* ===== 2. Plataformas (SAGA) ===== */}
-      {conSaga && (
-        <details id="pf-plataformas" className="pf-seccion pf-seccion-saga pf-seccion-plegable" open>
-          <summary className="pf-seccion-cab">
-            <div>
-              <h3>Plataformas</h3>
-              <small>Elige dónde publicar y cómo. Cada plataforma se puede plegar; sus datos no se muestran en la web.</small>
+        <div hidden={panel !== "variantes"} data-panel="variantes" className="form-grid">
+          <div className="pf-panel-bloque" id="pf-variantes">
+            <div className="pf-var-cabecera">
+              <div>
+                <strong>{sinVariantes ? "Variante única" : "Variantes"}</strong>
+                <small>
+                  {permiteVar
+                    ? "Cada variante se llena en sus pestañas: características, precio, inventario y multimedia."
+                    : "Esta categoría no admite más variantes: el producto se llena en una sola (se activa en Configuración → Integraciones → Web → Categorías)."}
+                </small>
+              </div>
+              {permiteVar && !restringido && (
+                <button type="button" className="btn-ico-texto" onClick={agregarVariante}>
+                  <IconoMas /> Agregar variante
+                </button>
+              )}
             </div>
-          </summary>
+            {variantes.map((v, i) => tarjetaVariante(v, i))}
+          </div>
+        </div>
+
+        {conSaga && (
+          <div hidden={panel !== "integraciones"} data-panel="integraciones" className="form-grid">
+            <div className="pf-panel-bloque" id="pf-plataformas">
+              <strong>Plataformas</strong>
+              <small>Elige dónde publicar y cómo. Cada plataforma se puede plegar; sus datos no se muestran en la web.</small>
 
           <details className="saga-seccion pf-plataforma">
             <summary>
@@ -1235,7 +1381,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                           }
                         />
                         <span className="pf-cuenta-nombre">{c.nombre}</span>
-                        <span className="pf-cuenta-estado">{marcada ? "Se publica aquí" : "No publicar"}</span>
+                        <span className="pf-cuenta-estado">{marcada ? "Se publica aquí" : sincronizadas.includes(c.alias) ? "Se dejará de sincronizar al guardar" : "No publicar"}</span>
                       </label>
                     );
                   })}
@@ -1268,47 +1414,10 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                 )}
               </div>
 
-              {/* 3. SKU padre: solo con 2 o más variantes */}
-              {verSkuPadre && (
-                <div className="pf-paso">
-                  <div className="pf-paso-cab">
-                    <span className="pf-paso-n">3</span>
-                    <div>
-                      <strong>SKU padre</strong>
-                      <small>
-                        {skuPadreBloqueado
-                          ? "Ya se envió a SAGA: aquí no cambia. Para agrupar SKU ya creados usa la acción «Actualizar» con el atributo «SKU padre» (pruébalo antes con SKU de prueba)."
-                          : "Agrupa las variantes en una sola ficha de SAGA. Sin marcar, cada variante es un producto suelto."}
-                      </small>
-                    </div>
-                  </div>
-                  <label className="campo-check">
-                    <input
-                      type="checkbox"
-                      name="usarSkuPadre"
-                      checked={saga.usarSkuPadre}
-                      disabled={skuPadreBloqueado}
-                      onChange={(e) => cambiarSaga({ usarSkuPadre: e.target.checked })}
-                    />
-                    Usar SKU padre
-                  </label>
-                  {saga.usarSkuPadre && (
-                    <div className="campo">
-                      <small>
-                        SKU padre en SAGA: <strong>{(skuPadreBloqueado ? producto?.saga?.skuPadre || producto?.id : saga.skuPadre) || id || "(id del producto)"}</strong>
-                        {skuPadreBloqueado
-                          ? " — ya se envió: no cambia aunque edites el de la web."
-                          : " — sale del SKU padre de Identificación. Queda guardado en el primer envío y se reutiliza al agregar variantes."}
-                      </small>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Acciones por cuenta (paso 3 o 4) */}
+              {/* 3. Acciones por cuenta */}
               <div className="pf-paso">
                 <div className="pf-paso-cab">
-                  <span className="pf-paso-n">{verSkuPadre ? 4 : 3}</span>
+                  <span className="pf-paso-n">3</span>
                   <div>
                     <strong>¿Qué quieres hacer en cada cuenta?</strong>
                     <small>Crear un producto nuevo en SAGA o vincular/actualizar uno que ya existe con ese SKU.</small>
@@ -1341,6 +1450,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                             <td>
                               <strong>{v.nombre.trim() || "Sin nombre"}</strong>
                               <small style={{ display: "block", color: "var(--gris)" }}>{v.sku ? `SKU ${v.sku}` : "Sin SKU"}</small>
+                              {estadoDeVariante(i)}
                             </td>
                             {cuentasSaga.filter((c) => cuentasMarcadas.includes(c.alias)).map((c) => <td key={c.alias}>{selectorAccion(v, i, c)}</td>)}
                           </tr>
@@ -1349,150 +1459,14 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                     </table>
                   </div>
                 )}
-                {sinVariantes && cuentasMarcadas.length > 0 && listaFaltantes(0)}
+                {sinVariantes && cuentasMarcadas.length > 0 && <div className="pf-estado-unica">{estadoDeVariante(0)}</div>}
               </div>
             </div>
           </details>
-        </details>
-      )}
-
-      {/* ===== 4. Variantes (solo cuando hay más de una; con una sola, todo va en el producto) ===== */}
-      {!sinVariantes && (
-      <details id="pf-variantes" className="pf-seccion pf-seccion-plegable" open>
-        <summary className="pf-seccion-cab">
-          <div>
-            <h3>Variantes</h3>
-            <small>
-              {permiteVar
-                ? "Cada variante tiene su precio, stock, imágenes y atributos; lo que no personalices lo hereda del producto."
-                : "Esta categoría ya no maneja variantes: no se pueden agregar más (se activa en Configuración → SAGA)."}
-            </small>
-          </div>
-          {permiteVar && (
-            <button type="button" className="btn-ico-texto" onClick={agregarVariante}>
-              <IconoMas /> Agregar variante
-            </button>
-          )}
-        </summary>
-
-        {variantes.map((v, i) => (
-          <details className="pf-variante" key={v.key} id={`pf-var-${i}`} open={v.abierta === true}>
-            <summary className="pf-var-resumen">
-              <span className="pf-var-n">{i + 1}</span>
-              <strong className="pf-var-nombre">{v.nombre.trim() || "Sin nombre"}</strong>
-              <span className="pf-var-dato">{v.sku ? `SKU ${v.sku}` : "Sin SKU"}</span>
-              <span className="pf-var-dato">{v.precio === "" ? "Sin precio" : `S/ ${v.precio}`}</span>
-              <span className="pf-var-dato">
-                {v.esPack
-                  ? `Pack · ${v.stockPack}`
-                  : v.stockCantidad !== ""
-                    ? `Stock ${v.stockCantidad}`
-                    : v.stock ? "Con stock" : "Sin stock"}
-              </span>
-              {!v.activo && <span className="chip-saga aviso">Inactiva</span>}
-              {v.esPack && <span className="chip-saga">Pack</span>}
-              {conSaga && cuentasMarcadas.length > 0 && (
-                <span className={faltantesPorVariante[i].total ? "chip-saga aviso" : "chip-saga ok"}>
-                  {faltantesPorVariante[i].total ? `SAGA: faltan ${faltantesPorVariante[i].total}` : "SAGA: ok"}
-                </span>
-              )}
-            </summary>
-
-            <div className="pf-var-cuerpo">
-              <div className="pf-var-opciones">{opcionesVariante(v, i)}</div>
-
-              {!sinVariantes && (
-              <div className="pf-bloque">
-                <h5>Identificación</h5>
-                <div className="pf-grid-3">
-                  <div className="campo">
-                    <label>Nombre de la variante</label>
-                    <input
-                      type="text"
-                      value={v.nombre}
-                      onChange={(e) => actualizarVariante(i, { nombre: e.target.value })}
-                      placeholder='Ej: "Único", "50 ml", "Rosa"'
-                    />
-                  </div>
-                  <div className="campo">
-                    <label>SKU (código único, enlaza con facturación)</label>
-                    <div className="pf-sku-grupo">
-                      <input
-                        type="text"
-                        value={v.sku}
-                        onChange={(e) => actualizarVariante(i, { sku: e.target.value })}
-                        placeholder="Ej: YB-ROSA-50"
-                      />
-                      {controlTraer(v, i)}
-                    </div>
-                    {mensajesTraer(v)}
-                  </div>
-                  {conSaga && (
-                    <div className="campo">
-                      <label>Código de barras</label>
-                      <input type="text" value={v.codigoBarras} onChange={(e) => actualizarVariante(i, { codigoBarras: e.target.value })} />
-                    </div>
-                  )}
-                </div>
-              </div>
-              )}
-
-              {bloquePrecioStock(v, i)}
-
-              {bloqueImagenes(v, i)}
-
-              {!sinVariantes && (
-                <details className="pf-bloque saga-seccion pf-var-attrs">
-                  <summary>
-                    Atributos de esta variante
-                    <em>
-                      {Object.keys(v.attrs || {}).length
-                        ? `${Object.keys(v.attrs).length} personalizado${Object.keys(v.attrs).length === 1 ? "" : "s"}`
-                        : "iguales a los del producto"}
-                    </em>
-                  </summary>
-                  <div className="saga-cuerpo form-grid">
-                    <div className="pf-var-attrs-acciones">
-                      <button type="button" className="btn-ico-texto" onClick={() => copiarTodoDelProducto(i)} title="Llena todos los atributos de esta variante con los valores actuales del producto, para editarlos desde ahí">
-                        Copiar todo del producto
-                      </button>
-                      <button type="button" className="btn-ico-texto" disabled={!Object.keys(v.attrs || {}).length} onClick={() => usarLosDelProducto(i)} title="Quita lo personalizado: la variante vuelve a usar los atributos del producto">
-                        Usar los del producto
-                      </button>
-                      <small>Lo que dejes vacío usa el valor del producto («= producto»); si cambias el producto, la variante lo sigue.</small>
-                    </div>
-                    <AtributosProducto
-                      valores={v.attrs || {}}
-                      onChange={(c) => cambiarAttrsVariante(i, c)}
-                      heredados={{ ...attrsProducto, descripcion }}
-                      prefijo={`var${i}`}
-                      conSaga={conSaga}
-                      sagaGeneral={sagaGeneral}
-                      opcionesSaga={opcionesSaga}
-                      atribCategoria={atribCategoria}
-                      nombreCategoria={nombreCategoria}
-                    />
-                  </div>
-                </details>
-              )}
-              {conSaga && !sinVariantes && bloqueSaga(v, i)}
             </div>
-          </details>
-        ))}
-      </details>
-      )}
-
-      {/* ===== 5. Precios por plataforma: solo las cuentas marcadas en «Plataformas» ===== */}
-      {conSaga && (
-        <details id="pf-precios" className="pf-seccion pf-precios pf-seccion-plegable" open>
-          <summary className="pf-seccion-cab">
-            <div>
-              <h3>Precios por plataforma</h3>
-              <small>
-                Lo que se publica en cada cuenta marcada. Si dejas un campo vacío, la plataforma usa el precio de la web.
-              </small>
-            </div>
-          </summary>
+            <div className="pf-panel-bloque pf-precios" id="pf-precios">
+              <strong>Precios por plataforma</strong>
+              <small>Lo que se publica en cada cuenta marcada. Si dejas un campo vacío, la plataforma usa el precio de la web.</small>
 
           {cuentasMarcadas.length === 0 ? (
             <div className="pf-precios-vacio">
@@ -1576,9 +1550,41 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
               );
             })
           )}
-        </details>
-      )}
-      <div className="pf-pie">{botonGuardar}</div>
+            </div>
+          </div>
+        )}
+      </div>
+
     </form>
+  );
+}
+
+/** Iconos de línea de las pestañas del formulario de producto. */
+function IconoPanelProducto({ id }) {
+  const trazos = {
+    producto: <path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5v-9Zm0 0L12 12m9-4.5L12 12m0 9v-9" />,
+    atributos: <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+    variantes: <path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z" />,
+    conexion: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
+  };
+  return (
+    <svg className="pf-pestana-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {trazos[id]}
+    </svg>
+  );
+}
+
+/** Iconos de línea de las pestañas de cada variante. */
+function IconoVariante({ id }) {
+  const trazos = {
+    car: <path d="M4 20h4l10-10-4-4L4 16v4Zm9-13 4 4M14 20h6" />,
+    pre: <path d="M6 8h12l1 12H5L6 8Zm3 0a3 3 0 0 1 6 0" />,
+    inv: <path d="M4 7V4h3M20 7V4h-3M4 17v3h3m13-3v3h-3M8 8v8m3-8v8m3-8v8m3-8v8" />,
+    mul: <path d="M4 6h16v12H4V6Zm0 9 4-4 4 4 3-3 5 5M15 9.5h.01" />,
+  };
+  return (
+    <svg className="pf-vtab-ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {trazos[id]}
+    </svg>
   );
 }

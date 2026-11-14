@@ -97,6 +97,7 @@ export default async function DashboardPage({ searchParams }) {
         <DashboardFiltros
           tab={tab}
           periodo={periodo.clave}
+          etiquetaPeriodo={periodo.etiqueta}
           desde={periodo.desde}
           hasta={periodo.hasta}
           hoy={hoyLima()}
@@ -105,6 +106,11 @@ export default async function DashboardPage({ searchParams }) {
           opciones={opciones}
           atajos={atajos}
           chips={chips}
+          hrefs={{
+            periodo: href({ periodo: "", desde: "", hasta: "" }),
+            categoria: href({ categoria: "" }),
+            destino: href({ destino: "" }),
+          }}
           hrefExportar={tab === "ventas" ? `/admin/ventas/exportar?${exportar}` : null}
         />
       )}
