@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { useRef } from "react";
-import { IconoBuscar, IconoFiltro, IconoCerrar } from "./Iconos";
+import { IconoBuscar, IconoCerrar } from "./Iconos";
 
 /**
  * Barra de filtros de la tabla de sincronizaciones (mismo estilo que la de Ventas y Productos):
- * buscador por producto o SKU, selector de cuenta y, si llega `usuarios`, de usuario del panel;
+ * buscador por producto, SKU o variante, selector de cuenta y, si llega `usuarios`, de usuario del panel;
  * debajo, chips con los filtros activos para quitarlos. Los enlaces de los chips llegan calculados.
  */
 export default function FiltrosSincronizaciones({ action, estado, filtros, cuentas, usuarios = null, acciones = null, chips }) {
@@ -15,7 +15,6 @@ export default function FiltrosSincronizaciones({ action, estado, filtros, cuent
 
   const selector = (nombre, etiqueta, opciones, valor) => (
     <label className="admin-filtro" title={etiqueta}>
-      <IconoFiltro size={16} />
       <select name={nombre} defaultValue={valor || ""} aria-label={etiqueta} onChange={enviar}>
         <option value="">{etiqueta}: todos</option>
         {opciones.map(([v, texto]) => (
@@ -33,7 +32,7 @@ export default function FiltrosSincronizaciones({ action, estado, filtros, cuent
         {estado !== "error" && <input type="hidden" name="estado" value={estado} />}
         <div className="admin-barra-buscar ancha">
           <IconoBuscar size={18} />
-          <input type="search" name="q" defaultValue={filtros.q || ""} placeholder="Buscar por producto o SKU..." />
+          <input type="search" name="q" defaultValue={filtros.q || ""} placeholder="Buscar por producto, SKU o variante..." />
           <span className="admin-barra-sep" aria-hidden="true" />
           {selector("cuenta", "Cuenta", cuentas.map((c) => [c.alias, c.nombre]), filtros.cuenta)}
           {usuarios && (
