@@ -1,102 +1,114 @@
 "use client";
 
-import { useState } from "react";
+import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { soles, solesDec, formatoClave } from "./Graficos";
+import { COLOR_ACTUAL, COLOR_PREVIO, LINEA, TICK, solesCorto } from "./tema";
 
-/** Columnas de ventas por día/mes con eje y, línea base y etiqueta flotante (mouse o teclado). */
-export default function Tendencia({ datos, vacio = "Sin ventas en este periodo." }) {
-  const [sel, setSel] = useState(null);
-
-  if (!datos.length || datos.every((d) => d.monto === 0)) {
+/**
+ * Ventas en el tiempo: área del periodo actual y, si hay `previo`, una línea punteada con el periodo anterior alineada
+ * por día. `datos`: [{ clave, claveAnterior?, etiqueta, letra?, monto|null, n, previo?|null, nPrevio? }]; un `monto` null
+ * es un día aún sin ocurrir (la serie se corta). La letra (L M X J V S D) va bajo cada fecha.
+ */
+export default function Tendencia({ datos, etiquetaActual = "Actual", etiquetaPrevia = "Anterior", vacio = "Sin ventas en este periodo." }) {
+  const hayPrevio = datos.some((d) => d.previo !== undefined && d.previo !== null);
+  if (!datos.length || datos.every((d) => !d.monto && !d.previo)) {
     return <p style={{ color: "var(--gris)" }}>{vacio}</p>;
   }
-  const W = 640;
-  const H = 170;
-  const margenIzq = 46;
-  const margenSup = 8;
-  const max = Math.max(...datos.map((d) => d.monto));
-  const ancho = (W - margenIzq) / datos.length;
-  const barra = Math.max(2, Math.min(28, ancho * 0.7));
-  const y = (v) => margenSup + (H - margenSup) * (1 - v / max);
-  const cx = (i) => margenIzq + i * ancho + ancho / 2;
-  const idxMedio = Math.floor(datos.length / 2);
+  const total = datos.reduce((s, d) => s + (d.monto || 0), 0);
+  const conLetra = datos.some((d) => d.letra);
+  const todas = datos.length <= 31;
+  const fecha = (iso) => (iso ? (iso.length === 10 ? `${iso.slice(8)}/${iso.slice(5, 7)}` : formatoClave(iso)) : "");
 
-  const d = sel !== null ? datos[sel] : null;
-  const pos = sel !== null ? sel / datos.length : 0;
-  const traslado = pos > 0.7 ? "-100%" : pos > 0.3 ? "-50%" : "0";
-
-  return (
-    <div style={{ position: "relative" }}>
-      <svg className="dash-svg" viewBox={`0 0 ${W} ${H + 22}`} role="group" aria-label="Ventas en el tiempo" onMouseLeave={() => setSel(null)}>
-        {[0, 0.5, 1].map((m) => (
-          <g key={m}>
-            <line x1={margenIzq} x2={W} y1={y(max * m)} y2={y(max * m)} stroke="var(--linea)" strokeWidth={m === 0 ? 1.5 : 1} strokeDasharray={m === 0 ? undefined : "3 3"} />
-            <text x={margenIzq - 6} y={y(max * m) + 4} fontSize="11" fill="var(--gris)" textAnchor="end">
-              {soles(max * m)}
-            </text>
-          </g>
-        ))}
-
-        {sel !== null && <rect x={margenIzq + sel * ancho} y={margenSup} width={ancho} height={H - margenSup} fill="var(--rosa-tenue)" opacity="0.6" />}
-
-        {datos.map((p, i) => {
-          const h = Math.max(p.monto > 0 ? 2 : 0, H - y(p.monto));
-          return <rect key={p.clave} x={cx(i) - barra / 2} y={H - h} width={barra} height={h} rx="3" fill="var(--rosa)" opacity={sel === null || sel === i ? 1 : 0.55} />;
-        })}
-
-        <text x={margenIzq} y={H + 16} fontSize="11" fill="var(--gris)">{formatoClave(datos[0].clave)}</text>
-        {datos.length > 2 && (
-          <text x={cx(idxMedio)} y={H + 16} fontSize="11" fill="var(--gris)" textAnchor="middle">{formatoClave(datos[idxMedio].clave)}</text>
+  function Tick({ x, y, payload, index }) {
+    const d = datos[index ?? payload.index] || {};
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text y={12} textAnchor="middle" fontSize={datos.length > 24 ? 10 : 11} fill="#8c6f7d">{d.etiqueta}</text>
+        {conLetra && d.letra && (
+          <text y={25} textAnchor="middle" fontSize={10} fontWeight={600} fill={d.letra === "D" ? "#c62828" : "#b9a5b0"}>{d.letra}</text>
         )}
-        {datos.length > 1 && (
-          <text x={W} y={H + 16} fontSize="11" fill="var(--gris)" textAnchor="end">{formatoClave(datos[datos.length - 1].clave)}</text>
-        )}
+      </g>
+    );
+  }
 
-        {datos.map((p, i) => (
-          <rect
-            key={p.clave}
-            x={margenIzq + i * ancho}
-            y={0}
-            width={ancho}
-            height={H + 22}
-            fill="transparent"
-            tabIndex={datos.length <= 62 ? 0 : -1}
-            role="img"
-            aria-label={`${formatoClave(p.clave)}: ${solesDec(p.monto)}, ${p.n} ventas`}
-            style={{ cursor: "pointer", outline: "none" }}
-            onMouseEnter={() => setSel(i)}
-            onFocus={() => setSel(i)}
-            onBlur={() => setSel(null)}
-          />
-        ))}
-      </svg>
-
-      {d && (
-        <div
-          role="status"
-          style={{
-            position: "absolute",
-            top: 8,
-            left: `${(cx(sel) / W) * 100}%`,
-            transform: `translateX(${traslado})`,
-            pointerEvents: "none",
-            background: "var(--blanco, #fff)",
-            border: "1px solid var(--linea)",
-            borderRadius: 8,
-            boxShadow: "0 4px 14px rgba(0,0,0,.12)",
-            padding: "8px 12px",
-            fontSize: 13,
-            lineHeight: 1.5,
-            whiteSpace: "nowrap",
-            zIndex: 2,
-          }}
-        >
-          <strong>{formatoClave(d.clave)}</strong>
+  function Etiqueta({ active, payload }) {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    const dif = d.monto !== null && d.previo > 0 ? ((d.monto - d.previo) / d.previo) * 100 : null;
+    return (
+      <div className="dash-tip" role="status">
+        {d.monto !== null && (
           <div>
+            <span className="dash-tip-marca" style={{ background: COLOR_ACTUAL }} />
+            {hayPrevio ? `${fecha(d.clave)} (${d.letra || ""}) · ` : `${fecha(d.clave)} · `}
             <strong>{solesDec(d.monto)}</strong> · {d.n} ventas
           </div>
+        )}
+        {hayPrevio && d.previo !== null && d.previo !== undefined && (
+          <div>
+            <span className="dash-tip-marca linea" style={{ background: COLOR_PREVIO }} />
+            {fecha(d.claveAnterior)} · <strong>{solesDec(d.previo)}</strong> · {d.nPrevio} ventas
+          </div>
+        )}
+        {dif !== null && (
+          <div className={dif >= 0 ? "delta-pos" : "delta-neg"}>
+            {dif >= 0 ? "▲" : "▼"} {Math.abs(dif).toFixed(0)}% vs día anterior comparado
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const alto = conLetra ? 240 : 215;
+  return (
+    <div>
+      {hayPrevio && (
+        <div className="dash-leyenda">
+          <span><i style={{ background: COLOR_ACTUAL }} />{etiquetaActual}</span>
+          <span><i className="linea" style={{ background: COLOR_PREVIO }} />{etiquetaPrevia}</span>
         </div>
       )}
+      <div className="dash-chart" style={{ height: alto }} role="img" aria-label={`Ventas en el tiempo, total ${soles(total)}${hayPrevio ? `, comparado con ${etiquetaPrevia}` : ""}`}>
+        <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 640, height: alto }}>
+          <ComposedChart data={datos} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+            <defs>
+              <linearGradient id="dash-grad-tend" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={COLOR_ACTUAL} stopOpacity={0.28} />
+                <stop offset="100%" stopColor={COLOR_ACTUAL} stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid vertical={false} stroke={LINEA} strokeDasharray="3 3" />
+            <XAxis dataKey="etiqueta" tick={<Tick />} tickLine={false} axisLine={{ stroke: LINEA }} interval={todas ? 0 : "preserveStartEnd"} minTickGap={todas ? 0 : 28} height={conLetra ? 34 : 22} />
+            <YAxis tickFormatter={solesCorto} tick={TICK} tickLine={false} axisLine={false} width={48} />
+            <Tooltip content={<Etiqueta />} cursor={{ stroke: COLOR_ACTUAL, strokeOpacity: 0.35, strokeDasharray: "3 3" }} />
+            {hayPrevio && (
+              <Line type="monotone" dataKey="previo" stroke={COLOR_PREVIO} strokeWidth={1.75} strokeDasharray="5 4" dot={false} activeDot={{ r: 4, fill: COLOR_PREVIO, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
+            )}
+            <Area
+              type="monotone"
+              dataKey="monto"
+              stroke={COLOR_ACTUAL}
+              strokeWidth={2}
+              fill="url(#dash-grad-tend)"
+              dot={datos.length <= 31 ? { r: 2.5, fill: "#fff", stroke: COLOR_ACTUAL, strokeWidth: 1.5 } : false}
+              activeDot={{ r: 5, fill: COLOR_ACTUAL, stroke: "#fff", strokeWidth: 2 }}
+              isAnimationActive={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+        <table className="solo-lector">
+          <caption>Ventas en el tiempo</caption>
+          <tbody>
+            {datos.map((d, i) => (
+              <tr key={d.clave || `p${i}`}>
+                <th>{d.etiqueta}</th>
+                <td>{d.monto === null ? "—" : solesDec(d.monto)}</td>
+                {hayPrevio && <td>{d.previo === null ? "—" : solesDec(d.previo)}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

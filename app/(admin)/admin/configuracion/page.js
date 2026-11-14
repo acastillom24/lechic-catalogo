@@ -38,9 +38,7 @@ export default async function ConfiguracionPage() {
   );
   return (
     <div className="form-grid">
-      <div className="admin-titulo-fila">
-        <h1 className="admin-titulo">Configuración</h1>
-      </div>
+      <h1 className="solo-lector">Configuración</h1>
       <ConfiguracionForm
         inicial={config}
         extras={{

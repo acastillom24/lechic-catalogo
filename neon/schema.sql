@@ -403,7 +403,8 @@ create table if not exists cuentas_saga (
   user_id text,                            -- UserID de Seller Center
   activo  boolean not null default true
 );
-alter table cuentas_saga add column if not exists api_key  text;  -- solo servidor; nunca se envía al navegador
+alter table cuentas_saga drop column if exists api_key;  -- legado en texto plano; ya migrado a api_key_cifrada
+alter table cuentas_saga add column if not exists api_key_cifrada text;  -- formato iv.tag.cipher (base64); solo servidor, nunca se envía al navegador
 alter table cuentas_saga add column if not exists base_url text;  -- elegida de la lista configurable (saga_opciones.urlsBase)
 alter table cuentas_saga add column if not exists operador text;  -- código de unidad de negocio (saga_opciones.operadores)
 
@@ -560,4 +561,16 @@ create table if not exists login_intentos (
   intentos  int  not null default 0,
   desde     timestamptz not null default now(),
   primary key (ambito, clave)
+);
+
+-- Cuentas de Ripley (Mirakl). Una fila por cuenta; la API key se guarda cifrada (AES-256-GCM, lib/cifrado.js)
+-- y solo la usa el servidor. Las tablas de sincronización de Ripley llegan en una fase posterior.
+create table if not exists cuentas_ripley (
+  alias          text primary key,         -- identifica la cuenta, ej. tienda1
+  nombre         text not null,
+  activo         boolean not null default true,
+  base_url       text not null,            -- instancia Mirakl, ej. https://ripleyperu-prod.mirakl.net
+  api_key_cifrada text,                    -- formato iv.tag.cipher (base64); nunca se envía al navegador
+  shop_id        text,                     -- opcional: id de la tienda en Mirakl (solo informativo)
+  creado_en      timestamptz not null default now()
 );

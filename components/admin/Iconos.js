@@ -46,11 +46,11 @@ export const IconoExportar = (p) => (
   </Icono>
 );
 
-/** Flecha entrando a una bandeja (como "Import from CSV"). */
-export const IconoImportar = (p) => (
+/** Agregar producto: mismo trazo que IconoExportar (marco abierto) con un «+». */
+export const IconoProductoNuevo = (p) => (
   <Icono {...p}>
-    <path d="M12 4v10M8 10l4 4 4-4" />
-    <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    <path d="M10 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h5" />
+    <path d="M12 12h8M16 8v8" />
   </Icono>
 );
 

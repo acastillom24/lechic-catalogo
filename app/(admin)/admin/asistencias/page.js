@@ -32,7 +32,7 @@ export default async function AsistenciasPage({ searchParams }) {
   return (
     <div className="form-grid">
       <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
-        <h1 className="admin-titulo">Asistencias</h1>
+        <h1 className="solo-lector">Asistencias</h1>
         <span className="nota-periodo" style={{ textTransform: "capitalize" }}>{fechaLarga}</span>
       </div>
       <TabsAsistencias activo="registro" />

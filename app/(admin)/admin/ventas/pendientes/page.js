@@ -112,9 +112,7 @@ export default async function PendientesPage({ searchParams }) {
 
   return (
     <div className="form-grid">
-      <div className="admin-titulo-fila" style={{ marginBottom: 0 }}>
-        <h1 className="admin-titulo">Ventas pendientes ({filas.length})</h1>
-      </div>
+      <h1 className="solo-lector">Ventas pendientes ({filas.length})</h1>
       <TabsVentas activo="pendientes" pendientes={todas.length} />
 
       {editarId && ventaEdicion && (
@@ -150,7 +148,7 @@ export default async function PendientesPage({ searchParams }) {
 
       <VentasBarra ocultos={parametros(["q"])} q={filtros.q} chips={chips} hrefCsv={hrefExportar()} hrefExcel={hrefExportar("xlsx")} accion={RUTA} />
 
-      <div className="admin-card" style={{ padding: 0, overflowX: "auto" }}>
+      <div className="admin-card tabla-scroll" style={{ padding: 0 }}>
         <table className="admin-tabla">
           <thead>
             <tr>

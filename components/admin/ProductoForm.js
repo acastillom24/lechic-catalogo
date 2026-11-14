@@ -473,7 +473,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
   function quitarVariante(i) {
     const v = variantes[i];
     // Una variante ya guardada se elimina al guardar el producto, con su historial de stock: se pide confirmación.
-    if (v?.id && !confirm(`Quitar «${v.nombre.trim() || "Sin nombre"}»: se eliminará al guardar, junto con su historial de stock y su vínculo con SAGA.\n\nSi solo quieres ocultarla del sitio, cancela y desmarca «Activa».\n\n¿Quitarla?`)) return;
+    if (v?.id && !confirm(`Eliminar «${v.nombre.trim() || "Sin nombre"}»: se eliminará al guardar, junto con su historial de stock, y también se quitará de SAGA si está sincronizada.\n\nSi solo quieres ocultarla del sitio, cancela y desmarca «Activa».\n\n¿Eliminarla?`)) return;
     setVariantes((prev) => {
       if (prev.length <= 1) return prev;
       const quedan = prev.filter((_, idx) => idx !== i);
@@ -747,7 +747,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
     );
   };
 
-  // «Activa» y «Quitar variante» (solo desde la segunda) de una variante.
+  // «Activa» y «Eliminar variante» (solo desde la segunda) de una variante.
   const opcionesVariante = (v, i) => (
     <>
                   <label className="campo-check">
@@ -760,7 +760,7 @@ export default function ProductoForm({ modo, marcas, pestanas = [], producto, ac
                   </label>
                   {!restringido && i > 0 && (
                     <button type="button" className="btn-admin peligro pf-var-quitar" onClick={() => quitarVariante(i)}>
-                      Quitar variante
+                      Eliminar variante
                     </button>
                   )}
     </>
