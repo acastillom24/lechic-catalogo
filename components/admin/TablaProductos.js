@@ -18,6 +18,7 @@ import {
   IconoEditar,
   IconoCampana,
   IconoCerrar,
+  IconoBuscar,
 } from "./Iconos";
 
 const INFO_NIVEL = Object.fromEntries(NIVELES.map((n) => [n.id, n]));
@@ -50,6 +51,8 @@ export default function TablaProductos({
   hrefAlertas,
   configStock,
   columnas = {},
+  q = "",
+  hrefSinBusqueda = "/admin",
   marcas = [],
   cuentas = [],
   hrefLimpiarColumnas,
@@ -101,11 +104,15 @@ export default function TablaProductos({
   // Filtros por columna (como en Ventas): icono en el encabezado, ventanita con las opciones de esa columna.
   const hrefSin = (claves) => {
     const u = new URLSearchParams();
+    if (q) u.set("q", q);
     for (const [k, v] of Object.entries(columnas)) if (!claves.includes(k)) u.set(`c_${k}`, v);
     const t = u.toString();
     return t ? `/admin?${t}` : "/admin";
   };
-  const ocultosSin = (claves) => Object.fromEntries(Object.entries(columnas).filter(([k]) => !claves.includes(k)).map(([k, v]) => [`c_${k}`, v]));
+  const ocultosSin = (claves) => ({
+    ...(q ? { q } : {}),
+    ...Object.fromEntries(Object.entries(columnas).filter(([k]) => !claves.includes(k)).map(([k, v]) => [`c_${k}`, v])),
+  });
   const lista = (arr) => arr.map(([valor, texto]) => ({ valor, texto }));
   const col = (etiqueta, claves, campos) => (
     <FiltroColumna
@@ -122,6 +129,7 @@ export default function TablaProductos({
   const rango = (d, h, prefijo) => (columnas[d] || columnas[h] ? `${prefijo}${columnas[d] ? ` desde ${columnas[d]}` : ""}${columnas[h] ? ` hasta ${columnas[h]}` : ""}` : null);
   // Etiquetas de los filtros activos, cada una con su ✕.
   const chips = [
+    q && { texto: `"${q}"`, href: hrefSinBusqueda },
     columnas.producto && { texto: `Producto: ${columnas.producto}`, href: hrefSin(["producto"]) },
     columnas.variante && { texto: `Variante: ${columnas.variante}`, href: hrefSin(["variante"]) },
     columnas.sku && { texto: `SKU: ${columnas.sku}`, href: hrefSin(["sku"]) },
@@ -171,6 +179,14 @@ export default function TablaProductos({
           )}
         </div>
 
+        <form method="get" action="/admin" className="prod-buscar">
+          {Object.entries(columnas).map(([k, v]) => <input key={k} type="hidden" name={`c_${k}`} value={v} />)}
+          <div className="admin-barra-buscar ancha">
+            <IconoBuscar size={18} />
+            <input type="search" name="q" defaultValue={q} placeholder="Buscar por producto, SKU o variante..." aria-label="Buscar productos" />
+          </div>
+        </form>
+
         <div className="admin-barra-der">
           <details className="admin-menu" ref={menuImportar}>
             <summary className="btn-ico-texto">
@@ -190,6 +206,7 @@ export default function TablaProductos({
 
           <form method="post" action="/admin/exportar" onSubmit={cerrarMenu}>
             <input type="hidden" name="ids" value={[...seleccion].join(",")} />
+            {q && <input type="hidden" name="q" value={q} />}
             {Object.entries(columnas).map(([k, v]) => <input key={k} type="hidden" name={`c_${k}`} value={v} />)}
             <details className="admin-menu" ref={menuRef}>
               <summary className="btn-ico-texto">
@@ -282,9 +299,9 @@ export default function TablaProductos({
                 />
               </th>
               <th></th>
-              <th>{col("Producto", ["producto"], [{ tipo: "texto", name: "producto", placeholder: "Nombre del producto" }])}</th>
-              <th>{col("Variante", ["variante"], [{ tipo: "texto", name: "variante", placeholder: "Nombre de la variante" }])}</th>
-              <th>{col("SKU", ["sku"], [{ tipo: "texto", name: "sku", placeholder: "Código SKU" }])}</th>
+              <th>Producto</th>
+              <th>Variante</th>
+              <th>SKU</th>
               <th>{col("Marca", ["marca"], [{ tipo: "select", name: "marca", opciones: lista(marcas.map((m) => [m, m])) }])}</th>
               <th>
                 {col("Sistemas", ["sistema", "cuenta"], [

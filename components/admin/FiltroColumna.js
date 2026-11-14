@@ -24,7 +24,14 @@ export default function FiltroColumna({ etiqueta, activo, campos, ocultos = {}, 
       setAbierto(false);
     };
     const tecla = (e) => e.key === "Escape" && setAbierto(false);
-    const cerrar = () => setAbierto(false);
+    // Un scroll dentro de la propia ventanita (p. ej. la lista de un select con textos largos) no debe cerrarla,
+    // ni un resize que no cambia el ancho de la ventana.
+    const anchoInicial = window.innerWidth;
+    const cerrar = (e) => {
+      if (e?.type === "scroll" && caja.current && e.target instanceof Node && caja.current.contains(e.target)) return;
+      if (e?.type === "resize" && window.innerWidth === anchoInicial) return;
+      setAbierto(false);
+    };
     document.addEventListener("mousedown", fuera);
     document.addEventListener("keydown", tecla);
     window.addEventListener("resize", cerrar);

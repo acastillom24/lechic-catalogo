@@ -24,14 +24,15 @@ export default async function AdminProductosPage({ searchParams }) {
   const historialId = Number(params?.historial) || null;
 
   const columnas = leerFiltrosColumnas(params);
+  const q = typeof params?.q === "string" ? params.q.trim().slice(0, 80) : ""; // búsqueda por producto, variante o SKU
 
   const porPagina = 30;
   const paginaPedida = Math.max(1, parseInt(params?.pagina, 10) || 1);
-  let { variantes, total } = await getInventario({ columnas, pagina: paginaPedida, porPagina });
+  let { variantes, total } = await getInventario({ q, columnas, pagina: paginaPedida, porPagina });
   const totalPaginas = Math.max(1, Math.ceil(total / porPagina));
   const pagina = Math.min(paginaPedida, totalPaginas);
   if (pagina !== paginaPedida) {
-    ({ variantes } = await getInventario({ columnas, pagina, porPagina }));
+    ({ variantes } = await getInventario({ q, columnas, pagina, porPagina }));
   }
   const [alertas, movimientos, marcas, cuentas, configStock] = await Promise.all([
     getAlertasStock(),
@@ -44,7 +45,7 @@ export default async function AdminProductosPage({ searchParams }) {
   const href = (extra = {}) => {
     const sp = new URLSearchParams();
     const delasColumnas = Object.fromEntries(Object.entries(columnas).map(([k, v]) => [`c_${k}`, v]));
-    const val = { ...delasColumnas, pagina: "", historial: "", ...extra };
+    const val = { ...delasColumnas, q, pagina: "", historial: "", ...extra };
     for (const [k, v] of Object.entries(val)) if (v) sp.set(k, String(v));
     const s = sp.toString();
     return s ? `/admin?${s}` : "/admin";
@@ -126,9 +127,11 @@ export default async function AdminProductosPage({ searchParams }) {
         hrefAlertas={href({ c_stock: "alertas" })}
         configStock={configStock}
         columnas={columnas}
+        q={q}
         marcas={marcas.map((m) => m.marca)}
         cuentas={cuentas.map((c) => c.alias)}
         hrefLimpiarColumnas={href(Object.fromEntries(Object.keys(columnas).map((k) => [`c_${k}`, ""])))}
+        hrefSinBusqueda={href({ q: "" })}
       />
 
       <Paginacion

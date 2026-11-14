@@ -1573,3 +1573,12 @@ html { scroll-behavior: smooth; }
 .saga-aviso-mini { width: 32px; height: 32px; border: 1px solid var(--linea); box-shadow: var(--sombra); cursor: pointer; font-size: .95rem; }
 @keyframes saga-aviso-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .saga-aviso { animation: none; } }
+
+/* Filtro de columna: un texto largo en una opción no debe ensanchar ni desbordar la ventanita */
+.fcol-panel { max-width: calc(100vw - 16px); }
+.fcol-campo select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
+
+/* Productos: buscador en la barra superior */
+.prod-buscar { flex: 1 1 280px; min-width: 0; }
+.prod-buscar .admin-barra-buscar { max-width: none; width: 100%; }
+.prod-barra { flex-wrap: wrap; gap: 10px; }
