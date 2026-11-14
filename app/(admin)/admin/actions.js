@@ -1093,17 +1093,26 @@ export async function guardarCuentaSaga(prevState, formData) {
   if (!urlOk) return { error: "Elige una URL base de la lista." };
   if (!operOk) return { error: "Elige un código de operador de la lista." };
 
+  let cifrada = null;
+  if (apiKey) {
+    try {
+      cifrada = cifrarCredencial(apiKey);
+    } catch (e) {
+      return { error: e.message };
+    }
+  }
+
   try {
     if (nueva) {
       await query(
-        "insert into cuentas_saga (alias, nombre, user_id, api_key, base_url, operador, activo) values ($1,$2,$3,$4,$5,$6,$7)",
-        [alias, nombre, userId, apiKey, baseUrl, operador, activo]
+        "insert into cuentas_saga (alias, nombre, user_id, api_key_cifrada, base_url, operador, activo) values ($1,$2,$3,$4,$5,$6,$7)",
+        [alias, nombre, userId, cifrada, baseUrl, operador, activo]
       );
     } else {
       await query(
-        `update cuentas_saga set alias=$2, nombre=$3, user_id=$4, api_key=coalesce(nullif($5,''), api_key),
+        `update cuentas_saga set alias=$2, nombre=$3, user_id=$4, api_key_cifrada=coalesce($5, api_key_cifrada),
                 base_url=$6, operador=$7, activo=$8 where alias=$1`,
-        [original, alias, nombre, userId, apiKey, baseUrl, operador, activo]
+        [original, alias, nombre, userId, cifrada, baseUrl, operador, activo]
       );
     }
   } catch (e) {
@@ -1316,7 +1325,7 @@ export async function traerGrupoSaga(alias, sku) {
 export async function consultarAtributosSaga(categoriaId) {
   const id = String(categoriaId || "").trim();
   if (!/^\d+$/.test(id)) return { error: "Elige una categoría de SAGA." };
-  const [cuenta] = await query("select * from cuentas_saga where activo and api_key is not null and api_key <> '' order by alias limit 1");
+  const [cuenta] = await query("select * from cuentas_saga where activo and (api_key_cifrada is not null and api_key_cifrada <> '') order by alias limit 1");
   if (!cuenta) return { error: "No hay una cuenta SAGA activa con API key (Configuración → Integraciones → SAGA)." };
   try {
     const r = await atributosCategoriaSaga(credencialesSaga(cuenta), id);
@@ -1351,7 +1360,7 @@ export async function consultarMarcasSaga(texto) {
   const q = String(texto || "").trim().toLowerCase();
   try {
     if (Date.now() - cacheMarcasSaga.t > 10 * 60 * 1000 || !cacheMarcasSaga.nombres.length) {
-      const [cuenta] = await query("select * from cuentas_saga where activo and api_key is not null and api_key <> '' order by alias limit 1");
+      const [cuenta] = await query("select * from cuentas_saga where activo and (api_key_cifrada is not null and api_key_cifrada <> '') order by alias limit 1");
       if (!cuenta) return { error: "No hay una cuenta SAGA activa con API key (Configuración → Integraciones → SAGA)." };
       const r = await marcasSagaApi(credencialesSaga(cuenta));
       const lista = (x) => (Array.isArray(x) ? x : x ? [x] : []);

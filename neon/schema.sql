@@ -403,7 +403,8 @@ create table if not exists cuentas_saga (
   user_id text,                            -- UserID de Seller Center
   activo  boolean not null default true
 );
-alter table cuentas_saga add column if not exists api_key  text;  -- solo servidor; nunca se envía al navegador
+alter table cuentas_saga drop column if exists api_key;  -- legado en texto plano; ya migrado a api_key_cifrada
+alter table cuentas_saga add column if not exists api_key_cifrada text;  -- formato iv.tag.cipher (base64); solo servidor, nunca se envía al navegador
 alter table cuentas_saga add column if not exists base_url text;  -- elegida de la lista configurable (saga_opciones.urlsBase)
 alter table cuentas_saga add column if not exists operador text;  -- código de unidad de negocio (saga_opciones.operadores)
 
